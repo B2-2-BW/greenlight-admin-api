@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.prototype.admin.db.repository.mapper.UserMapper">
+    <insert id="save" parameterType="User">
+        INSERT INTO users
+        (
+            username,
+            user_nickname,
+            password_hash,
+            created_by,
+            updated_by
+        )
+        VALUES (
+            #{username},
+            #{userNickname},
+            #{passwordHash},
+            #{createdBy},
+            #{updatedBy}
+        );
+
+    </insert>
+</mapper>
