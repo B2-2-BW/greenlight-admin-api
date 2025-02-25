@@ -1,6 +1,5 @@
 package com.winten.greenlight.prototype.admin.domain.event;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.prototype.admin.db.repository.redis.EventEntity;
 import com.winten.greenlight.prototype.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;

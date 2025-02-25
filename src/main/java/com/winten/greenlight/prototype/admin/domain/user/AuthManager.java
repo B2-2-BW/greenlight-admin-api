@@ -9,7 +9,7 @@ public class AuthManager {
     private final PasswordEncoder passwordEncoder;
 
     public AuthManager() {
-        this.passwordEncoder = new BCryptPasswordEncoder();;
+        this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
     public String encode(String password) {

@@ -1,7 +1,6 @@
 package com.winten.greenlight.prototype.admin.api.controller.event;
 
 import com.winten.greenlight.prototype.admin.domain.event.Event;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.List;
