@@ -16,6 +16,7 @@ public class EventUpdateRequestDto {
 
     public Event toEvent() {
         Event event = new Event();
+        event.setEventName(eventName);
         event.setEventDescription(eventDescription);
         event.setEventType(eventType);
         event.setEventUrl(eventUrl);
