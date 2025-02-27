@@ -53,8 +53,8 @@
             #{eventType},
             #{eventUrl},
             #{queueBackpressure},
-            #{event_start_time},
-            #{event_end_time},
+            #{eventStartTime},
+            #{eventEndTime},
             #{createdBy},
             #{updatedBy}
         )
