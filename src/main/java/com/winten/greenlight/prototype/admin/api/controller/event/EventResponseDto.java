@@ -17,6 +17,8 @@ public class EventResponseDto {
     private String eventType;
     private String eventUrl;
     private Integer queueBackpressure;
+    private LocalDateTime eventStartTime;
+    private LocalDateTime eventEndTime;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     protected String createdBy;
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -33,6 +35,8 @@ public class EventResponseDto {
         this.eventType = event.getEventType();
         this.eventUrl = event.getEventUrl();
         this.queueBackpressure = event.getQueueBackpressure();
+        this.eventStartTime = event.getEventStartTime();
+        this.eventEndTime = event.getEventEndTime();
         this.createdBy = event.getCreatedBy();
         this.createdAt = event.getCreatedAt();
         this.updatedBy = event.getUpdatedBy();

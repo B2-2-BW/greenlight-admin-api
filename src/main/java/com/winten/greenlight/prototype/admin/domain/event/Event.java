@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,6 +20,8 @@ public class Event extends AuditDto {
     private String eventType;
     private String eventUrl;
     private Integer queueBackpressure;
+    private LocalDateTime eventStartTime;
+    private LocalDateTime eventEndTime;
 
     public Event(final EventEntity entity) {
         this.eventName = entity.getEventName();

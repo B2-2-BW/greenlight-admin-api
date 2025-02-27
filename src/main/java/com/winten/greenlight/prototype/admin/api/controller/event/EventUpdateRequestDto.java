@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.winten.greenlight.prototype.admin.domain.event.Event;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class EventUpdateRequestDto {
     @JsonIgnore
@@ -12,6 +14,8 @@ public class EventUpdateRequestDto {
     private String eventType;
     private String eventUrl;
     private Integer queueBackpressure;
+    private LocalDateTime eventStartTime;
+    private LocalDateTime eventEndTime;
     private String updatedBy;
 
     public Event toEvent() {
@@ -21,6 +25,8 @@ public class EventUpdateRequestDto {
         event.setEventType(eventType);
         event.setEventUrl(eventUrl);
         event.setQueueBackpressure(queueBackpressure);
+        event.setEventStartTime(eventStartTime);
+        event.setEventEndTime(eventEndTime);
         event.setUpdatedBy(updatedBy);
         return event;
     }

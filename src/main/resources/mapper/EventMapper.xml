@@ -9,6 +9,8 @@
             event_type,
             event_url,
             queue_backpressure,
+            event_start_time,
+            event_end_time,
             created_at,
             created_by,
             updated_at,
@@ -24,6 +26,8 @@
             event_type,
             event_url,
             queue_backpressure,
+            event_start_time,
+            event_end_time,
             created_at,
             created_by,
             updated_at,
@@ -38,6 +42,8 @@
             event_type,
             event_url,
             queue_backpressure,
+            event_start_time,
+            event_end_time,
             created_by,
             updated_by
         )
@@ -47,6 +53,8 @@
             #{eventType},
             #{eventUrl},
             #{queueBackpressure},
+            #{event_start_time},
+            #{event_end_time},
             #{createdBy},
             #{updatedBy}
         )
@@ -58,6 +66,8 @@
             <if test="eventType != null"> event_type = #{eventType}, </if>
             <if test="eventUrl != null"> event_url = #{eventUrl}, </if>
             <if test="queueBackpressure != null"> queue_backpressure = #{queueBackpressure}, </if>
+            <if test="eventStartTime != null"> event_start_time = #{eventStartTime}, </if>
+            <if test="eventEndTime != null"> event_end_time = #{eventEndTime}, </if>
             <if test="updatedBy != null"> updated_by = #{updatedBy}, </if>
             updated_at = now()
         WHERE event_name = #{eventName}
