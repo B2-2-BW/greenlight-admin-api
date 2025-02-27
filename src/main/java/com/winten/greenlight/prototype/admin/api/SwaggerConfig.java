@@ -14,7 +14,7 @@ import java.util.List;
 // http://localhost:8080/swagger-ui/index.html
 @Configuration
 public class SwaggerConfig {
-    @Value("${spring.server.url}")
+    @Value("${server.url}")
     private String serverUrl;
 
     @Value("${server.port}")
