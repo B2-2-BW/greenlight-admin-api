@@ -14,8 +14,8 @@ import java.util.List;
 // http://localhost:8080/swagger-ui/index.html
 @Configuration
 public class SwaggerConfig {
-//    @Value("${spring.server.url}")
-//    private String serverUrl;
+    @Value("${spring.server.url}")
+    private String serverUrl;
 
     @Value("${server.port}")
     private String serverPort;
@@ -32,7 +32,7 @@ public class SwaggerConfig {
                                 .url("API license URL"))
                 )
                 .servers(List.of(
-//                        new Server().url(serverUrl).description("Greenlight Back Office HTTPS API 서버"),
+                        new Server().url(serverUrl).description("Greenlight Back Office HTTPS API 서버"),
                         new Server().url("http://localhost:"+serverPort).description("Greenlight Back Office Localhost API 서버")
                 ));
     }

@@ -21,7 +21,7 @@ server:
   port: 8090
   error:
     include-message: always
-
+  url: ${SERVER_URL}
 logging:
   config: classpath:logback/logback-${spring.profiles.active}.xml
   level:
