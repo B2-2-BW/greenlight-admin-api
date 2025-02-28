@@ -62,4 +62,12 @@ public class EventService {
         eventRedisRepository.pop(event.getEventName());
         return event;
     }
+
+    public Integer reloadAllEventCache() {
+        List<Event> events = getAllEvents();
+        for (Event event : events) {
+            eventRedisRepository.put(event);
+        }
+        return events.size();
+    }
 }

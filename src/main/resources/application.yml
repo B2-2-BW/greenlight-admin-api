@@ -18,10 +18,11 @@ mybatis:
     cache-enabled: true
 
 server:
-  port: 8090
+  port: 28080
   error:
     include-message: always
   url: ${SERVER_URL}
+
 logging:
   config: classpath:logback/logback-${spring.profiles.active}.xml
   level:
@@ -65,3 +66,8 @@ spring:
       host: ${STORAGE_REDIS_HOST}
       port: ${STORAGE_REDIS_PORT}
       password: ${STORAGE_REDIS_PASSWORD}
+logging:
+  level:
+    root: ERROR
+    com.winten: ERROR
+    com.winten.greenlight: ERROR

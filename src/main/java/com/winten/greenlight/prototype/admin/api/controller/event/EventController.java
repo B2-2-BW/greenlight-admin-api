@@ -23,6 +23,11 @@ public class EventController {
         return ResponseEntity.ok(new EventResponseDto(eventService.getEventByName(eventName)));
     }
 
+    @PostMapping("/cache/reload")
+    public ResponseEntity<EventCacheResponseDto> reloadAllEventCache() {
+        return ResponseEntity.ok(new EventCacheResponseDto(eventService.reloadAllEventCache()));
+    }
+
     @PostMapping("")
     public ResponseEntity<EventResponseDto> createEvent(@RequestBody EventRequestDto requestDto) {
         return ResponseEntity
