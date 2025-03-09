@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.admin.db.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.EventEntity;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +29,7 @@ public class CoreRedisConfig {
         return redisTemplate;
     }
     @Bean
-    public RedisTemplate<String, EventEntity> eventRedisTemplate(LettuceConnectionFactory factory) {
+    public RedisTemplate<String, EventEntity> eventRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
         RedisTemplate<String, EventEntity> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(factory);
 
@@ -36,9 +37,10 @@ public class CoreRedisConfig {
         redisTemplate.setKeySerializer(keySerializer);
         redisTemplate.setHashKeySerializer(keySerializer);
 
-        RedisSerializer<EventEntity> valueSerializer = new Jackson2JsonRedisSerializer<>(EventEntity.class);
-        redisTemplate.setValueSerializer(valueSerializer);
-        redisTemplate.setHashValueSerializer(valueSerializer);
+        RedisSerializer<EventEntity> eventSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, EventEntity.class);
+
+        redisTemplate.setValueSerializer(eventSerializer);
+        redisTemplate.setHashValueSerializer(eventSerializer);
 
         return redisTemplate;
     }

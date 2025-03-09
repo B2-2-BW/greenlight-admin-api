@@ -29,6 +29,8 @@ public class Event extends AuditDto {
         this.eventType = entity.getEventType();
         this.eventUrl = entity.getEventUrl();
         this.queueBackpressure = entity.getQueueBackpressure();
+        this.eventStartTime = entity.getEventStartTime();
+        this.eventEndTime = entity.getEventEndTime();
     }
 
     public EventEntity toEntity() {
@@ -38,6 +40,8 @@ public class Event extends AuditDto {
         entity.setEventType(eventType);
         entity.setEventUrl(eventUrl);
         entity.setQueueBackpressure(queueBackpressure);
+        entity.setEventStartTime(eventStartTime);
+        entity.setEventEndTime(eventEndTime);
         return entity;
     }
 }
