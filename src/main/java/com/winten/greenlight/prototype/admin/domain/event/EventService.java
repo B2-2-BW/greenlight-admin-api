@@ -52,8 +52,9 @@ public class EventService {
         getEventByName(event.getEventName()); // 기존 이벤트 없으면 오류
 
         eventMapper.updateByName(event);
-        eventRedisRepository.put(event);
-        return getEventByName(event.getEventName());
+        Event updatedEvent = getEventByName(event.getEventName());
+        eventRedisRepository.put(updatedEvent);
+        return updatedEvent;
     }
 
     public Event deleteEvent(Event event) {
