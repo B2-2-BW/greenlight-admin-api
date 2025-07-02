@@ -1,0 +1,16 @@
+package com.winten.greenlight.prototype.admin.db.repository.mapper.action;
+
+import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
+import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
+import java.util.Optional;
+
+@Mapper
+public interface ActionGroupMapper {
+    List<ActionGroup> findAll(String ownerId);
+    Optional<ActionGroup> findOneById(ActionGroup actionGroup);
+    ActionGroup save(ActionGroup actionGroup);
+    ActionGroup updateById(ActionGroup actionGroup);
+    Long deleteById(ActionGroup actionGroup);
+}

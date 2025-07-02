@@ -1,21 +1,21 @@
 package com.winten.greenlight.prototype.admin.api.controller.user;
 
 import com.winten.greenlight.prototype.admin.domain.user.User;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-public class UserRequestDto {
-    private String username;
-    private String userNickname;
+@AllArgsConstructor
+@NoArgsConstructor
+public class UserLoginRequest {
+    private String userId;
     private String password;
-    private String passcode;
 
     public User toUser() {
         var user = new User();
-        user.setUsername(username);
-        user.setUserNickname(userNickname);
+        user.setUserId(userId);
         user.setPassword(password);
-        user.setPasscode(passcode);
         return user;
     }
 }

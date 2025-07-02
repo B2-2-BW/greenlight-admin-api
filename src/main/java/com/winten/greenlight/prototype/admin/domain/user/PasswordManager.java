@@ -5,10 +5,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AuthManager {
+public class PasswordManager {
     private final PasswordEncoder passwordEncoder;
 
-    public AuthManager() {
+    public PasswordManager() {
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 

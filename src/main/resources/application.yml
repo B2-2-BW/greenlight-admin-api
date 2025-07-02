@@ -10,6 +10,10 @@ spring:
       idle-timeout: 30000
       max-lifetime: 1800000
       connection-timeout: 30000
+  data:
+    redis:
+      cluster:
+        max-redirects: 3
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
@@ -30,6 +34,23 @@ logging:
     root: INFO
     com.winten: DEBUG
 
+springdoc:
+  swagger-ui:
+    groups-order: DESC
+    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    defaultModelsExpandDepth: -1
+  api-docs:
+    path: /api-docs
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  paths-to-match:
+    - /**
+
+redis:
+  key-prefix: ${REDIS_KEY_PREFIX}
+
 ---
 spring.config.activate.on-profile: local
 spring:
@@ -39,9 +60,15 @@ spring:
     password: ${STORAGE_POSTGRESQL_PASSWORD}
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 ---
 spring.config.activate.on-profile: dev
 spring:
@@ -51,10 +78,15 @@ spring:
     password: ${STORAGE_POSTGRESQL_PASSWORD}
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
-
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 ---
 spring.config.activate.on-profile: live
 spring:
@@ -64,9 +96,15 @@ spring:
     password: ${STORAGE_POSTGRESQL_PASSWORD}
   data:
     redis:
-      host: ${STORAGE_REDIS_HOST}
-      port: ${STORAGE_REDIS_PORT}
-      password: ${STORAGE_REDIS_PASSWORD}
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_MASTER_NODE_1}
+          - ${REDIS_CLUSTER_MASTER_NODE_2}
+          - ${REDIS_CLUSTER_MASTER_NODE_3}
+          - ${REDIS_CLUSTER_WORKER_NODE_1}
+          - ${REDIS_CLUSTER_WORKER_NODE_2}
+          - ${REDIS_CLUSTER_WORKER_NODE_3}
+      password: ${REDIS_PASSWORD}
 logging:
   level:
     root: ERROR

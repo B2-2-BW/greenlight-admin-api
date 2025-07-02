@@ -1,6 +1,5 @@
 package com.winten.greenlight.prototype.admin.domain.user;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.winten.greenlight.prototype.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,13 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
-public class User extends AuditDto {
-    private Long accountId;
-    private String userId;
-    private String username;
-    @JsonIgnore
-    private String password;
-    @JsonIgnore
-    private String passwordHash;
-    private UserRole userRole;
+public class UserToken extends AuditDto {
+    private String accessToken;
 }

@@ -1,13 +1,25 @@
 package com.winten.greenlight.prototype.admin.support.error;
 
+import org.postgresql.util.PSQLException;
 import org.springframework.http.HttpStatus;
 
-public record ErrorResponse(HttpStatus status, ErrorCode errorCode, String message, Object detail) {
+import java.time.LocalDateTime;
+
+public record ErrorResponse(HttpStatus status, ErrorCode errorCode, String message, Object detail, LocalDateTime timestamp) {
     public ErrorResponse(CoreException exception) {
         this(exception.getErrorType().getStatus(),
                 exception.getErrorType().getCode(),
                 exception.getErrorType().getMessage(),
-                exception.getDetail()
+                exception.getDetail(),
+                LocalDateTime.now()
+        );
+    }
+    public ErrorResponse(PSQLException ex) {
+        this(HttpStatus.INTERNAL_SERVER_ERROR,
+                ErrorCode.E500,
+                "PostgreSQL Error",
+                ex.getServerErrorMessage(),
+                LocalDateTime.now()
         );
     }
 }
