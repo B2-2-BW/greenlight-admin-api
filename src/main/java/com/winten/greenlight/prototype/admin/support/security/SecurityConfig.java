@@ -1,6 +1,6 @@
 package com.winten.greenlight.prototype.admin.support.security;
 
-import com.winten.greenlight.prototype.admin.support.error.JwtAuthenticationFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.admin.support.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +25,8 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
+                .requestMatchers(HttpMethod.OPTIONS)
+                .requestMatchers(CorsUtils::isPreFlightRequest)
                 .requestMatchers("/error")
                 .requestMatchers(HttpMethod.GET, "/favicon.ico")
                 .requestMatchers(HttpMethod.POST, "/users/login")
@@ -33,11 +35,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
+                    .requestMatchers(HttpMethod.OPTIONS).permitAll()
                     .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                     .requestMatchers("/error").permitAll()
                     .requestMatchers(HttpMethod.GET, "/favicon.ico").permitAll()
@@ -46,10 +49,11 @@ public class SecurityConfig {
                     .requestMatchers("/api-docs/**").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
-            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, objectMapper), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(exception -> exception
                     .authenticationEntryPoint(authenticationEntryPoint)
-            );
+            )
+            ;
 
         return http.build();
     }

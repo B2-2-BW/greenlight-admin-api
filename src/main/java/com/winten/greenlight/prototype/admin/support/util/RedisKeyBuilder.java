@@ -18,7 +18,7 @@ public class RedisKeyBuilder {
         return String.format("%s:action_group:%d:status", prefix, actionGroupId);
     }
 
-    public String action(Long actionGroupId, Long actionId) {
-        return String.format("%s:action_group:%d:action:%d", prefix, actionGroupId, actionId);
+    public String action(Long actionId) {
+        return String.format("%s:action:%d", prefix, actionId);
     }
 }

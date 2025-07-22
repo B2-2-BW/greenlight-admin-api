@@ -3,6 +3,7 @@ package com.winten.greenlight.prototype.admin.api.controller.actiongroup;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
+import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequestMapping("/action-groups")
 @RequiredArgsConstructor
 public class ActionGroupController {
+    private final ActionGroupConverter actionGroupConverter;
     private final ActionGroupService actionGroupService;
 
     // GET /api/v1/action-groups
@@ -24,7 +26,7 @@ public class ActionGroupController {
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
         var result = actionGroupService.getAllActionGroupByOwnerId(currentUser);
-        var response = result.stream().map(ActionGroupResponse::of).toList();
+        var response = result.stream().map(actionGroupConverter::toResponse).toList();
         return ResponseEntity.ok(response);
     }
 
@@ -34,8 +36,8 @@ public class ActionGroupController {
             @PathVariable final Long actionGroupId,
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
-        var result = actionGroupService.getActionGroupById(actionGroupId, currentUser);
-        return ResponseEntity.ok(ActionGroupResponse.of(result));
+        var result = actionGroupService.getActionGroupByIdWithAction(actionGroupId, currentUser);
+        return ResponseEntity.ok(actionGroupConverter.toResponse(result));
     }
 
     // POST /api/v1/action-groups
@@ -44,8 +46,8 @@ public class ActionGroupController {
             @RequestBody final ActionGroupCreateRequest request,
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
-        var result = actionGroupService.createActionGroup(request.toActionGroup(), currentUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ActionGroupResponse.of(result));
+        var result = actionGroupService.createActionGroup(actionGroupConverter.toDto(request), currentUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(actionGroupConverter.toResponse(result));
     }
 
     // PUT /api/v1/action-groups/{actionGroupId}
@@ -55,10 +57,10 @@ public class ActionGroupController {
             @RequestBody final ActionGroupUpdateRequest request,
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
-        ActionGroup actionGroup = request.toActionGroup();
+        ActionGroup actionGroup = actionGroupConverter.toDto(request);
         actionGroup.setId(actionGroupId);
         var result = actionGroupService.updateActionGroup(actionGroup, currentUser);
-        return ResponseEntity.ok(ActionGroupResponse.of(result));
+        return ResponseEntity.ok(actionGroupConverter.toResponse(result));
     }
 
     // DELETE /api/v1/action-groups/{actionGroupId}
@@ -68,6 +70,6 @@ public class ActionGroupController {
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
         ActionGroup result = actionGroupService.deleteActionGroup(actionGroupId, currentUser);
-        return ResponseEntity.ok(ActionGroupResponse.of(result));
+        return ResponseEntity.ok(actionGroupConverter.toResponse(result));
     }
 }

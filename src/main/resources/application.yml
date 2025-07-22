@@ -3,7 +3,7 @@ spring.profiles.active: local
 
 spring:
   datasource:
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -50,6 +50,9 @@ springdoc:
 
 redis:
   key-prefix: ${REDIS_KEY_PREFIX}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
 
 ---
 spring.config.activate.on-profile: local

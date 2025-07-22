@@ -23,7 +23,7 @@ import java.util.List;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
-public class Action extends AuditDto implements Hashable {
+public class Action extends AuditDto {
 
     /**
      * Action의 고유 식별자(ID)입니다.

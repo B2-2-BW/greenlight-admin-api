@@ -14,13 +14,4 @@ public class UserCreateRequest {
     private String username;
     private String password;
     private UserRole userRole;
-
-    public User toUser() {
-        var user = new User();
-        user.setUserId(userId);
-        user.setUsername(username);
-        user.setPassword(password);
-        user.setUserRole(userRole);
-        return user;
-    }
 }

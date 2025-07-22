@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.admin.db.repository.mapper.action;
+package com.winten.greenlight.prototype.admin.db.repository.mapper.actiongroup;
 
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import org.apache.ibatis.annotations.Mapper;

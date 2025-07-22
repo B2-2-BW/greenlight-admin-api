@@ -21,6 +21,7 @@ public class ActionService {
     private final RedisKeyBuilder keyBuilder;
     private final RedisWriter redisWriter;
     private final ActionRuleMapper actionRuleMapper;
+    private final ActionConverter actionConverter;
 
     // TODO Action Rule 추가하기
     public List<Action> getAllActionsByOwnerId(String ownerId) {
@@ -56,7 +57,6 @@ public class ActionService {
     public Action createActionInGroup(
             Long actionGroupId,
             Action action,
-            List<ActionRule> actionRules,
             CurrentUser currentUser
     ) {
         // DB Insert
@@ -70,7 +70,7 @@ public class ActionService {
         Action actionResult = actionMapper.save(action);
 
         // Action Rule 저장
-        for (ActionRule actionRule : actionRules) {
+        for (ActionRule actionRule : action.getActionRules()) {
             actionRule.setActionId(actionResult.getId());
             actionRule.setCreatedBy(currentUser.getUserId());
             actionRule.setUpdatedBy(currentUser.getUserId());
@@ -80,15 +80,14 @@ public class ActionService {
         actionResult.setActionRules(actionRuleResult);
 
         // Redis put
-        String key = keyBuilder.action(actionGroupId, actionResult.getId());
-        redisWriter.putAll(key, actionResult);
+        String key = keyBuilder.action(actionResult.getId());
+        redisWriter.putAll(key, actionConverter.toEntity(actionResult));
         
         return actionResult;
     }
 
     public Action updateActionById(
             Action action,
-            List<ActionRule> actionRules,
             CurrentUser currentUser
     ) {
         getActionById(action.getId(), currentUser); // 존재여부 확인, 없으면 exception
@@ -103,7 +102,7 @@ public class ActionService {
         //  현재는 전체 삭제 후 다시 insert 중임
         // Action Rule 삭제 후 저장
         actionRuleMapper.deleteAllByActionId(actionResult.getId());
-        for (ActionRule actionRule : actionRules) {
+        for (ActionRule actionRule : action.getActionRules()) {
             actionRule.setActionId(actionResult.getId());
             actionRule.setCreatedBy(currentUser.getUserId());
             actionRule.setUpdatedBy(currentUser.getUserId());
@@ -113,8 +112,8 @@ public class ActionService {
         actionResult.setActionRules(actionRuleResult);
 
         // Redis put
-        String key = keyBuilder.action(actionResult.getActionGroupId(), actionResult.getId());
-        redisWriter.putAll(key, actionResult);
+        String key = keyBuilder.action(actionResult.getId());
+        redisWriter.putAll(key, actionConverter.toEntity(actionResult));
 
         return actionResult;
     }
@@ -128,7 +127,7 @@ public class ActionService {
         actionRuleMapper.deleteAllByActionId(actionId);
 
         // Redis Delete
-        String key = keyBuilder.action(action.getActionGroupId(), actionId);
+        String key = keyBuilder.action(actionId);
         redisWriter.delete(key);
 
         return Action.builder()
@@ -147,6 +146,16 @@ public class ActionService {
             if (action.getLandingEndAt() == null) {
                 throw CoreException.of(ErrorType.INVALID_DATA, "액션유형이 LANDING인 경우 랜딩 종료시간(landingEndAt)은 필수로 입력되어야 합니다.");
             }
+        }
+    }
+
+    public void reloadActionCache(CurrentUser currentUser) {
+        List<Action> actions = getAllActionsByOwnerId(currentUser.getUserId());
+        for (Action action : actions) {
+            List<ActionRule> actionRuleResult = actionRuleMapper.findAllByActionId(action.getId());
+            action.setActionRules(actionRuleResult);
+            String key = keyBuilder.action(action.getId());
+            redisWriter.putAll(key, actionConverter.toEntity(action));
         }
     }
 }

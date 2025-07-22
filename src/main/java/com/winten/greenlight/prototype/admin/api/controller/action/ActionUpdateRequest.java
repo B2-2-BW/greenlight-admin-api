@@ -1,6 +1,5 @@
 package com.winten.greenlight.prototype.admin.api.controller.action;
 
-import com.winten.greenlight.prototype.admin.domain.action.Action;
 import com.winten.greenlight.prototype.admin.domain.action.ActionRule;
 import com.winten.greenlight.prototype.admin.domain.action.ActionType;
 import com.winten.greenlight.prototype.admin.domain.action.DefaultRuleType;
@@ -10,7 +9,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -27,21 +25,4 @@ public class ActionUpdateRequest {
     private String landingDestinationUrl;
     private DefaultRuleType defaultRuleType;
     private List<ActionRule> actionRules;
-
-    public Action toAction() {
-        return Action.builder()
-                .actionGroupId(actionGroupId)
-                .name(name)
-                .actionUrl(actionUrl)
-                .actionType(actionType)
-                .landingStartAt(landingStartAt)
-                .landingEndAt(landingEndAt)
-                .landingDestinationUrl(landingDestinationUrl)
-                .defaultRuleType(defaultRuleType)
-                .build();
-    }
-
-    public List<ActionRule> toActionRules() {
-        return actionRules != null ? actionRules : new ArrayList<>();
-    }
 }

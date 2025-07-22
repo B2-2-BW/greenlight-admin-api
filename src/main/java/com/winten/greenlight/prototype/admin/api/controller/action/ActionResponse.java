@@ -15,10 +15,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ActionCreateRequest {
+public class ActionResponse {
+    private Long id;
+    private Long actionGroupId;
+    private String ownerId;
     private String name;
     private String actionUrl;
     private ActionType actionType;
+    private String landingId;
     private LocalDateTime landingStartAt;
     private LocalDateTime landingEndAt;
     private String landingDestinationUrl;

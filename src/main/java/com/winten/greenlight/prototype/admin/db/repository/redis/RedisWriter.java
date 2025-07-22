@@ -19,7 +19,6 @@ public class RedisWriter {
         Map<String, Object> map =
                 objectMapper.convertValue(dto, new TypeReference<>() {}); // DTO to Map 변환
         jsonRedisTemplate.opsForHash().putAll(key, map);
-
     }
 
     public void delete(String key) {

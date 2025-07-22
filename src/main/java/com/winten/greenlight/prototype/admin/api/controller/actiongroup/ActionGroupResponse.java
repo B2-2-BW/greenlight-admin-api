@@ -1,9 +1,12 @@
 package com.winten.greenlight.prototype.admin.api.controller.actiongroup;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.winten.greenlight.prototype.admin.domain.action.Action;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -20,19 +23,6 @@ public class ActionGroupResponse {
     private LocalDateTime createdAt;
     private String updatedBy;
     private LocalDateTime updatedAt;
-
-    public static ActionGroupResponse of(ActionGroup actionGroup) {
-        return ActionGroupResponse.builder()
-                .id(actionGroup.getId())
-                .ownerId(actionGroup.getOwnerId())
-                .name(actionGroup.getName())
-                .description(actionGroup.getDescription())
-                .maxActiveCustomers(actionGroup.getMaxActiveCustomers())
-                .enabled(actionGroup.getEnabled())
-                .createdBy(actionGroup.getCreatedBy())
-                .createdAt(actionGroup.getCreatedAt())
-                .updatedBy(actionGroup.getUpdatedBy())
-                .updatedAt(actionGroup.getUpdatedAt())
-                .build();
-    }
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<Action> actions;
 }

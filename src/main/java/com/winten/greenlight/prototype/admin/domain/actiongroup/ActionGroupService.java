@@ -1,7 +1,9 @@
 package com.winten.greenlight.prototype.admin.domain.actiongroup;
 
-import com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionGroupMapper;
+import com.winten.greenlight.prototype.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
+import com.winten.greenlight.prototype.admin.domain.action.Action;
+import com.winten.greenlight.prototype.admin.domain.action.ActionService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import com.winten.greenlight.prototype.admin.support.error.CoreException;
 import com.winten.greenlight.prototype.admin.support.error.ErrorType;
@@ -15,9 +17,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ActionGroupService {
-    private final ActionGroupMapper actionGroupMapper;
     private final RedisKeyBuilder keyBuilder;
     private final RedisWriter redisWriter;
+    private final ActionGroupMapper actionGroupMapper;
+    private final ActionService actionService;
+    private final ActionGroupConverter actionGroupConverter;
 
     public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser) {
         return actionGroupMapper.findAll(currentUser.getUserId());
@@ -32,6 +36,14 @@ public class ActionGroupService {
                 .orElseThrow(() -> CoreException.of(ErrorType.ACTION_GROUP_NOT_FOUND, "액션 그룹을 찾을 수 없습니다. ID: " + id));
     }
 
+    public ActionGroup getActionGroupByIdWithAction(Long id, CurrentUser currentUser) {
+        ActionGroup actionGroup = getActionGroupById(id, currentUser);
+        List<Action> actions = actionService.getActionsByGroup(id, currentUser);
+        actionGroup.setActions(actions);
+        return actionGroup;
+    }
+
+
     @Transactional
     public ActionGroup createActionGroup(ActionGroup actionGroup, CurrentUser currentUser) {
         actionGroup.setOwnerId(currentUser.getUserId());
@@ -39,7 +51,7 @@ public class ActionGroupService {
 
         // Redis put
         String key = keyBuilder.actionGroupMeta(result.getId());
-        redisWriter.putAll(key, result);
+        redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
         return result;
     }
@@ -54,7 +66,7 @@ public class ActionGroupService {
 
         // Redis put
         String key = keyBuilder.actionGroupMeta(result.getId());
-        redisWriter.putAll(key, result);
+        redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
         return result;
     }

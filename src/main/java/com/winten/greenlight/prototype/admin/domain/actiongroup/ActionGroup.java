@@ -10,6 +10,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.util.List;
+
 
 /**
  * 여러 {@link Action}을 묶어 공통된 자원 및 정책을 관리하는 그룹입니다.
@@ -21,7 +23,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class ActionGroup extends AuditDto implements Hashable {
+public class ActionGroup extends AuditDto {
 
     /**
      * ActionGroup의 고유 식별자(ID)입니다.
@@ -58,4 +60,10 @@ public class ActionGroup extends AuditDto implements Hashable {
      * {@code false}일 경우, 이 그룹에 속한 모든 Action의 대기열 기능이 비활성화됩니다.
      */
     private Boolean enabled;
+
+
+    /**
+     * 그룹에 속한 Action 목록입니다.
+     */
+    private List<Action> actions;
 }

@@ -20,7 +20,7 @@ import java.util.function.Function;
 
 @Component
 public class JwtUtil {
-    @Value("${jwt.secret:121212e12e12secrethahahahsdhadhasdgreenlightSeceret}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 24시간 (밀리초)
