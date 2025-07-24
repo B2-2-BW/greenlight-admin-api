@@ -60,7 +60,7 @@
             <if test="name != null and name != ''"> name = #{name}, </if>
             <if test="ownerId != null and ownerId != ''"> owner_id = #{ownerId}, </if>
             <if test="description != null and description != ''"> description = #{description}, </if>
-            <if test="maxActiveCustomers != null and maxActiveCustomers != ''"> max_active_customers = #{maxActiveCustomers}, </if>
+            <if test="maxActiveCustomers != null and maxActiveCustomers >= 0"> max_active_customers = #{maxActiveCustomers}, </if>
             <if test="enabled != null"> enabled = #{enabled}, </if>
             updated_by = #{ownerId},
             updated_at = CURRENT_TIMESTAMP

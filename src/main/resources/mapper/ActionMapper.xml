@@ -83,11 +83,11 @@
             <if test="ownerId != null and ownerId != ''"> owner_id = #{ownerId}, </if>
             <if test="name != null and name != ''"> name = #{name}, </if>
             <if test="actionUrl != null and actionUrl != ''"> action_url = #{actionUrl}, </if>
-            <if test="actionType != null and actionType != ''"> action_type = #{actionType}, </if>
-            <if test="landingStartAt != null and landingStartAt != ''"> landing_start_at = #{landingStartAt}, </if>
-            <if test="landingEndAt != null and landingEndAt != ''"> landing_end_at = #{landingEndAt}, </if>
+            <if test="actionType != null"> action_type = #{actionType}, </if>
+            <if test="landingStartAt != null"> landing_start_at = #{landingStartAt}, </if>
+            <if test="landingEndAt != null"> landing_end_at = #{landingEndAt}, </if>
             <if test="landingDestinationUrl != null and landingDestinationUrl != ''"> landing_destination_url = #{landingDestinationUrl}, </if>
-            <if test="defaultRuleType != null and defaultRuleType != ''"> default_rule_type = #{defaultRuleType}, </if>
+            <if test="defaultRuleType != null"> default_rule_type = #{defaultRuleType}, </if>
             updated_by = #{ownerId},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
