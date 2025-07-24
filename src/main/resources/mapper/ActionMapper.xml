@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionMapper">
+    <sql id="selectFromAction">
+        SELECT
+            id,
+            action_group_id,
+            owner_id,
+            name,
+            action_url,
+            action_type,
+            landing_id,
+            landing_start_at,
+            landing_end_at,
+            landing_destination_url,
+            default_rule_type,
+            created_by,
+            created_at,
+            updated_by,
+            updated_at
+        FROM action
+    </sql>
+
+    <select id="findAll" parameterType="String" resultType="Action">
+        <include refid="selectFromAction"/>
+        <where>
+            owner_id = #{ownerId}
+        </where>
+    </select>
+
+    <select id="findAllByGroupId" parameterType="Action" resultType="Action">
+        <include refid="selectFromAction"/>
+        <where>
+            action_group_id = #{actionGroupId}
+            AND owner_id = #{ownerId}
+        </where>
+    </select>
+
+    <select id="findOneById" parameterType="Action" resultType="Action">
+        <include refid="selectFromAction"/>
+        <where>
+            id = #{id}
+            AND owner_id = #{ownerId}
+        </where>
+    </select>
+
+    <select id="save" parameterType="Action" resultType="Action">
+        INSERT INTO action
+        (
+            action_group_id,
+            owner_id,
+            name,
+            action_url,
+            action_type,
+            landing_id,
+            landing_start_at,
+            landing_end_at,
+            landing_destination_url,
+            created_by,
+            updated_by
+        )
+        VALUES
+        (
+            #{actionGroupId},
+            #{ownerId},
+            #{name},
+            #{actionUrl},
+            #{actionType},
+            #{landingId},
+            #{landingStartAt},
+            #{landingEndAt},
+            #{landingDestinationUrl},
+            #{ownerId},
+            #{ownerId}
+        )
+        RETURNING *
+    </select>
+
+    <select id="updateById" parameterType="Action" resultType="Action">
+        UPDATE action
+        SET
+            <if test="actionGroupId != null and actionGroupId != ''"> action_group_id = #{actionGroupId}, </if>
+            <if test="ownerId != null and ownerId != ''"> owner_id = #{ownerId}, </if>
+            <if test="name != null and name != ''"> name = #{name}, </if>
+            <if test="actionUrl != null and actionUrl != ''"> action_url = #{actionUrl}, </if>
+            <if test="actionType != null"> action_type = #{actionType}, </if>
+            <if test="landingStartAt != null"> landing_start_at = #{landingStartAt}, </if>
+            <if test="landingEndAt != null"> landing_end_at = #{landingEndAt}, </if>
+            <if test="landingDestinationUrl != null and landingDestinationUrl != ''"> landing_destination_url = #{landingDestinationUrl}, </if>
+            <if test="defaultRuleType != null"> default_rule_type = #{defaultRuleType}, </if>
+            updated_by = #{ownerId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+        AND owner_id = #{ownerId}
+        RETURNING *
+    </select>
+
+    <delete id="deleteById" parameterType="Action">
+        DELETE FROM action
+        WHERE id = #{id}
+        AND owner_id = #{ownerId}
+    </delete>
+
+</mapper>

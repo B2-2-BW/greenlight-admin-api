@@ -1,47 +1,43 @@
 package com.winten.greenlight.prototype.admin.db.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.winten.greenlight.prototype.admin.db.repository.redis.EventEntity;
+import io.lettuce.core.ReadFrom;
+import io.lettuce.core.cluster.ClusterClientOptions;
+import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
+import io.lettuce.core.resource.ClientResources;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
 
 @Configuration
 public class CoreRedisConfig {
     @Bean
-    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties) {
-        var config = new RedisStandaloneConfiguration(properties.getHost(), properties.getPort());
-        config.setPassword(properties.getPassword());
-        return new LettuceConnectionFactory(config);
-    }
-    @Bean
-    public RedisTemplate<String, String> redisTemplate(LettuceConnectionFactory factory) {
-        RedisTemplate<String, String> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(factory);
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new StringRedisSerializer());
-        return redisTemplate;
-    }
-    @Bean
-    public RedisTemplate<String, EventEntity> eventRedisTemplate(LettuceConnectionFactory factory, ObjectMapper objectMapper) {
-        RedisTemplate<String, EventEntity> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(factory);
+    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties, ClientResources clientResources) {
+        var clusterNodes = properties.getCluster().getNodes();
+        var clusterConfig = new RedisClusterConfiguration(clusterNodes);
+        clusterConfig.setPassword(properties.getPassword());
+        
+        var topologyRefreshOptions = ClusterTopologyRefreshOptions.builder()
+                .enablePeriodicRefresh(Duration.ofSeconds(30)) // 주기적으로 토폴로지 새로고침
+                .enableAllAdaptiveRefreshTriggers() // MOVEC, ASK 등 트리거에 반응하여 새로고침
+                .adaptiveRefreshTriggersTimeout(Duration.ofSeconds(25)) // 적응형 새로고침 타임아웃
+                .build();
 
-        RedisSerializer<String> keySerializer = new StringRedisSerializer();
-        redisTemplate.setKeySerializer(keySerializer);
-        redisTemplate.setHashKeySerializer(keySerializer);
+        var clusterClientOptions = ClusterClientOptions.builder()
+                .topologyRefreshOptions(topologyRefreshOptions)
+                .build();
 
-        RedisSerializer<EventEntity> eventSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, EventEntity.class);
-
-        redisTemplate.setValueSerializer(eventSerializer);
-        redisTemplate.setHashValueSerializer(eventSerializer);
-
-        return redisTemplate;
+        var clientConfig = LettuceClientConfiguration.builder()
+                .clientResources(clientResources)
+                .clientOptions(clusterClientOptions)
+                .readFrom(ReadFrom.REPLICA_PREFERRED) // 읽기 작업을 슬레이브 노드에서 수행하도록 설정
+                .commandTimeout(Duration.ofSeconds(10)) // 커맨드 타임아웃 설정
+                .build();
+        
+        return new LettuceConnectionFactory(clusterConfig, clientConfig);
     }
 }
