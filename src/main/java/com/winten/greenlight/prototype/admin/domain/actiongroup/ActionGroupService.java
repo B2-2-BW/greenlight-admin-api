@@ -5,6 +5,7 @@ import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
 import com.winten.greenlight.prototype.admin.domain.action.Action;
 import com.winten.greenlight.prototype.admin.domain.action.ActionService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
+import com.winten.greenlight.prototype.admin.domain.user.UserService;
 import com.winten.greenlight.prototype.admin.support.error.CoreException;
 import com.winten.greenlight.prototype.admin.support.error.ErrorType;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
@@ -22,9 +23,13 @@ public class ActionGroupService {
     private final ActionGroupMapper actionGroupMapper;
     private final ActionService actionService;
     private final ActionGroupConverter actionGroupConverter;
+    private final UserService userService;
 
     public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser) {
-        return actionGroupMapper.findAll(currentUser.getUserId());
+        var entity = ActionGroup.builder()
+                .ownerId(currentUser.getUserId())
+                .build();
+        return actionGroupMapper.findAll(entity);
     }
 
     public ActionGroup getActionGroupById(Long id, CurrentUser currentUser) {
@@ -74,6 +79,13 @@ public class ActionGroupService {
     @Transactional
     public ActionGroup deleteActionGroup(Long id, CurrentUser currentUser) {
         ActionGroup actionGroup = getActionGroupById(id, currentUser); // action group 존재여부 확인
+
+        List<Action> actions = actionService.getActionsByGroup(id, currentUser);
+
+        if (!actions.isEmpty()) {
+            throw CoreException.of(ErrorType.NONEMPTY_ACTION_GROUP, "액션 그룹 내에 액션이 존재하여 삭제할 수 없습니다. 액션을 다른 그룹으로 이동하거나 삭제해 주세요.");
+        }
+
         actionGroupMapper.deleteById(actionGroup);
 
         // Redis put
@@ -83,5 +95,15 @@ public class ActionGroupService {
         return ActionGroup.builder()
                 .id(id)
                 .build();
+    }
+
+    public List<ActionGroup> getActionGroupByKey(String greenlightApiKey) {
+        var user = userService.getUserAccountIdByKey(greenlightApiKey);
+        var actionGroup = ActionGroup.builder()
+                .ownerId(user.getUserId())
+                .build();
+        var actionGroups = actionGroupMapper.findAllEnabledWithActions(actionGroup);
+        System.out.println(actionGroups);
+        return actionGroups;
     }
 }

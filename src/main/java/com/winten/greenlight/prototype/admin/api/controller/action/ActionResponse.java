@@ -18,6 +18,8 @@ import java.util.List;
 public class ActionResponse {
     private Long id;
     private Long actionGroupId;
+    private String actionGroupName;
+    private String actionGroupDescription;
     private String ownerId;
     private String name;
     private String actionUrl;

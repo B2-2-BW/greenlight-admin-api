@@ -3,44 +3,48 @@
 <mapper namespace="com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionMapper">
     <sql id="selectFromAction">
         SELECT
-            id,
-            action_group_id,
-            owner_id,
-            name,
-            action_url,
-            action_type,
-            landing_id,
-            landing_start_at,
-            landing_end_at,
-            landing_destination_url,
-            default_rule_type,
-            created_by,
-            created_at,
-            updated_by,
-            updated_at
-        FROM action
+            a.id,
+            a.action_group_id,
+            ag.name as action_group_name,
+            ag.description as action_group_description,
+            ag.enabled as action_group_enabled,
+            a.owner_id,
+            a.name,
+            a.action_url,
+            a.action_type,
+            a.landing_id,
+            a.landing_start_at,
+            a.landing_end_at,
+            a.landing_destination_url,
+            a.default_rule_type,
+            a.created_by,
+            a.created_at,
+            a.updated_by,
+            a.updated_at
+        FROM action a
+        JOIN action_group ag on a.action_group_id = ag.id
     </sql>
 
     <select id="findAll" parameterType="String" resultType="Action">
         <include refid="selectFromAction"/>
         <where>
-            owner_id = #{ownerId}
+            a.owner_id = #{ownerId}
         </where>
     </select>
 
     <select id="findAllByGroupId" parameterType="Action" resultType="Action">
         <include refid="selectFromAction"/>
         <where>
-            action_group_id = #{actionGroupId}
-            AND owner_id = #{ownerId}
+            a.action_group_id = #{actionGroupId}
+            AND a.owner_id = #{ownerId}
         </where>
     </select>
 
     <select id="findOneById" parameterType="Action" resultType="Action">
         <include refid="selectFromAction"/>
         <where>
-            id = #{id}
-            AND owner_id = #{ownerId}
+            a.id = #{id}
+            AND a.owner_id = #{ownerId}
         </where>
     </select>
 

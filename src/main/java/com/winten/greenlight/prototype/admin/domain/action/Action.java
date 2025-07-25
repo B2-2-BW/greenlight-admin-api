@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import com.winten.greenlight.prototype.admin.domain.user.AdminUser;
 import com.winten.greenlight.prototype.admin.support.dto.AuditDto;
-import com.winten.greenlight.prototype.admin.support.dto.Hashable;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -35,6 +34,8 @@ public class Action extends AuditDto {
      * 하나의 Action은 반드시 하나의 ActionGroup에 속하며, 그룹의 정책(예: 최대 동시 접속자 수)을 따릅니다.
      */
     private Long actionGroupId;
+    private String actionGroupName;
+    private String actionGroupDescription;
 
     /**
      * 이 Action을 소유하고 관리하는 관리자({@link AdminUser})의 고유 ID입니다.

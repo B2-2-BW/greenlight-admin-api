@@ -43,6 +43,16 @@
             #{createdBy},
             #{updatedBy}
         )
-
     </insert>
+
+    <select id="findUserAccountIdByApiKey" parameterType="String" resultType="User">
+        SELECT k.account_id,
+               a.user_id
+        FROM user_api_key k
+        JOIN user_account a ON k.account_id = a.account_id
+        WHERE api_key = #{apiKey}
+          AND valid_until >= current_timestamp
+          AND enabled = true
+          AND expired_at is null
+    </select>
 </mapper>

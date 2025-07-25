@@ -8,6 +8,7 @@ import java.util.Optional;
 
 @Mapper
 public interface ActionMapper {
+    // TODO 통신 시 ActionEntity로 왔다갔다 하도록 개선해야함
     List<Action> findAll(String ownerId);
     List<Action> findAllByGroupId(Action action);
     Optional<Action> findOneById(Action action);
