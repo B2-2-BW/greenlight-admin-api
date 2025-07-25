@@ -4,6 +4,7 @@ import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupConverter;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +44,7 @@ public class ActionGroupController {
     // POST /api/v1/action-groups
     @PostMapping
     public ResponseEntity<ActionGroupResponse> createActionGroup(
-            @RequestBody final ActionGroupCreateRequest request,
+            @RequestBody @Valid final ActionGroupCreateRequest request,
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
         var result = actionGroupService.createActionGroup(actionGroupConverter.toDto(request), currentUser);
@@ -71,5 +72,16 @@ public class ActionGroupController {
     ) {
         ActionGroup result = actionGroupService.deleteActionGroup(actionGroupId, currentUser);
         return ResponseEntity.ok(actionGroupConverter.toResponse(result));
+    }
+
+
+    // GET /api/v1/action-groups/{actionGroupId}
+    @GetMapping("/list")
+    public ResponseEntity<List<ActionGroupResponse>> getActionGroupByKey(
+            @RequestHeader("X-GREENLIGHT-API-KEY") String greenlightApiKey
+    ) {
+        var result = actionGroupService.getActionGroupByKey(greenlightApiKey);
+        var response = result.stream().map(actionGroupConverter::toResponse).toList();
+        return ResponseEntity.ok(response);
     }
 }

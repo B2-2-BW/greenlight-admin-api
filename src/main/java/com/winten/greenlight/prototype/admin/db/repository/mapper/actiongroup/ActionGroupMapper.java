@@ -8,7 +8,8 @@ import java.util.Optional;
 
 @Mapper
 public interface ActionGroupMapper {
-    List<ActionGroup> findAll(String ownerId);
+    List<ActionGroup> findAll(ActionGroup actionGroup);
+    List<ActionGroup> findAllEnabledWithActions(ActionGroup actionGroup);
     Optional<ActionGroup> findOneById(ActionGroup actionGroup);
     ActionGroup save(ActionGroup actionGroup);
     ActionGroup updateById(ActionGroup actionGroup);

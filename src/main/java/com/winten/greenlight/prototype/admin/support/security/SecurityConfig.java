@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .requestMatchers("/error")
                 .requestMatchers(HttpMethod.GET, "/favicon.ico")
                 .requestMatchers(HttpMethod.POST, "/users/login")
+                .requestMatchers(HttpMethod.GET, "/action-groups/list")
                 .requestMatchers("/swagger-ui/**")
                 .requestMatchers("/api-docs/**");
     }
@@ -45,6 +46,7 @@ public class SecurityConfig {
                     .requestMatchers("/error").permitAll()
                     .requestMatchers(HttpMethod.GET, "/favicon.ico").permitAll()
                     .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/action-groups/list").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요

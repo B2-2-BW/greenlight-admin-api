@@ -37,4 +37,9 @@ public class UserService {
         userMapper.save(user);
         return cachedUserService.getUser(user.getUserId());
     }
+
+    public User getUserAccountIdByKey(String apiKey) {
+        return userMapper.findUserAccountIdByApiKey(apiKey)
+                .orElseThrow(() -> CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 API Key 입니다."));
+    }
 }

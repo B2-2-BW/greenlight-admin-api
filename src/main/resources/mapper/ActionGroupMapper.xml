@@ -16,10 +16,11 @@
         FROM action_group
     </sql>
 
-    <select id="findAll" parameterType="String" resultType="ActionGroup">
+    <select id="findAll" parameterType="ActionGroup" resultType="ActionGroup">
         <include refid="selectFromActionGroup"/>
         <where>
             owner_id = #{ownerId}
+            <if test="enabled != null">enabled = #{enabled}</if>
         </where>
         ORDER BY id
     </select>
@@ -74,4 +75,76 @@
         WHERE id = #{id}
         AND owner_id = #{ownerId}
     </delete>
+
+
+    <resultMap id="actionResultMap" type="Action">
+        <id property="id" column="a_id"/>
+        <result property="actionGroupId" column="a_action_group_id"/>
+        <result property="ownerId" column="a_owner_id"/>
+        <result property="name" column="a_name"/>
+        <result property="actionUrl" column="a_action_url"/>
+        <result property="actionType" column="a_action_type"/>
+        <result property="landingId" column="a_landing_id"/>
+        <result property="landingStartAt" column="a_landing_start_at"/>
+        <result property="landingEndAt" column="a_landing_end_at"/>
+        <result property="landingDestinationUrl" column="a_landing_destination_url"/>
+        <result property="defaultRuleType" column="a_default_rule_type"/>
+        <result property="createdBy" column="a_created_by"/>
+        <result property="createdAt" column="a_created_at"/>
+        <result property="updatedBy" column="a_updated_by"/>
+        <result property="updatedAt" column="a_updated_at"/>
+    </resultMap>
+
+    <!-- ActionGroup과 연관된 Action 리스트를 포함하는 ResultMap -->
+    <resultMap id="actionGroupWithActionsResultMap" type="ActionGroup">
+        <id property="id" column="ag_id"/>
+        <result property="ownerId" column="ag_owner_id"/>
+        <result property="name" column="ag_name"/>
+        <result property="description" column="ag_description"/>
+        <result property="maxActiveCustomers" column="ag_max_active_customers"/>
+        <result property="enabled" column="ag_enabled"/>
+        <result property="createdBy" column="ag_created_by"/>
+        <result property="createdAt" column="ag_created_at"/>
+        <result property="updatedBy" column="ag_updated_by"/>
+        <result property="updatedAt" column="ag_updated_at"/>
+
+        <!-- 1:N 관계 매핑 -->
+        <collection property="actions" ofType="Action" resultMap="actionResultMap"/>
+    </resultMap>
+
+    <select id="findAllEnabledWithActions" parameterType="ActionGroup" resultMap="actionGroupWithActionsResultMap">
+        SELECT
+            ag.id                       AS ag_id,
+            ag.owner_id                 AS ag_owner_id,
+            ag.name                     AS ag_name,
+            ag.description              AS ag_description,
+            ag.max_active_customers     AS ag_max_active_customers,
+            ag.enabled                  AS ag_enabled,
+            ag.created_by               AS ag_created_by,
+            ag.created_at               AS ag_created_at,
+            ag.updated_by               AS ag_updated_by,
+            ag.updated_at               AS ag_updated_at,
+
+            a.id                        AS a_id,
+            a.action_group_id           AS a_action_group_id,
+            a.owner_id                  AS a_owner_id,
+            a.name                      AS a_name,
+            a.action_url                AS a_action_url,
+            a.action_type               AS a_action_type,
+            a.landing_id                AS a_landing_id,
+            a.landing_start_at          AS a_landing_start_at,
+            a.landing_end_at            AS a_landing_end_at,
+            a.landing_destination_url   AS a_landing_destination_url,
+            a.default_rule_type         AS a_default_rule_type,
+            a.created_by                AS a_created_by,
+            a.created_at                AS a_created_at,
+            a.updated_by                AS a_updated_by,
+            a.updated_at                AS a_updated_at
+        FROM ACTION_GROUP ag
+        LEFT JOIN ACTION a ON ag.id = a.action_group_id
+        WHERE ag.owner_id = #{ownerId}
+        AND ag.enabled = true
+        ORDER BY
+            ag.id, a.id
+    </select>
 </mapper>
