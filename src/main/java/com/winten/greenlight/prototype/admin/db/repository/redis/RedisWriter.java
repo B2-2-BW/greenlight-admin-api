@@ -12,8 +12,13 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class RedisWriter {
+    private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisTemplate<String, Object> jsonRedisTemplate;
     private final ObjectMapper objectMapper;
+
+    public void put(String key, String value) {
+        stringRedisTemplate.opsForValue().set(key, value);
+    }
 
     public void putAll(String key, Hashable dto) {
         Map<String, Object> map =
