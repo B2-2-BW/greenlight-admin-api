@@ -10,15 +10,36 @@ public class RedisKeyBuilder {
     @Value("${redis.key-prefix}")
     private String prefix;
 
+    // TODO 한눈에 보기 쉽게 완성된 full string을 주석에 추가하기
     public String actionGroupMeta(Long actionGroupId) {
-        return String.format("%s:action_group:%d:meta", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":meta";
     }
 
     public String actionGroupStatus(Long actionGroupId) {
-        return String.format("%s:action_group:%d:status", prefix, actionGroupId);
+        return prefix + ":action_group:" + actionGroupId + ":status";
     }
 
     public String action(Long actionId) {
-        return String.format("%s:action:%d", prefix, actionId);
+        return prefix + ":action:" + actionId;
     }
+
+    public String landingCacheKey(String landingId) {
+        return prefix + ":landing_action_mapping:" + landingId;
+    }
+
+    public String userApiKey() {
+        return prefix + ":admin:user_api_key";
+    }
+
+    public String allActions() {
+        return prefix + ":action:*";
+    }
+
+    public String actionEventStream() {
+        return prefix + ":infra:action_event:stream";
+    }
+    public String actionEventDlqStream() {
+        return prefix + ":infra:action_event:dlq";
+    }
+
 }

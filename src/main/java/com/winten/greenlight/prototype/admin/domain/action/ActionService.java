@@ -82,7 +82,12 @@ public class ActionService {
         // Redis put
         String key = keyBuilder.action(actionResult.getId());
         redisWriter.putAll(key, actionConverter.toEntity(actionResult));
-        
+
+        // Core 프론트에서 landingId로 action을 조회해야함.
+        // landingId를 기준으로 action을 조회할 수 있는 기능을 위해 redis에 key로 저장
+        String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
+        redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+
         return actionResult;
     }
 
@@ -90,7 +95,7 @@ public class ActionService {
             Action action,
             CurrentUser currentUser
     ) {
-        getActionById(action.getId(), currentUser); // 존재여부 확인, 없으면 exception
+        var currentAction = getActionById(action.getId(), currentUser); // 존재여부 확인, 없으면 exception
         action.setOwnerId(currentUser.getUserId());
 
         validateActionType(action); // actionType 검증
@@ -115,6 +120,9 @@ public class ActionService {
         String key = keyBuilder.action(actionResult.getId());
         redisWriter.putAll(key, actionConverter.toEntity(actionResult));
 
+        String landingCacheKey = keyBuilder.landingCacheKey(currentAction.getLandingId());
+        redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+
         return actionResult;
     }
 
@@ -129,6 +137,9 @@ public class ActionService {
         // Redis Delete
         String key = keyBuilder.action(actionId);
         redisWriter.delete(key);
+
+        String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
+        redisWriter.delete(landingCacheKey);
 
         return Action.builder()
                 .id(actionId)
@@ -156,6 +167,9 @@ public class ActionService {
             action.setActionRules(actionRuleResult);
             String key = keyBuilder.action(action.getId());
             redisWriter.putAll(key, actionConverter.toEntity(action));
+
+            String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
+            redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
         }
     }
 }
