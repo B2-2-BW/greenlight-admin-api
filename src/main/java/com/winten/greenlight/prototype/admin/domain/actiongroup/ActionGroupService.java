@@ -102,8 +102,6 @@ public class ActionGroupService {
         var actionGroup = ActionGroup.builder()
                 .ownerId(user.getUserId())
                 .build();
-        var actionGroups = actionGroupMapper.findAllEnabledWithActions(actionGroup);
-        System.out.println(actionGroups);
-        return actionGroups;
+        return actionGroupMapper.findAllEnabledWithActions(actionGroup);
     }
 }
