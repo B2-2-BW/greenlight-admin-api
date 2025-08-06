@@ -1,6 +1,12 @@
 spring.application.name: greenlight-prototype-admin-api
 spring.profiles.active: local
 
+server:
+  port: 28080
+  error:
+    include-message: always
+  url: ${SERVER_URL}
+
 spring:
   datasource:
     driver-class-name: com.p6spy.engine.spy.P6SpyDriver
@@ -21,12 +27,6 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
     cache-enabled: true
-
-server:
-  port: 28080
-  error:
-    include-message: always
-  url: ${SERVER_URL}
 
 logging:
   config: classpath:logback/logback-${spring.profiles.active}.xml
@@ -50,9 +50,14 @@ springdoc:
 
 redis:
   key-prefix: ${REDIS_KEY_PREFIX}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
+
+greenlight:
+  core-api:
+    url: ${GREENLIGHT_CORE_API_URL}
 
 ---
 spring.config.activate.on-profile: local

@@ -3,18 +3,20 @@
 <mapper namespace="com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionRuleMapper">
     <select id="findAllByActionId" parameterType="ActionRule" resultType="ActionRule">
         SELECT
-            action_id,
-            rule_seq,
-            param_name,
-            param_value,
-            match_operator,
-            description,
-            created_by,
-            created_at,
-            updated_by,
-            updated_at
-        FROM action_rule
-        WHERE action_id = #{actionId}
+            ar.action_id,
+            ar.rule_seq,
+            ar.param_name,
+            ar.param_value,
+            ar.match_operator,
+            ar.description,
+            ar.created_by,
+            ar.created_at,
+            ar.updated_by,
+            ar.updated_at
+        FROM action_rule ar
+        JOIN action a ON a.id = ar.action_id
+        WHERE ar.action_id = #{actionId}
+        AND a.default_rule_type != 'ALL'
     </select>
 
     <select id="save" parameterType="ActionRule" resultType="ActionRule">
