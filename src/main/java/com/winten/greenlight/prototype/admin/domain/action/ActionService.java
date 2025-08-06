@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.admin.domain.action;
 
+import com.winten.greenlight.prototype.admin.client.core.CoreClient;
 import com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionMapper;
 import com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionRuleMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
@@ -22,6 +23,7 @@ public class ActionService {
     private final RedisWriter redisWriter;
     private final ActionRuleMapper actionRuleMapper;
     private final ActionConverter actionConverter;
+    private final CoreClient coreClient;
 
     // TODO Action Rule 추가하기
     public List<Action> getAllActionsByOwnerId(String ownerId) {
@@ -119,9 +121,11 @@ public class ActionService {
         // Redis put
         String key = keyBuilder.action(actionResult.getId());
         redisWriter.putAll(key, actionConverter.toEntity(actionResult));
+        coreClient.invalidateActionCacheById(actionResult.getId());
 
-        String landingCacheKey = keyBuilder.landingCacheKey(currentAction.getLandingId());
+        String landingCacheKey = keyBuilder.landingCacheKey(actionResult.getLandingId());
         redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+        coreClient.invalidateActionCacheByLandingId(actionResult.getLandingId());
 
         return actionResult;
     }
@@ -137,9 +141,12 @@ public class ActionService {
         // Redis Delete
         String key = keyBuilder.action(actionId);
         redisWriter.delete(key);
+        coreClient.invalidateActionCacheById(actionId);
+
 
         String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
         redisWriter.delete(landingCacheKey);
+        coreClient.invalidateActionCacheByLandingId(action.getLandingId());
 
         return Action.builder()
                 .id(actionId)
@@ -167,9 +174,11 @@ public class ActionService {
             action.setActionRules(actionRuleResult);
             String key = keyBuilder.action(action.getId());
             redisWriter.putAll(key, actionConverter.toEntity(action));
+            coreClient.invalidateActionCacheById(action.getId());
 
             String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
             redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+            coreClient.invalidateActionCacheByLandingId(action.getLandingId());
         }
     }
 }
