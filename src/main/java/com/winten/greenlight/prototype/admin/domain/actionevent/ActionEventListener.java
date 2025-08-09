@@ -65,7 +65,7 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
 
             // 성공 시 ACK
             redisTemplate.opsForStream().acknowledge(keyBuilder.actionEventStream(), consumerGroup, message.getId());
-            log.info("Message processed and acknowledged. ID: {}", message.getId());
+            log.error("Message processed and acknowledged. ID: {}", message.getId());
 
         } catch (Exception e) {
             // @Retryable에서 모든 재시도 실패 후 예외가 여기까지 전달됨
