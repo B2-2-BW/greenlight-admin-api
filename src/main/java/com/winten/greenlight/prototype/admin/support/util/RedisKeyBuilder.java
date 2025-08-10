@@ -10,6 +10,10 @@ public class RedisKeyBuilder {
     @Value("${redis.key-prefix}")
     private String prefix;
 
+    public String actionGroupKeyPattern() {
+        return prefix + "action_group:*";
+    }
+
     // TODO 한눈에 보기 쉽게 완성된 full string을 주석에 추가하기
     public String actionGroupMeta(Long actionGroupId) {
         return prefix + ":action_group:" + actionGroupId + ":meta";
@@ -40,6 +44,10 @@ public class RedisKeyBuilder {
     }
     public String actionEventDlqStream() {
         return prefix + ":infra:action_event:dlq";
+    }
+
+    public String actionGroupWaitingQueue(Long actionGroupId) {
+        return prefix + ":action_group:" + actionGroupId + ":queue:WAITING";
     }
 
 }

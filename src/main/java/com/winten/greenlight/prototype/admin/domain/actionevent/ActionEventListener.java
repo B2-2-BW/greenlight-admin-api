@@ -47,7 +47,7 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
         }
     }
 
-    @EventListener(ApplicationStartedEvent.class)
+//    @EventListener(ApplicationStartedEvent.class)
     public void startListening() {
         container.receive(
                 Consumer.from(consumerGroup, UUID.randomUUID().toString()),
@@ -65,13 +65,9 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
 
             // 성공 시 ACK
             redisTemplate.opsForStream().acknowledge(keyBuilder.actionEventStream(), consumerGroup, message.getId());
-            log.error("Message processed and acknowledged. ID: {}", message.getId());
+            log.debug("Message processed and acknowledged. ID: {}", message.getId());
 
         } catch (Exception e) {
-            // @Retryable에서 모든 재시도 실패 후 예외가 여기까지 전달됨
-            // @Recover 메서드가 처리했으므로 여기서는 추가 작업 없이 로그만 남기거나,
-            // 별도의 처리가 필요하다면 여기에 구현합니다.
-            // 중요: 실패 시 ACK를 호출하지 않아야 합니다.
             log.error("Failed to process message ID: {}. It might have been moved to DLQ.", message.getId(), e);
         }
     }

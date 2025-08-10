@@ -4,6 +4,7 @@ import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroup;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupConverter;
+import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,9 +25,10 @@ public class ActionGroupController {
     // GET /api/v1/action-groups
     @GetMapping
     public ResponseEntity<List<ActionGroupResponse>> getAllActionGroups(
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @AuthenticationPrincipal final CurrentUser currentUser,
+            @Nullable ActionGroupSelectRequest actionGroupSelectRequest
     ) {
-        var result = actionGroupService.getAllActionGroupByOwnerId(currentUser);
+        var result = actionGroupService.getAllActionGroupByOwnerId(currentUser, actionGroupConverter.toDto(actionGroupSelectRequest));
         var response = result.stream().map(actionGroupConverter::toResponse).toList();
         return ResponseEntity.ok(response);
     }

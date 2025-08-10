@@ -10,26 +10,31 @@ import com.winten.greenlight.prototype.admin.support.error.CoreException;
 import com.winten.greenlight.prototype.admin.support.error.ErrorType;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class ActionGroupService {
+    private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
     private final RedisWriter redisWriter;
     private final ActionGroupMapper actionGroupMapper;
     private final ActionService actionService;
     private final ActionGroupConverter actionGroupConverter;
     private final UserService userService;
+    private final CachedActionGroupService cachedActionGroupService;
 
-    public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser) {
-        var entity = ActionGroup.builder()
-                .ownerId(currentUser.getUserId())
-                .build();
-        return actionGroupMapper.findAll(entity);
+    public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser, ActionGroup actionGroup) {
+        actionGroup.setOwnerId(currentUser.getUserId());
+        return actionGroupMapper.findAll(actionGroup);
     }
 
     public ActionGroup getActionGroupById(Long id, CurrentUser currentUser) {
@@ -58,6 +63,9 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(result.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
+        // actionGroupKeys Cache 삭제
+        cachedActionGroupService.invalidateActionGroupIdsCache();
+
         return result;
     }
 
@@ -73,6 +81,8 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(result.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
+        // actionGroupKeys Cache 삭제
+        cachedActionGroupService.invalidateActionGroupIdsCache();
         return result;
     }
 
@@ -92,6 +102,9 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(id);
         redisWriter.delete(key);
 
+        // actionGroupKeys Cache 삭제
+        cachedActionGroupService.invalidateActionGroupIdsCache();
+
         return ActionGroup.builder()
                 .id(id)
                 .build();
@@ -103,5 +116,38 @@ public class ActionGroupService {
                 .ownerId(user.getUserId())
                 .build();
         return actionGroupMapper.findAllEnabledWithActions(actionGroup);
+    }
+
+    public List<ActionGroupQueue> getAllWaitingQueueSize(CurrentUser currentUser) {
+        List<Long> actionGroupIds = cachedActionGroupService.getActionGroupIds(currentUser);
+
+        List<ActionGroupQueue> result = new ArrayList<>();
+        if (actionGroupIds == null || actionGroupIds.isEmpty()) {
+            return result;
+        }
+
+        // RTT 절감을 위해 redis 명령어 파이프라이닝
+        List<Object> waitingQueueSizes = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Long actionGroupId : actionGroupIds) {
+                String key = keyBuilder.actionGroupWaitingQueue(actionGroupId);
+                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+
+        for (int i = 0; i < actionGroupIds.size(); i++) {
+            Long id = actionGroupIds.get(i);
+            int size;
+            try {
+                size = Integer.parseInt(waitingQueueSizes.get(i).toString());
+            } catch (Exception e) {
+                size = 0;
+                System.out.println(e);
+            }
+            var queue = new ActionGroupQueue(id, size);
+            result.add(queue);
+        }
+
+        return result;
     }
 }

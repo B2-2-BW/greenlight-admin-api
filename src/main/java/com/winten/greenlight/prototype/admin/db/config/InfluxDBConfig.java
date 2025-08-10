@@ -1,9 +1,6 @@
 package com.winten.greenlight.prototype.admin.db.config;
 
-import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.InfluxDBClientFactory;
-import com.influxdb.client.InfluxDBClientOptions;
-import com.influxdb.client.WriteApi;
+import com.influxdb.client.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +17,8 @@ public class InfluxDBConfig {
     @Value("${influxdb.bucket}")
     private String bucket;
 
-    @Bean
-    public InfluxDBClient influxDBClientReactive() {
+    @Bean(destroyMethod = "close")
+    public InfluxDBClient influxDBClient() {
         InfluxDBClientOptions options = InfluxDBClientOptions.builder()
                 .url(influxUrl)
                 .authenticateToken(token.toCharArray())
@@ -32,8 +29,13 @@ public class InfluxDBConfig {
     }
 
     @Bean
-    public WriteApi writeReactiveApi(InfluxDBClient client) {
+    public WriteApi writeApi(InfluxDBClient client) {
         // 반응형 쓰기 API를 Bean으로 등록
         return client.makeWriteApi();
+    }
+
+    @Bean
+    public QueryApi queryApi(InfluxDBClient client) {
+        return client.getQueryApi();
     }
 }

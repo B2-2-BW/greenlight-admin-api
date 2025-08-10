@@ -20,7 +20,7 @@
         <include refid="selectFromActionGroup"/>
         <where>
             owner_id = #{ownerId}
-            <if test="enabled != null">enabled = #{enabled}</if>
+            <if test="enabled != null">and enabled = #{enabled}</if>
         </where>
         ORDER BY id
     </select>
