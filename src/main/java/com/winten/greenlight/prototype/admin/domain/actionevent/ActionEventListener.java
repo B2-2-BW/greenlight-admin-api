@@ -47,7 +47,7 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
         }
     }
 
-//    @EventListener(ApplicationStartedEvent.class)
+    @EventListener(ApplicationStartedEvent.class)
     public void startListening() {
         container.receive(
                 Consumer.from(consumerGroup, UUID.randomUUID().toString()),
