@@ -10,6 +10,7 @@ import com.winten.greenlight.prototype.admin.support.error.CoreException;
 import com.winten.greenlight.prototype.admin.support.error.ErrorType;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ActionGroupService {
@@ -142,7 +144,7 @@ public class ActionGroupService {
                 size = Integer.parseInt(waitingQueueSizes.get(i).toString());
             } catch (Exception e) {
                 size = 0;
-                System.out.println(e);
+                log.error("[getAllWaitingQueueSize] parsing waiting queue size failed");
             }
             var queue = new ActionGroupQueue(id, size);
             result.add(queue);

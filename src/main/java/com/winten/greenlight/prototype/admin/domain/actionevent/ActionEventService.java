@@ -85,7 +85,7 @@ public class ActionEventService {
         for (FluxTable table : tables) {
             for (FluxRecord record : table.getRecords()) {
                 Map<String, Object> values = record.getValues();
-                System.out.println(values);
+                // TODO Summary 기능 추가
             }
         }
         return new HashMap<>();
