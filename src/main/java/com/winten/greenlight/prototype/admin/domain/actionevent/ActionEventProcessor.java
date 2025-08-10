@@ -22,10 +22,10 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class ActionEventProcessor {
-    private final WriteApi writeApi;
     private final RedisTemplate<String, String> redisTemplate;
     private final RedisKeyBuilder keyBuilder;
     private final ObjectMapper objectMapper;
+    private final ActionEventQueue actionEventQueue;
 
     @Value("${redis.key-prefix}")
     private String prefix;
@@ -38,15 +38,11 @@ public class ActionEventProcessor {
         actionEventMeasurementKey = prefix + "_action_event";
     }
 
-    @Retryable(
-            retryFor = { Exception.class },
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 1000, multiplier = 2)
-    )
+    // TODO queue에서 배치로 처리되기 때문에 재시도 전략이 없음. 구조 개선 필요
     public void process(Map<String, String> content) {
         ActionEvent actionEvent = objectMapper.convertValue(content, ActionEvent.class);
         Point point = this.createInfluxPoint(actionEvent);
-        writeApi.writePoint(point);
+        actionEventQueue.offer(point);
     }
 
     /**
@@ -68,12 +64,5 @@ public class ActionEventProcessor {
         }
 
         return point;
-    }
-
-    @Recover
-    public void recover(Exception e, Map<String, String> content) {
-        log.error("All retries failed for message content. Moving to DLQ.", e);
-        // Dead Letter Queue 로직: 실패한 메시지를 다른 Redis Stream이나 List에 저장
-        redisTemplate.opsForStream().add(keyBuilder.actionEventDlqStream(), content);
     }
 }

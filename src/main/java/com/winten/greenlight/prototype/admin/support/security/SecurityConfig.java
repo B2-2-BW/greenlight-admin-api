@@ -32,7 +32,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/users/login")
                 .requestMatchers(HttpMethod.GET, "/action-groups/list")
                 .requestMatchers("/swagger-ui/**")
-                .requestMatchers("/api-docs/**");
+                .requestMatchers("/api-docs/**")
+                .requestMatchers("/action-events/traffic/sse/stream");
     }
 
     @Bean
@@ -49,6 +50,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/action-groups/list").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
+                    .requestMatchers("/action-events/traffic/sse/stream").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, objectMapper), UsernamePasswordAuthenticationFilter.class)
