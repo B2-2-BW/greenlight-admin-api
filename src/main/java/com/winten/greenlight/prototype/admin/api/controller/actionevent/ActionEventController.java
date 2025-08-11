@@ -27,7 +27,7 @@ public class ActionEventController {
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-    private static final long TIMEOUT_MS = 60 * 60 * 1000L;
+    private static final long TIMEOUT_MS = 60 * 30 * 1000L;
 
 
     @GetMapping(value= "/traffic/summary")
@@ -38,20 +38,13 @@ public class ActionEventController {
     @GetMapping(value = "/traffic/sse/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@RequestParam String clientId) {
         // 타임아웃 30초 기본, 필요시 새 값 지정 (예: 60초)
-        SseEmitter emitter = new SseEmitter(TIMEOUT_MS); // 1시간
+        SseEmitter emitter = new SseEmitter(TIMEOUT_MS); // 30분
 
         emitters.put(clientId, emitter);
 
         emitter.onCompletion(() -> cleanup(clientId));
-        emitter.onTimeout(() -> {
-            cleanup(clientId);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {}
-        });
-        emitter.onError(ex -> {
-            cleanup(clientId);
-        });
+        emitter.onTimeout(() -> cleanup(clientId));
+        emitter.onError(ex -> cleanup(clientId));
 
         executor.scheduleAtFixedRate(() -> {
             SseEmitter e = emitters.get(clientId);
@@ -68,9 +61,9 @@ public class ActionEventController {
 
     private void cleanup(String clientId) {
         var emitter = emitters.get(clientId);
-        if (emitter != null) {
+        try {
             emitter.complete();
-        }
+        } catch (Exception ignored) {}
         emitters.remove(clientId);
     }
 }
