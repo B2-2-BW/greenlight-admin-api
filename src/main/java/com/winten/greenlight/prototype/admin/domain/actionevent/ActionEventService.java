@@ -23,21 +23,18 @@ public class ActionEventService {
 
     private final List<String> requestEventType = List.of(WaitStatus.WAITING.name(), WaitStatus.BYPASSED.name());
 
-    public Object getCurrentTraffic() {
+    public ActionEventTrafficResponse getCurrentTraffic() {
         CurrentUser currentUser = CurrentUser.builder()
                 .userId("admin")
                 .build();
-        return this.getCurrentTrafficDetail(currentUser);
-    }
-
-    public Map<Long, ActionEventTraffic> getCurrentTrafficDetail(CurrentUser currentUser) {
-
         Map<Long, ActionEventTraffic> result = new HashMap<>();
-        List<ActionGroupQueue> queueSizes = actionGroupService.getAllWaitingQueueSize(currentUser);
+        List<ActionGroupQueue> queueSizes = actionGroupService.getActionGroupQueueStatus(currentUser);
 
         for (ActionGroupQueue queue : queueSizes) {
             var traffic = ActionEventTraffic.empty();
-            traffic.addWaiting(queue.getSize());
+            traffic.setWaitingCount(queue.getWaitingSize());
+            traffic.setConcurrentUser(queue.getSessionSize());
+            traffic.setEstimatedWaitTime(queue.getEstimatedWaitTime());
             result.put(queue.getActionGroupId(), traffic);
         }
 
@@ -65,29 +62,23 @@ public class ActionEventService {
                 }
             }
         }
-        var total = sumOf(result.values());
-        result.put(0L, total);
-        return result;
+        var summary = makeSummary(result.values());
+        return ActionEventTrafficResponse.builder()
+                .detail(result)
+                .summary(summary)
+                .build();
     }
 
-    private ActionEventTraffic sumOf(Collection<ActionEventTraffic> trafficList) {
-        var total = ActionEventTraffic.empty();
+    private ActionEventTraffic makeSummary(Collection<ActionEventTraffic> trafficList) {
+        var summary = ActionEventTraffic.empty();
         for (ActionEventTraffic traffic : trafficList) {
-            total.addRequest(traffic.getRequestCount());
-            total.addWaiting(traffic.getWaitingCount());
-            total.addEntered(traffic.getEnteredCount());
+            summary.addRequest(traffic.getRequestCount());
+            summary.addWaiting(traffic.getWaitingCount());
+            summary.addEntered(traffic.getEnteredCount());
+            summary.addConcurrentUser(traffic.getConcurrentUser());
+            summary.addEstimatedWaitTime(traffic.getEstimatedWaitTime());
         }
-        return total;
-    }
-
-    public Object getCurrentTrafficSummary() {
-        List<FluxTable> tables = actionEventRepository.get5minCustomerCount();
-        for (FluxTable table : tables) {
-            for (FluxRecord record : table.getRecords()) {
-                Map<String, Object> values = record.getValues();
-                // TODO Summary 기능 추가
-            }
-        }
-        return new HashMap<>();
+        summary.setEstimatedWaitTime(Math.round((float) summary.getEstimatedWaitTime() / trafficList.size()));
+        return summary;
     }
 }

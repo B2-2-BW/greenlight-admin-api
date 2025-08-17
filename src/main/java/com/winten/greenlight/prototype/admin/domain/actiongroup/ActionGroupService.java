@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -120,7 +119,8 @@ public class ActionGroupService {
         return actionGroupMapper.findAllEnabledWithActions(actionGroup);
     }
 
-    public List<ActionGroupQueue> getAllWaitingQueueSize(CurrentUser currentUser) {
+    // action_group:{actionGroup}:queue:WAITING, action_group:{actionGroup}:session의 size 조회
+    public List<ActionGroupQueue> getActionGroupQueueStatus(CurrentUser currentUser) {
         List<Long> actionGroupIds = cachedActionGroupService.getActionGroupIds(currentUser);
 
         List<ActionGroupQueue> result = new ArrayList<>();
@@ -137,16 +137,38 @@ public class ActionGroupService {
             return null;
         });
 
+        List<Object> maxActiveCustomerList = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Long actionGroupId : actionGroupIds) {
+                String key = keyBuilder.actionGroupMeta(actionGroupId);
+                connection.hashCommands().hGet(key.getBytes(StandardCharsets.UTF_8), "maxActiveCustomers".getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+
+        List<Object> sessionSizes = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Long actionGroupId : actionGroupIds) {
+                String key = keyBuilder.actionGroupSession(actionGroupId);
+                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+
         for (int i = 0; i < actionGroupIds.size(); i++) {
             Long id = actionGroupIds.get(i);
-            int size;
+            int waitingSize = 0;
+            int sessionSize = 0;
+            int estimatedWaitTime = 0;
             try {
-                size = Integer.parseInt(waitingQueueSizes.get(i).toString());
+                waitingSize = Integer.parseInt(waitingQueueSizes.get(i).toString());
+                sessionSize = Integer.parseInt(sessionSizes.get(i).toString());
+                int maxActiveCustomers = Integer.parseInt(maxActiveCustomerList.get(i).toString());
+                estimatedWaitTime = maxActiveCustomers > 0
+                        ? Math.round((float) waitingSize / maxActiveCustomers)
+                        : 0;
             } catch (Exception e) {
-                size = 0;
                 log.error("[getAllWaitingQueueSize] parsing waiting queue size failed");
             }
-            var queue = new ActionGroupQueue(id, size);
+            var queue = new ActionGroupQueue(id, waitingSize, sessionSize, estimatedWaitTime);
             result.add(queue);
         }
 

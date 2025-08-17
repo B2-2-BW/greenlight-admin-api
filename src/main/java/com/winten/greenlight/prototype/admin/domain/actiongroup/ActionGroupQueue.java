@@ -9,5 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ActionGroupQueue {
     private Long actionGroupId;
-    private int size;
+    private int waitingSize;
+    private int sessionSize;
+    private int estimatedWaitTime;
 }
