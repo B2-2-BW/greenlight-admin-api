@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.admin.domain.actiongroup;
 
+import com.winten.greenlight.prototype.admin.client.core.CoreClient;
 import com.winten.greenlight.prototype.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
 import com.winten.greenlight.prototype.admin.domain.action.Action;
@@ -32,6 +33,7 @@ public class ActionGroupService {
     private final ActionGroupConverter actionGroupConverter;
     private final UserService userService;
     private final CachedActionGroupService cachedActionGroupService;
+    private final CoreClient coreClient;
 
     public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser, ActionGroup actionGroup) {
         actionGroup.setOwnerId(currentUser.getUserId());
@@ -82,6 +84,8 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(result.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
+        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+
         // actionGroupKeys Cache 삭제
         cachedActionGroupService.invalidateActionGroupIdsCache();
         return result;
@@ -102,6 +106,8 @@ public class ActionGroupService {
         // Redis put
         String key = keyBuilder.actionGroupMeta(id);
         redisWriter.delete(key);
+
+        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
         // actionGroupKeys Cache 삭제
         cachedActionGroupService.invalidateActionGroupIdsCache();
