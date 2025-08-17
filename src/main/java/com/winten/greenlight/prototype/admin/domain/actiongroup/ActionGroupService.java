@@ -170,7 +170,7 @@ public class ActionGroupService {
                 int maxActiveCustomers = Integer.parseInt(maxActiveCustomerList.get(i).toString());
                 estimatedWaitTime = maxActiveCustomers > 0
                         ? Math.round((float) waitingSize / maxActiveCustomers)
-                        : 0;
+                        : -1; // -1은 진입불가 
             } catch (Exception e) {
                 log.error("[getAllWaitingQueueSize] parsing waiting queue size failed");
             }
