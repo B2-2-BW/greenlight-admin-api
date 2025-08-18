@@ -52,7 +52,7 @@ public class ActionEventService {
             var traffic = ActionEventTraffic.empty();
             traffic.setWaitingCount(queue.getWaitingSize());
             traffic.setEstimatedWaitTime(queue.getEstimatedWaitTime());
-            traffic.setAverageActiveUserCount(queue.getActiveUserCount() / 3.0);
+            traffic.setAverageActiveUserCount(queue.getActiveUserCount());
             trafficDetail.put(queue.getActionGroupId(), traffic);
         }
         return trafficDetail;
