@@ -59,9 +59,12 @@ public class ActionEventScheduler {
             List<ActionEvent> actionEvents = new ArrayList<>(Math.min(size, MAX_DRAIN));
             actionEventQueue.drainTo(actionEvents, MAX_DRAIN);
 
-            ActionEventTrafficResponse response = actionEventService.makeTrafficResponse(actionEvents);
-            actionEventTrafficEmitter.emit(response);
-
+            try {
+                ActionEventTrafficResponse response = actionEventService.makeTrafficResponse(actionEvents);
+                actionEventTrafficEmitter.emit(response);
+            } catch (Exception e) {
+                log.error("failed to emit action events " + e); // TODO emit은 실패해도 됨.
+            }
             if (actionEvents.isEmpty()) return;
 
             List<Point> points = new ArrayList<>(actionEvents.size());

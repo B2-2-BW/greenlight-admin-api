@@ -24,9 +24,10 @@ public class ActionEventService {
             var actionGroupId = actionEvent.getActionGroupId();
             if (!trafficDetail.containsKey(actionGroupId)) continue;
             ActionEventTraffic traffic = trafficDetail.get(actionGroupId);
-            if (actionEvent.getEventType() == WaitStatus.WAITING || actionEvent.getEventType() == WaitStatus.BYPASSED) {
+            var eventType = actionEvent.getEventType();
+            if (eventType == WaitStatus.WAITING || eventType == WaitStatus.BYPASSED) {
                 traffic.addRequest(1);
-            } else if (actionEvent.getEventType() == WaitStatus.ENTERED) {
+            } else if (eventType == WaitStatus.ENTERED) {
                 traffic.addEntered(1);
             }
         }
@@ -51,6 +52,7 @@ public class ActionEventService {
             var traffic = ActionEventTraffic.empty();
             traffic.setWaitingCount(queue.getWaitingSize());
             traffic.setEstimatedWaitTime(queue.getEstimatedWaitTime());
+            traffic.setAverageActiveUserCount(queue.getActiveUserCount() / 3.0);
             trafficDetail.put(queue.getActionGroupId(), traffic);
         }
         return trafficDetail;
