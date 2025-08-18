@@ -1,12 +1,13 @@
 package com.winten.greenlight.prototype.admin.domain.actionevent;
 
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@SuperBuilder
 public class ActionEventTrafficSummary extends ActionEventTraffic {
     private long sessionCount;
 

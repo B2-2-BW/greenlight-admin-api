@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 public class ActionGroupQueue {
     private Long actionGroupId;
     private int waitingSize;
-    private int sessionSize;
     private int estimatedWaitTime;
     private int activeUserCount;
 }

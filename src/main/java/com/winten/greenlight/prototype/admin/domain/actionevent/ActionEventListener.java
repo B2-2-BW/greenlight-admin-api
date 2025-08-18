@@ -1,5 +1,6 @@
 package com.winten.greenlight.prototype.admin.domain.actionevent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,6 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
     private final String consumerGroup = "admin-action-event-processor-group";
     // private final String consumerName = "greenlight:" + UUID.randomUUID();
     private final ActionEventProcessor actionEventProcessor;
-
     /**
      * 애플리케이션 시작 시 Consumer Group이 없으면 생성합니다.
      */
@@ -62,7 +62,6 @@ public class ActionEventListener implements StreamListener<String, MapRecord<Str
         try {
             // 처리 로직을 별도 컴포넌트에 위임 (재시도 포함)
             actionEventProcessor.process(message.getValue());
-
             // 성공 시 ACK
             redisTemplate.opsForStream().acknowledge(keyBuilder.actionEventStream(), consumerGroup, message.getId());
             log.debug("Message processed and acknowledged. ID: {}", message.getId());

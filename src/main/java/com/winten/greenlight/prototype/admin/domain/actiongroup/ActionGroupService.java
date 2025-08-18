@@ -151,14 +151,6 @@ public class ActionGroupService {
             return null;
         });
 
-        List<Object> sessionSizes = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long actionGroupId : actionGroupIds) {
-                String key = keyBuilder.actionGroupSession(actionGroupId);
-                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
-            }
-            return null;
-        });
-
         List<Object> activeUserCounts = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             for (Long actionGroupId : actionGroupIds) {
                 String key = keyBuilder.actionGroupAccessLog(actionGroupId);
@@ -170,12 +162,10 @@ public class ActionGroupService {
         for (int i = 0; i < actionGroupIds.size(); i++) {
             Long id = actionGroupIds.get(i);
             int waitingSize = 0;
-            int sessionSize = 0;
             int estimatedWaitTime = 0;
             int activeUserCount = 0;
             try {
                 waitingSize = Integer.parseInt(waitingQueueSizes.get(i).toString());
-                sessionSize = Integer.parseInt(sessionSizes.get(i).toString());
                 activeUserCount = Integer.parseInt(activeUserCounts.get(i).toString());
                 int maxActiveCustomers = Integer.parseInt(maxActiveCustomerList.get(i).toString());
                 estimatedWaitTime = maxActiveCustomers > 0
@@ -187,7 +177,6 @@ public class ActionGroupService {
             var queue = ActionGroupQueue.builder()
                     .actionGroupId(id)
                     .waitingSize(waitingSize)
-                    .sessionSize(sessionSize)
                     .estimatedWaitTime(estimatedWaitTime)
                     .activeUserCount(activeUserCount)
                     .build();

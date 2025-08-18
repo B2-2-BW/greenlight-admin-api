@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.Instant;
 
 @Data
 @AllArgsConstructor
@@ -18,6 +19,8 @@ public class ActionEvent implements Serializable {
     private Long actionId;
     private String customerId;
     private String recordId;
+    private Long timestamp;
     private Long eventTimestamp;
+    private Long recordTimestamp;
     private Long waitTimeMs;
 }

@@ -9,13 +9,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 @Component
 public class ActionEventQueue {
-    private final BlockingQueue<Point> queue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ActionEvent> queue = new LinkedBlockingQueue<>();
 
-    public boolean offer(Point point) {
-        return queue.offer(point);
+    public boolean offer(ActionEvent event) {
+        return queue.offer(event);
     }
 
-    public int drainTo(Collection<? super Point> sink, int maxElements) {
+    public int drainTo(Collection<? super ActionEvent> sink, int maxElements) {
         return queue.drainTo(sink, maxElements);
     }
 

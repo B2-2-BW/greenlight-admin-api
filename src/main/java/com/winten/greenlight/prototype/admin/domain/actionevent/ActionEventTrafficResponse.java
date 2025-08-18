@@ -12,6 +12,6 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 public class ActionEventTrafficResponse {
-    private ActionEventTraffic summary;
+    private ActionEventTrafficSummary summary;
     private Map<Long, ActionEventTraffic> detail;
 }
