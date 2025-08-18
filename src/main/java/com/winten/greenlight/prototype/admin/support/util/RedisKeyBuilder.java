@@ -50,8 +50,11 @@ public class RedisKeyBuilder {
         return prefix + ":action_group:" + actionGroupId + ":queue:WAITING";
     }
 
-    public String actionGroupSession(Long actionGroupId) {
-        return prefix + ":action_group:" + actionGroupId + ":session";
+    public String session() {
+        return prefix + ":session";
     }
 
+    public String actionGroupAccessLog(Long actionGroupId) {
+        return prefix + ":action_group:" + actionGroupId + ":accesslog";
+    }
 }

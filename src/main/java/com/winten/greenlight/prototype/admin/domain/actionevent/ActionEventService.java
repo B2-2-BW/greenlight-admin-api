@@ -82,15 +82,17 @@ public class ActionEventService {
             }
         }
 
-        var summary = makeSummary(result.values());
+        ActionEventTrafficSummary summary = makeSummary(result.values());
+        Long sessionCount = actionGroupService.getSessionCount();
+        summary.setSessionCount(sessionCount);
         return ActionEventTrafficResponse.builder()
                 .detail(result)
                 .summary(summary)
                 .build();
     }
 
-    private ActionEventTraffic makeSummary(Collection<ActionEventTraffic> trafficList) {
-        var summary = ActionEventTraffic.empty();
+    private ActionEventTrafficSummary makeSummary(Collection<ActionEventTraffic> trafficList) {
+        var summary = ActionEventTrafficSummary.empty();
         for (ActionEventTraffic traffic : trafficList) {
             summary.addRequest(traffic.getRequestCount());
             summary.addWaiting(traffic.getWaitingCount());

@@ -12,7 +12,6 @@ public class ActionEventTraffic {
     private int enteredCount;
     private double requestAverageCount;
     private double enteredAverageCount;
-    private int activeUserCount;
     private int concurrentUser;
     private int estimatedWaitTime;
     private long timestamp;
@@ -37,9 +36,6 @@ public class ActionEventTraffic {
     }
     public void addEnteredAverage(double d) {
         enteredAverageCount = enteredAverageCount + d;
-    }
-    public void addActiveUser(int d) {
-        activeUserCount = activeUserCount + d;
     }
     public void addConcurrentUser(int d) {concurrentUser = concurrentUser + d;}
     public void addEstimatedWaitTime(int d) {estimatedWaitTime = estimatedWaitTime + d;}
