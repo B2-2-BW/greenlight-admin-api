@@ -38,30 +38,50 @@ public class ActionEventService {
             result.put(queue.getActionGroupId(), traffic);
         }
 
-        List<FluxTable> tables = actionEventRepository.getCurrentTrafficDetail();
-        for (FluxTable table : tables) {
+        List<FluxTable> details = actionEventRepository.getCurrentTrafficDetail();
+        for (FluxTable table : details) {
             for (FluxRecord record : table.getRecords()) {
                 Map<String, Object> values = record.getValues();
                 Object valueObj = record.getValue();
-
                 int value;
                 if (valueObj == null) {
                     value = 0;
                 } else {
                     value = Integer.parseInt(valueObj.toString());
                 }
-
                 Long actionGroupId = Long.parseLong(values.get("actionGroupId").toString());
                 var traffic = result.get(actionGroupId);
-
                 var eventType = values.get("eventType").toString();
                 if (WaitStatus.ENTERED.name().equals(eventType)) {
-                    traffic.addEntered(value);
+                    traffic.setEnteredCount(value);
                 } else if (requestEventType.contains(eventType)) {
-                    traffic.addRequest(value);
+                    traffic.setRequestCount(value);
                 }
             }
         }
+
+        List<FluxTable> average = actionEventRepository.getCurrentTraffic10sAverage();
+        for (FluxTable table : average) {
+            for (FluxRecord record : table.getRecords()) {
+                Map<String, Object> values = record.getValues();
+                Object valueObj = record.getValue();
+                double value;
+                if (valueObj == null) {
+                    value = 0.0;
+                } else {
+                    value = Double.parseDouble(valueObj.toString());
+                }
+                Long actionGroupId = Long.parseLong(values.get("actionGroupId").toString());
+                var traffic = result.get(actionGroupId);
+                var eventType = values.get("eventType").toString();
+                if (WaitStatus.ENTERED.name().equals(eventType)) {
+                    traffic.setEnteredAverageCount(value);
+                } else if (requestEventType.contains(eventType)) {
+                    traffic.setRequestAverageCount(value);
+                }
+            }
+        }
+
         var summary = makeSummary(result.values());
         return ActionEventTrafficResponse.builder()
                 .detail(result)
@@ -75,6 +95,8 @@ public class ActionEventService {
             summary.addRequest(traffic.getRequestCount());
             summary.addWaiting(traffic.getWaitingCount());
             summary.addEntered(traffic.getEnteredCount());
+            summary.addRequestAverage(traffic.getRequestAverageCount());
+            summary.addEnteredAverage(traffic.getEnteredAverageCount());
             summary.addConcurrentUser(traffic.getConcurrentUser());
             summary.addEstimatedWaitTime(traffic.getEstimatedWaitTime());
         }

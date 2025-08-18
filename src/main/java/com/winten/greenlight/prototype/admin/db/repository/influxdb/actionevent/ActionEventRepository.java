@@ -18,12 +18,29 @@ public class ActionEventRepository {
                 option location = timezone.fixed(offset: 9h)
                 
                 from(bucket: "action_event")
-                  |> range(start: -2s)
-                  |> filter(fn: (r) => r._measurement == "greenlight_action_event")
-                  |> filter(fn: (r) => r._field == "count")
-                  |> group(columns: ["actionGroupId", "eventType"])
-                  |> aggregateWindow(every: 2s, fn: sum, createEmpty: false)
-                  |> yield(name: "waiting_count")
+                    |> range(start: -2s)
+                    |> filter(fn: (r) => r._measurement == "greenlight_action_event")
+                    |> filter(fn: (r) => r._field == "count")
+                    |> group(columns: ["actionGroupId", "eventType"])
+                    |> aggregateWindow(every: 2s, fn: sum, createEmpty: false)
+                    |> yield(name: "waiting_count")
+                """;
+        return queryApi.query(flux);
+    }
+
+    public List<FluxTable> getCurrentTraffic10sAverage() {
+        String flux = """
+                import "timezone"
+                option location = timezone.fixed(offset: 9h)
+                
+                from(bucket: "action_event")
+                    |> range(start: -10s)
+                    |> filter(fn: (r) => r._measurement == "greenlight_action_event")
+                    |> filter(fn: (r) => r._field == "count")
+                    |> group(columns: ["actionGroupId", "eventType"])
+                    |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)
+                    |> map(fn: (r) => ({ r with _value: float(v: r._value) / 10.0 }))
+                    |> yield(name: "waiting_count")
                 """;
         return queryApi.query(flux);
     }

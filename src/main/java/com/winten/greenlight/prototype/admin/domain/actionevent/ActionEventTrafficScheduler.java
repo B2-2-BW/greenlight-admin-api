@@ -17,7 +17,6 @@ public class ActionEventTrafficScheduler {
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    private final Map<String, ScheduledFuture<?>> schedules = new ConcurrentHashMap<>();
 
     private static final long TIMEOUT_MS = 60 * 30 * 1000L;
 
