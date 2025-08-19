@@ -17,7 +17,7 @@ public class ActionGroupEntity implements Hashable {
     private String ownerId;
     private String name;
     private String description;
-    private Integer maxActiveCustomers;
+    private Integer maxTrafficPerSecond;
     private Boolean enabled;
     private String createdBy;
     private LocalDateTime createdAt;

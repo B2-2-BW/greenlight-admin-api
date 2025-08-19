@@ -13,6 +13,6 @@ public class ActionGroupUpdateRequest {
     private String name;
     private String ownerId;
     private String description;
-    private Integer maxActiveCustomers;
+    private Integer maxTrafficPerSecond;
     private Boolean enabled;
 }

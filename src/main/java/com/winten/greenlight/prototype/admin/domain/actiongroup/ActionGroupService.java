@@ -143,10 +143,10 @@ public class ActionGroupService {
             return null;
         });
 
-        List<Object> maxActiveCustomerList = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+        List<Object> maxTrafficPerSecondList = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             for (Long actionGroupId : actionGroupIds) {
                 String key = keyBuilder.actionGroupMeta(actionGroupId);
-                connection.hashCommands().hGet(key.getBytes(StandardCharsets.UTF_8), "maxActiveCustomers".getBytes(StandardCharsets.UTF_8));
+                connection.hashCommands().hGet(key.getBytes(StandardCharsets.UTF_8), "maxTrafficPerSecond".getBytes(StandardCharsets.UTF_8));
             }
             return null;
         });
@@ -167,9 +167,9 @@ public class ActionGroupService {
             try {
                 waitingSize = Integer.parseInt(waitingQueueSizes.get(i).toString());
                 activeUserCount = Integer.parseInt(activeUserCounts.get(i).toString());
-                int maxActiveCustomers = Integer.parseInt(maxActiveCustomerList.get(i).toString());
-                estimatedWaitTime = maxActiveCustomers > 0
-                        ? Math.round((float) waitingSize / maxActiveCustomers)
+                int maxTrafficPerSecond = Integer.parseInt(maxTrafficPerSecondList.get(i).toString());
+                estimatedWaitTime = maxTrafficPerSecond > 0
+                        ? Math.round((float) waitingSize / maxTrafficPerSecond)
                         : -1; // -1은 진입불가 
             } catch (Exception e) {
                 log.error("[getAllWaitingQueueSize] parsing waiting queue size failed");

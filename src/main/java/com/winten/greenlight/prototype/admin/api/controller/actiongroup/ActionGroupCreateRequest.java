@@ -15,7 +15,7 @@ public class ActionGroupCreateRequest {
     private String name;
     private String description;
     @NotNull
-    private Integer maxActiveCustomers;
+    private Integer maxTrafficPerSecond;
     @NotNull
     private Boolean enabled;
 }

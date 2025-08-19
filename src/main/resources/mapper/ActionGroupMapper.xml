@@ -7,7 +7,7 @@
             owner_id,
             name,
             description,
-            max_active_customers,
+            max_traffic_per_second,
             enabled,
             created_by,
             created_at,
@@ -39,7 +39,7 @@
             owner_id,
             name,
             description,
-            max_active_customers,
+            max_traffic_per_second,
             created_by,
             updated_by
         )
@@ -48,7 +48,7 @@
             #{ownerId},
             #{name},
             #{description},
-            #{maxActiveCustomers},
+            #{maxTrafficPerSecond},
             #{ownerId},
             #{ownerId}
         )
@@ -61,7 +61,7 @@
             <if test="name != null and name != ''"> name = #{name}, </if>
             <if test="ownerId != null and ownerId != ''"> owner_id = #{ownerId}, </if>
             <if test="description != null and description != ''"> description = #{description}, </if>
-            <if test="maxActiveCustomers != null and maxActiveCustomers >= 0"> max_active_customers = #{maxActiveCustomers}, </if>
+            <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
             <if test="enabled != null"> enabled = #{enabled}, </if>
             updated_by = #{ownerId},
             updated_at = CURRENT_TIMESTAMP
@@ -101,7 +101,7 @@
         <result property="ownerId" column="ag_owner_id"/>
         <result property="name" column="ag_name"/>
         <result property="description" column="ag_description"/>
-        <result property="maxActiveCustomers" column="ag_max_active_customers"/>
+        <result property="maxTrafficPerSecond" column="ag_max_traffic_per_second"/>
         <result property="enabled" column="ag_enabled"/>
         <result property="createdBy" column="ag_created_by"/>
         <result property="createdAt" column="ag_created_at"/>
@@ -118,7 +118,7 @@
             ag.owner_id                 AS ag_owner_id,
             ag.name                     AS ag_name,
             ag.description              AS ag_description,
-            ag.max_active_customers     AS ag_max_active_customers,
+            ag.max_traffic_per_second   AS ag_max_traffic_per_second,
             ag.enabled                  AS ag_enabled,
             ag.created_by               AS ag_created_by,
             ag.created_at               AS ag_created_at,
