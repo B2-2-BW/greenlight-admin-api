@@ -28,7 +28,9 @@ public class ActionGroupController {
             @AuthenticationPrincipal final CurrentUser currentUser,
             @Nullable ActionGroupSelectRequest actionGroupSelectRequest
     ) {
-        var result = actionGroupService.getAllActionGroupByOwnerId(currentUser, actionGroupConverter.toDto(actionGroupSelectRequest));
+        var actionGroup = actionGroupConverter.toDto(actionGroupSelectRequest);
+        actionGroup.setOwnerId(currentUser.getUserId());
+        var result = actionGroupService.getAllActionGroupByOwnerId(actionGroup);
         var response = result.stream().map(actionGroupConverter::toResponse).toList();
         return ResponseEntity.ok(response);
     }
@@ -85,5 +87,13 @@ public class ActionGroupController {
         var result = actionGroupService.getActionGroupByKey(greenlightApiKey);
         var response = result.stream().map(actionGroupConverter::toResponse).toList();
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/cache")
+    public ResponseEntity<String> reloadActionCache(
+            @AuthenticationPrincipal final CurrentUser currentUser
+    ) {
+        actionGroupService.reloadActionGroupCache(currentUser);
+        return ResponseEntity.ok("action cache reload successful");
     }
 }

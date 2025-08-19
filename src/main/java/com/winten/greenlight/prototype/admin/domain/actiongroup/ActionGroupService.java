@@ -35,8 +35,7 @@ public class ActionGroupService {
     private final CachedActionGroupService cachedActionGroupService;
     private final CoreClient coreClient;
 
-    public List<ActionGroup> getAllActionGroupByOwnerId(CurrentUser currentUser, ActionGroup actionGroup) {
-        actionGroup.setOwnerId(currentUser.getUserId());
+    public List<ActionGroup> getAllActionGroupByOwnerId(ActionGroup actionGroup) {
         return actionGroupMapper.findAll(actionGroup);
     }
 
@@ -190,5 +189,17 @@ public class ActionGroupService {
         var key = keyBuilder.session();
         return stringRedisTemplate.opsForZSet().size(key);
 
+    }
+
+    public void reloadActionGroupCache(CurrentUser currentUser) {
+        ActionGroup param = ActionGroup.builder()
+                        .ownerId(currentUser.getUserId())
+                        .build();
+        List<ActionGroup> actionGroupList = getAllActionGroupByOwnerId(param);
+        for (ActionGroup actionGroup : actionGroupList) {
+            String key = keyBuilder.actionGroupMeta(actionGroup.getId());
+            redisWriter.putAll(key, actionGroupConverter.toEntity(actionGroup));
+            coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+        }
     }
 }
