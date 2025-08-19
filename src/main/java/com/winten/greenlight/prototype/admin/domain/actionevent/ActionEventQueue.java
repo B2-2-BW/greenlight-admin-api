@@ -1,6 +1,6 @@
 package com.winten.greenlight.prototype.admin.domain.actionevent;
 
-import com.influxdb.client.write.Point;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;

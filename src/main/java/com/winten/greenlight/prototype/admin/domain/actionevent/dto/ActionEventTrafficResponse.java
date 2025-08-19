@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.admin.domain.actionevent;
+package com.winten.greenlight.prototype.admin.domain.actionevent.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

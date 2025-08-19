@@ -1,5 +1,12 @@
 package com.winten.greenlight.prototype.admin.domain.actionevent;
 
+import com.influxdb.query.FluxRecord;
+import com.influxdb.query.FluxTable;
+import com.winten.greenlight.prototype.admin.db.repository.influxdb.actionevent.ActionEventRepository;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEvent;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEventTraffic;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEventTrafficResponse;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEventTrafficSummary;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupQueue;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupService;
 import com.winten.greenlight.prototype.admin.domain.customer.WaitStatus;
@@ -16,14 +23,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ActionEventService {
     private final ActionGroupService actionGroupService;
+    private final ActionEventRepository actionEventRepository;
 
     public ActionEventTrafficResponse makeTrafficResponse(List<ActionEvent> actionEvents) {
-        var trafficDetail = this.getTrafficDetail();
+        var trafficMap = this.getActionEventTrafficMap();
 
         for (ActionEvent actionEvent : actionEvents) {
             var actionGroupId = actionEvent.getActionGroupId();
-            if (!trafficDetail.containsKey(actionGroupId)) continue;
-            ActionEventTraffic traffic = trafficDetail.get(actionGroupId);
+            if (!trafficMap.containsKey(actionGroupId)) continue;
+            ActionEventTraffic traffic = trafficMap.get(actionGroupId);
             var eventType = actionEvent.getEventType();
             if (eventType == WaitStatus.WAITING || eventType == WaitStatus.BYPASSED) {
                 traffic.addRequest(1);
@@ -32,16 +40,38 @@ public class ActionEventService {
             }
         }
 
-        ActionEventTrafficSummary summary = this.makeSummary(trafficDetail.values());
+        List<FluxTable> average = actionEventRepository.getCurrentTraffic10sAverage();
+        for (FluxTable table : average) {
+            for (FluxRecord record : table.getRecords()) {
+                Map<String, Object> values = record.getValues();
+                Object valueObj = record.getValue();
+                double value;
+                if (valueObj == null) {
+                    value = 0.0;
+                } else {
+                    value = Double.parseDouble(valueObj.toString());
+                }
+                Long actionGroupId = Long.parseLong(values.get("actionGroupId").toString());
+                ActionEventTraffic traffic = trafficMap.get(actionGroupId);
+                var eventType = values.get("eventType").toString();
+                if (WaitStatus.WAITING.name().equals(eventType) || WaitStatus.BYPASSED.name().equals(eventType)) {
+                    traffic.setAverageRequestCount(value);
+                } else if (WaitStatus.ENTERED.name().equals(eventType)) {
+                    traffic.setAverageEnteredCount(value);
+                }
+            }
+        }
+
+        ActionEventTrafficSummary summary = this.makeSummary(trafficMap.values());
         Long sessionCount = actionGroupService.getSessionCount();
         summary.setSessionCount(sessionCount);
         return ActionEventTrafficResponse.builder()
-                .detail(trafficDetail)
+                .detail(trafficMap)
                 .summary(summary)
                 .build();
     }
 
-    private Map<Long, ActionEventTraffic> getTrafficDetail() {
+    private Map<Long, ActionEventTraffic> getActionEventTrafficMap() {
         CurrentUser currentUser = CurrentUser.builder()
                 .userId("admin")
                 .build();

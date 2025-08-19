@@ -1,21 +1,11 @@
 package com.winten.greenlight.prototype.admin.domain.actionevent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.influxdb.client.WriteApi;
-import com.influxdb.client.domain.WritePrecision;
-import com.influxdb.client.write.Point;
-import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
-import jakarta.annotation.PostConstruct;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.Map;
 
 @Slf4j

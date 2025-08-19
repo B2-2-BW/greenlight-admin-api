@@ -1,4 +1,4 @@
-package com.winten.greenlight.prototype.admin.domain.actionevent;
+package com.winten.greenlight.prototype.admin.domain.actionevent.dto;
 
 import com.winten.greenlight.prototype.admin.domain.customer.WaitStatus;
 import lombok.AllArgsConstructor;
@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 @Data
 @AllArgsConstructor

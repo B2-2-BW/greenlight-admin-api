@@ -3,7 +3,8 @@ package com.winten.greenlight.prototype.admin.domain.actionevent;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
-import com.winten.greenlight.prototype.admin.domain.customer.WaitStatus;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEvent;
+import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEventTrafficResponse;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class ActionEventScheduler {
         }
     }
 
-    @Scheduled(fixedRate = 1000)
+    @Scheduled(fixedRate = 2000)
     public void writePointsAndEmit() {
         try {
             int size = actionEventQueue.size();
@@ -74,7 +75,7 @@ public class ActionEventScheduler {
             }
             writeApi.writePoints(points);
         } catch (Exception e) {
-            log.error("failed to write points", e);
+            log.error("failed to write points " + e);
         }
     }
 
