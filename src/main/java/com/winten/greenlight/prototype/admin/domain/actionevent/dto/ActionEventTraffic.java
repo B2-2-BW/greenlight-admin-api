@@ -13,7 +13,6 @@ public class ActionEventTraffic {
     private int enteredCount;
     private double averageRequestCount;
     private double averageEnteredCount;
-    private double averageActiveUserCount;
     private int estimatedWaitTime;
     private long timestamp;
 

@@ -39,6 +39,7 @@ public class ActionEventRepository {
                     |> filter(fn: (r) => r._field == "count")
                     |> group(columns: ["actionGroupId", "eventType"])
                     |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)
+                    |> map(fn: (r) => ({ r with _value: float(v: r._value) / 10.0 }))
                     |> yield(name: "waiting_count")
                 """;
         return queryApi.query(flux);

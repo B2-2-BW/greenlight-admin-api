@@ -150,22 +150,22 @@ public class ActionGroupService {
             return null;
         });
 
-        List<Object> activeUserCounts = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long actionGroupId : actionGroupIds) {
-                String key = keyBuilder.actionGroupAccessLog(actionGroupId);
-                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
-            }
-            return null;
-        });
+//        List<Object> activeUserCounts = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+//            for (Long actionGroupId : actionGroupIds) {
+//                String key = keyBuilder.actionGroupAccessLog(actionGroupId);
+//                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
+//            }
+//            return null;
+//        });
 
         for (int i = 0; i < actionGroupIds.size(); i++) {
             Long id = actionGroupIds.get(i);
             int waitingSize = 0;
             int estimatedWaitTime = 0;
-            int activeUserCount = 0;
+//            int activeUserCount = 0;
             try {
                 waitingSize = Integer.parseInt(waitingQueueSizes.get(i).toString());
-                activeUserCount = Integer.parseInt(activeUserCounts.get(i).toString());
+//                activeUserCount = Integer.parseInt(activeUserCounts.get(i).toString());
                 int maxTrafficPerSecond = Integer.parseInt(maxTrafficPerSecondList.get(i).toString());
                 estimatedWaitTime = maxTrafficPerSecond > 0
                         ? Math.round((float) waitingSize / maxTrafficPerSecond)
@@ -177,7 +177,7 @@ public class ActionGroupService {
                     .actionGroupId(id)
                     .waitingSize(waitingSize)
                     .estimatedWaitTime(estimatedWaitTime)
-                    .activeUserCount(activeUserCount)
+//                    .activeUserCount(activeUserCount)
                     .build();
             result.add(queue);
         }
