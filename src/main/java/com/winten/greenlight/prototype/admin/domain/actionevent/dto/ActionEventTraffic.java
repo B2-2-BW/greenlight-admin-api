@@ -22,20 +22,20 @@ public class ActionEventTraffic {
         return empty;
     }
 
-    public void addRequest(int d) {
+    public void addRequestCount(int d) {
         requestCount = requestCount + d;
     }
-    public void addWaiting(int d) {
+    public void addWaitingCount(int d) {
         waitingCount = waitingCount + d;
     }
-    public void addEntered(int d) {
+    public void addEnteredCount(int d) {
         enteredCount = enteredCount + d;
     }
-    public void addAverageRequest(double d) {
+    public void addAverageRequestCount(double d) {
         averageRequestCount = averageRequestCount + d;
     }
-    public void addAverageEntered(double d) {
+    public void addAverageEnteredCount(double d) {
         averageEnteredCount = averageEnteredCount + d;
     }
-    public void addEstimatedWaitTime(int d) {estimatedWaitTime = estimatedWaitTime + d;}
+    public void addEstimatedWaitTimeCount(int d) {estimatedWaitTime = estimatedWaitTime + d;}
 }

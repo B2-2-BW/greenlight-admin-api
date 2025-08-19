@@ -34,9 +34,9 @@ public class ActionEventService {
             ActionEventTraffic traffic = trafficMap.get(actionGroupId);
             var eventType = actionEvent.getEventType();
             if (eventType == WaitStatus.WAITING || eventType == WaitStatus.BYPASSED) {
-                traffic.addRequest(1);
+                traffic.addRequestCount(1);
             } else if (eventType == WaitStatus.ENTERED) {
-                traffic.addEntered(1);
+                traffic.addEnteredCount(1);
             }
         }
 
@@ -55,9 +55,9 @@ public class ActionEventService {
                 ActionEventTraffic traffic = trafficMap.get(actionGroupId);
                 var eventType = values.get("eventType").toString();
                 if (WaitStatus.WAITING.name().equals(eventType) || WaitStatus.BYPASSED.name().equals(eventType)) {
-                    traffic.setAverageRequestCount(value);
+                    traffic.addAverageRequestCount(value);
                 } else if (WaitStatus.ENTERED.name().equals(eventType)) {
-                    traffic.setAverageEnteredCount(value);
+                    traffic.addAverageEnteredCount(value);
                 }
             }
         }
@@ -91,12 +91,12 @@ public class ActionEventService {
     private ActionEventTrafficSummary makeSummary(Collection<ActionEventTraffic> trafficList) {
         var summary = ActionEventTrafficSummary.empty();
         for (ActionEventTraffic traffic : trafficList) {
-            summary.addRequest(traffic.getRequestCount());
-            summary.addWaiting(traffic.getWaitingCount());
-            summary.addEntered(traffic.getEnteredCount());
-            summary.addAverageRequest(traffic.getAverageRequestCount());
-            summary.addAverageEntered(traffic.getAverageEnteredCount());
-            summary.addEstimatedWaitTime(traffic.getEstimatedWaitTime());
+            summary.addRequestCount(traffic.getRequestCount());
+            summary.addWaitingCount(traffic.getWaitingCount());
+            summary.addEnteredCount(traffic.getEnteredCount());
+            summary.addAverageRequestCount(traffic.getAverageRequestCount());
+            summary.addAverageEnteredCount(traffic.getAverageEnteredCount());
+            summary.addEstimatedWaitTimeCount(traffic.getEstimatedWaitTime());
         }
         summary.setEstimatedWaitTime(Math.round((float) summary.getEstimatedWaitTime() / trafficList.size()));
         return summary;
