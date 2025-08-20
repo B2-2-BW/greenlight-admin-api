@@ -87,8 +87,8 @@ public class ActionService {
 
         // Core 프론트에서 landingId로 action을 조회해야함.
         // landingId를 기준으로 action을 조회할 수 있는 기능을 위해 redis에 key로 저장
-        String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
-        redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+        String landingCacheKey = keyBuilder.landingCacheKey(actionResult.getLandingId());
+        redisWriter.put(landingCacheKey, String.valueOf(actionResult.getId()));
 
         return actionResult;
     }
