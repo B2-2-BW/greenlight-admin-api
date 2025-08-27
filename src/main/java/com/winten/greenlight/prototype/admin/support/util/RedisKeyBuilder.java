@@ -11,7 +11,7 @@ public class RedisKeyBuilder {
     private String prefix;
 
     public String actionGroupKeyPattern() {
-        return prefix + "action_group:*";
+        return prefix + ":action_group:*:meta";
     }
 
     // TODO 한눈에 보기 쉽게 완성된 full string을 주석에 추가하기
@@ -21,6 +21,10 @@ public class RedisKeyBuilder {
 
     public String actionGroupStatus(Long actionGroupId) {
         return prefix + ":action_group:" + actionGroupId + ":status";
+    }
+
+    public String action() {
+        return prefix + ":action:*";
     }
 
     public String action(Long actionId) {

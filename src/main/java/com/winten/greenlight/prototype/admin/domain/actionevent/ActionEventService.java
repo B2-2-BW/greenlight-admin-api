@@ -10,7 +10,6 @@ import com.winten.greenlight.prototype.admin.domain.actionevent.dto.ActionEventT
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupQueue;
 import com.winten.greenlight.prototype.admin.domain.actiongroup.ActionGroupService;
 import com.winten.greenlight.prototype.admin.domain.customer.WaitStatus;
-import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -72,11 +71,8 @@ public class ActionEventService {
     }
 
     private Map<Long, ActionEventTraffic> getActionEventTrafficMap() {
-        CurrentUser currentUser = CurrentUser.builder()
-                .userId("admin")
-                .build();
         Map<Long, ActionEventTraffic> trafficDetail = new HashMap<>();
-        List<ActionGroupQueue> queueSizes = actionGroupService.getActionGroupQueueStatus(currentUser);
+        List<ActionGroupQueue> queueSizes = actionGroupService.getActionGroupQueueStatus();
 
         for (ActionGroupQueue queue : queueSizes) {
             var traffic = ActionEventTraffic.empty();

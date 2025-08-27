@@ -30,6 +30,10 @@ public class ActionService {
         return actionMapper.findAll(ownerId);
     }
 
+    public List<Action> getAllEnabledActionsByOwnerId(String ownerId) {
+        return actionMapper.findAllEnabled(ownerId);
+    }
+
     public Action getActionById(Long id, CurrentUser currentUser) {
         Action action = Action.builder()
                 .id(id)
@@ -168,17 +172,27 @@ public class ActionService {
     }
 
     public void reloadActionCache(CurrentUser currentUser) {
-        List<Action> actions = getAllActionsByOwnerId(currentUser.getUserId());
-        for (Action action : actions) {
+        // 기존 액션 전체 삭제
+        List<Action> allActions = getAllActionsByOwnerId(currentUser.getUserId());
+        for (Action action : allActions) {
+            String key = keyBuilder.action(action.getId());
+            redisWriter.delete(key);
+            coreClient.invalidateActionCacheById(action.getId());
+            
+            String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
+            redisWriter.delete(landingCacheKey);
+            coreClient.invalidateActionCacheByLandingId(action.getLandingId());
+        }
+
+        List<Action> enabledActions = getAllEnabledActionsByOwnerId(currentUser.getUserId());
+        for (Action action : enabledActions) {
             List<ActionRule> actionRuleResult = actionRuleMapper.findAllByActionId(action.getId());
             action.setActionRules(actionRuleResult);
             String key = keyBuilder.action(action.getId());
             redisWriter.putAll(key, actionConverter.toEntity(action));
-            coreClient.invalidateActionCacheById(action.getId());
 
             String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
             redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
-            coreClient.invalidateActionCacheByLandingId(action.getLandingId());
         }
     }
 }

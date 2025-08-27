@@ -90,7 +90,7 @@ public class ActionGroupController {
     }
 
     @GetMapping("/cache")
-    public ResponseEntity<String> reloadActionCache(
+    public ResponseEntity<String> reloadActionGroupCache(
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
         actionGroupService.reloadActionGroupCache(currentUser);

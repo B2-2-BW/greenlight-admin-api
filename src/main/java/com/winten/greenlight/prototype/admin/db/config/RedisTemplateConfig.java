@@ -18,11 +18,12 @@ public class RedisTemplateConfig {
     @Bean
     public RedisTemplate<String, String> redisTemplate(LettuceConnectionFactory factory) {
         RedisTemplate<String, String> redisTemplate = new RedisTemplate<>();
+        var stringSerializer = new StringRedisSerializer();
         redisTemplate.setConnectionFactory(factory);
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new StringRedisSerializer());
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashValueSerializer(new StringRedisSerializer());
+        redisTemplate.setKeySerializer(stringSerializer);
+        redisTemplate.setValueSerializer(stringSerializer);
+        redisTemplate.setHashKeySerializer(stringSerializer);
+        redisTemplate.setHashValueSerializer(stringSerializer);
         return redisTemplate;
     }
 

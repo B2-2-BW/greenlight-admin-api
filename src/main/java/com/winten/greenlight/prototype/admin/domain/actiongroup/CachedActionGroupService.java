@@ -1,36 +1,39 @@
 package com.winten.greenlight.prototype.admin.domain.actiongroup;
 
-import com.winten.greenlight.prototype.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
-import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.winten.greenlight.prototype.admin.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class CachedActionGroupService {
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
-    private final ActionGroupMapper actionGroupMapper;
+    private final ObjectMapper objectMapper;
+    private final RedisTemplate jsonRedisTemplate;
 
     /**
-     * @return actionGroupId : Redis key 형식의 Map 반환
+     * @return actionGroupId : 대시보드 SSE 연결 시에 액션그룹 리스트 조회를 위해 사용
      */
-    @Cacheable(cacheNames = "actionGroupIds")
-    public List<Long> getActionGroupIds(CurrentUser currentUser) {
-        var entity = ActionGroup.builder()
-                .ownerId(currentUser.getUserId())
-                .build();
-        var actionGroups = actionGroupMapper.findAll(entity);
-        return actionGroups.stream().map(ActionGroup::getId).collect(Collectors.toList());
+    public List<ActionGroup> getAllActionGroup() {
+        String patternKey = keyBuilder.actionGroupKeyPattern();
+        Set<String> actionGroupKeys = stringRedisTemplate.keys(patternKey);
+        if (actionGroupKeys == null) {
+            return List.of();
+        }
+        List<Object> actionGroups = jsonRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (String actionGroupKey : actionGroupKeys) {
+                connection.hashCommands().hGetAll(actionGroupKey.getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+        return actionGroups.stream().map(ag -> objectMapper.convertValue(ag, ActionGroup.class)).toList();
     }
-
-    @CacheEvict(cacheNames = "actionGroupIds")
-    public void invalidateActionGroupIdsCache() {}
 }

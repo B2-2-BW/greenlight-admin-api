@@ -32,6 +32,14 @@
         </where>
     </select>
 
+    <select id="findAllEnabled" parameterType="String" resultType="Action">
+        <include refid="selectFromAction"/>
+        <where>
+            a.owner_id = #{ownerId}
+            and ag.enabled = true
+        </where>
+    </select>
+
     <select id="findAllByGroupId" parameterType="Action" resultType="Action">
         <include refid="selectFromAction"/>
         <where>

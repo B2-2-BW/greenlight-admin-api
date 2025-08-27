@@ -4,6 +4,7 @@ import com.winten.greenlight.prototype.admin.client.core.CoreClient;
 import com.winten.greenlight.prototype.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
 import com.winten.greenlight.prototype.admin.domain.action.Action;
+import com.winten.greenlight.prototype.admin.domain.action.ActionConverter;
 import com.winten.greenlight.prototype.admin.domain.action.ActionService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import com.winten.greenlight.prototype.admin.domain.user.UserService;
@@ -31,6 +32,7 @@ public class ActionGroupService {
     private final ActionGroupMapper actionGroupMapper;
     private final ActionService actionService;
     private final ActionGroupConverter actionGroupConverter;
+    private final ActionConverter actionConverter;
     private final UserService userService;
     private final CachedActionGroupService cachedActionGroupService;
     private final CoreClient coreClient;
@@ -65,16 +67,13 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(result.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
-        // actionGroupKeys Cache 삭제
-        cachedActionGroupService.invalidateActionGroupIdsCache();
-
         return result;
     }
 
     @Transactional
     public ActionGroup updateActionGroup(ActionGroup actionGroup, CurrentUser currentUser) {
         // TODO currentUser가 ADMIN인 경우 ownerId를 맘대로 변경 가능. 현재는 currentUser의 userId로 강제 입력중
-        getActionGroupById(actionGroup.getId(), currentUser); // action group 존재여부 확인
+        ActionGroup currentActionGroup = getActionGroupById(actionGroup.getId(), currentUser); // action group 존재여부 확인
         actionGroup.setOwnerId(currentUser.getUserId());
 
         ActionGroup result = actionGroupMapper.updateById(actionGroup);
@@ -85,8 +84,19 @@ public class ActionGroupService {
 
         coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
-        // actionGroupKeys Cache 삭제
-        cachedActionGroupService.invalidateActionGroupIdsCache();
+        // 활성화 상태 변경 시 action 캐시 업데이트
+        if (currentActionGroup.getEnabled() != result.getEnabled()) {
+            List<Action> actions = actionService.getActionsByGroup(actionGroup.getId(), currentUser);
+            for (Action action : actions) {
+                String actionKey = keyBuilder.action(action.getId());
+                if (result.getEnabled()) {
+                    redisWriter.putAll(actionKey, actionConverter.toEntity(action));
+                } else {
+                    redisWriter.delete(actionKey);
+                }
+                coreClient.invalidateActionCacheById(action.getId());
+            }
+        }
         return result;
     }
 
@@ -108,9 +118,6 @@ public class ActionGroupService {
 
         coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
-        // actionGroupKeys Cache 삭제
-        cachedActionGroupService.invalidateActionGroupIdsCache();
-
         return ActionGroup.builder()
                 .id(id)
                 .build();
@@ -125,26 +132,28 @@ public class ActionGroupService {
     }
 
     // action_group:{actionGroup}:queue:WAITING, action_group:{actionGroup}:session의 size 조회
-    public List<ActionGroupQueue> getActionGroupQueueStatus(CurrentUser currentUser) {
-        List<Long> actionGroupIds = cachedActionGroupService.getActionGroupIds(currentUser);
+    public List<ActionGroupQueue> getActionGroupQueueStatus() {
+        List<ActionGroup> allActionGroups = cachedActionGroupService.getAllActionGroup();
+
+        List<ActionGroup> enabledActionGroups = allActionGroups.stream().filter(ActionGroup::getEnabled).toList();
 
         List<ActionGroupQueue> result = new ArrayList<>();
-        if (actionGroupIds == null || actionGroupIds.isEmpty()) {
+        if (enabledActionGroups.isEmpty()) { // enabledActionGroups != null 보장됨
             return result;
         }
 
         // RTT 절감을 위해 redis 명령어 파이프라이닝
         List<Object> waitingQueueSizes = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long actionGroupId : actionGroupIds) {
-                String key = keyBuilder.actionGroupWaitingQueue(actionGroupId);
+            for (ActionGroup actionGroup : enabledActionGroups) {
+                String key = keyBuilder.actionGroupWaitingQueue(actionGroup.getId());
                 connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
             }
             return null;
         });
 
         List<Object> maxTrafficPerSecondList = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long actionGroupId : actionGroupIds) {
-                String key = keyBuilder.actionGroupMeta(actionGroupId);
+            for (ActionGroup actionGroup : enabledActionGroups) {
+                String key = keyBuilder.actionGroupMeta(actionGroup.getId());
                 connection.hashCommands().hGet(key.getBytes(StandardCharsets.UTF_8), "maxTrafficPerSecond".getBytes(StandardCharsets.UTF_8));
             }
             return null;
@@ -158,8 +167,8 @@ public class ActionGroupService {
 //            return null;
 //        });
 
-        for (int i = 0; i < actionGroupIds.size(); i++) {
-            Long id = actionGroupIds.get(i);
+        for (int i = 0; i < enabledActionGroups.size(); i++) {
+            Long id = enabledActionGroups.get(i).getId();
             int waitingSize = 0;
             int estimatedWaitTime = 0;
 //            int activeUserCount = 0;
