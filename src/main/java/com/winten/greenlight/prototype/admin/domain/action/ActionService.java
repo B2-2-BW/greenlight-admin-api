@@ -2,8 +2,8 @@ package com.winten.greenlight.prototype.admin.domain.action;
 
 import com.winten.greenlight.prototype.admin.client.core.CoreClient;
 import com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionMapper;
-import com.winten.greenlight.prototype.admin.db.repository.mapper.action.ActionRuleMapper;
 import com.winten.greenlight.prototype.admin.db.repository.redis.RedisWriter;
+import com.winten.greenlight.prototype.admin.domain.actionrule.ActionRuleService;
 import com.winten.greenlight.prototype.admin.domain.user.CurrentUser;
 import com.winten.greenlight.prototype.admin.support.error.CoreException;
 import com.winten.greenlight.prototype.admin.support.error.ErrorType;
@@ -21,7 +21,7 @@ public class ActionService {
     private final ActionMapper actionMapper;
     private final RedisKeyBuilder keyBuilder;
     private final RedisWriter redisWriter;
-    private final ActionRuleMapper actionRuleMapper;
+    private final ActionRuleService actionRuleService;
     private final ActionConverter actionConverter;
     private final CoreClient coreClient;
 
@@ -45,18 +45,23 @@ public class ActionService {
 
     public Action getActionByIdWithRules(Long id, CurrentUser currentUser) {
         Action action = getActionById(id, currentUser);
-        List<ActionRule> actionRules = actionRuleMapper.findAllByActionId(id);
+        List<ActionRule> actionRules = actionRuleService.findAllActionRuleByActionId(id);
         action.setActionRules(actionRules);
         return action;
     }
 
     public List<Action> getActionsByGroup(Long actionGroupId, CurrentUser currentUser) {
-        Action action = Action.builder()
+        Action param = Action.builder()
                 .actionGroupId(actionGroupId)
                 .ownerId(currentUser.getUserId())
                 .build();
-        action.setOwnerId(currentUser.getUserId());
-        return actionMapper.findAllByGroupId(action);
+        param.setOwnerId(currentUser.getUserId());
+        List<Action> actions = actionMapper.findAllByGroupId(param);
+        for (Action action : actions) {
+            List<ActionRule> actionRules = actionRuleService.findAllActionRuleByActionId(action.getId());
+            action.setActionRules(actionRules);
+        }
+        return actions;
     }
 
     @Transactional
@@ -75,14 +80,13 @@ public class ActionService {
         // Action 저장
         Action actionResult = actionMapper.save(action);
 
-        // Action Rule 저장
+        // Action ID 세팅
         for (ActionRule actionRule : action.getActionRules()) {
-            actionRule.setActionId(actionResult.getId());
-            actionRule.setCreatedBy(currentUser.getUserId());
-            actionRule.setUpdatedBy(currentUser.getUserId());
-            actionRuleMapper.save(actionRule);
+            actionRule.setActionId(action.getId());
         }
-        List<ActionRule> actionRuleResult = actionRuleMapper.findAllByActionId(actionResult.getId());
+        // Action Rule 저장
+        actionRuleService.saveAll(action.getActionRules(), currentUser);
+        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
         actionResult.setActionRules(actionRuleResult);
 
         // Redis put
@@ -112,14 +116,14 @@ public class ActionService {
         // TODO AWS처럼 action rule 개별 업데이트 및 삭제가 가능해야할수도?
         //  현재는 전체 삭제 후 다시 insert 중임
         // Action Rule 삭제 후 저장
-        actionRuleMapper.deleteAllByActionId(actionResult.getId());
+        actionRuleService.deleteAllByActionId(actionResult.getId());
+
         for (ActionRule actionRule : action.getActionRules()) {
             actionRule.setActionId(actionResult.getId());
-            actionRule.setCreatedBy(currentUser.getUserId());
-            actionRule.setUpdatedBy(currentUser.getUserId());
-            actionRuleMapper.save(actionRule);
         }
-        List<ActionRule> actionRuleResult = actionRuleMapper.findAllByActionId(actionResult.getId());
+        actionRuleService.saveAll(action.getActionRules(), currentUser);
+
+        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
         actionResult.setActionRules(actionRuleResult);
 
         // Redis put
@@ -140,7 +144,7 @@ public class ActionService {
         // DB Delete
         actionMapper.deleteById(action);
 
-        actionRuleMapper.deleteAllByActionId(actionId);
+        actionRuleService.deleteAllByActionId(actionId);
 
         // Redis Delete
         String key = keyBuilder.action(actionId);
@@ -186,7 +190,7 @@ public class ActionService {
 
         List<Action> enabledActions = getAllEnabledActionsByOwnerId(currentUser.getUserId());
         for (Action action : enabledActions) {
-            List<ActionRule> actionRuleResult = actionRuleMapper.findAllByActionId(action.getId());
+            List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRuleResult);
             String key = keyBuilder.action(action.getId());
             redisWriter.putAll(key, actionConverter.toEntity(action));
