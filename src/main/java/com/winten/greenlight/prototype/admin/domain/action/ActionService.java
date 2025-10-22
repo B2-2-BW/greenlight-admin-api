@@ -82,7 +82,7 @@ public class ActionService {
 
         // Action ID 세팅
         for (ActionRule actionRule : action.getActionRules()) {
-            actionRule.setActionId(action.getId());
+            actionRule.setActionId(actionResult.getId());
         }
         // Action Rule 저장
         actionRuleService.saveAll(action.getActionRules(), currentUser);
