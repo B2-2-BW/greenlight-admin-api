@@ -94,7 +94,7 @@ public class ActionGroupService {
                 } else {
                     redisWriter.delete(actionKey);
                 }
-                coreClient.invalidateActionCacheById(action.getId());
+//                coreClient.invalidateActionCacheById(action.getId());
             }
         }
         return result;
