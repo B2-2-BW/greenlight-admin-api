@@ -1,4 +1,4 @@
-spring.application.name: greenlight-prototype-admin-api
+spring.application.name: greenlight-admin-api
 spring.profiles.active: local
 
 server:
@@ -23,7 +23,7 @@ spring:
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
-  type-aliases-package: com.winten.greenlight.prototype
+  type-aliases-package: com.winten.greenlight
   configuration:
     map-underscore-to-camel-case: true
     cache-enabled: true
@@ -54,8 +54,9 @@ springdoc:
   paths-to-match:
     - /**
 
-redis:
-  key-prefix: ${REDIS_KEY_PREFIX}
+custom:
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX}
 
 jwt:
   secret: ${JWT_SECRET}
