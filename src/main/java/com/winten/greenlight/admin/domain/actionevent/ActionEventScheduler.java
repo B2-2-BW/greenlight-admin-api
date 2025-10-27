@@ -52,7 +52,7 @@ public class ActionEventScheduler {
         }
     }
 
-    @Scheduled(fixedRate = 2000)
+    @Scheduled(fixedRate = 1000)
     public void writePointsAndEmit() {
         try {
             int size = actionEventQueue.size();
