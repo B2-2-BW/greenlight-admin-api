@@ -82,7 +82,7 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(result.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(result));
 
-        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+//        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
         // 활성화 상태 변경 시 action 캐시 업데이트
         if (currentActionGroup.getEnabled() != result.getEnabled()) {
@@ -116,7 +116,7 @@ public class ActionGroupService {
         String key = keyBuilder.actionGroupMeta(id);
         redisWriter.delete(key);
 
-        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+//        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
         return ActionGroup.builder()
                 .id(id)
@@ -208,7 +208,7 @@ public class ActionGroupService {
         for (ActionGroup actionGroup : actionGroupList) {
             String key = keyBuilder.actionGroupMeta(actionGroup.getId());
             redisWriter.putAll(key, actionGroupConverter.toEntity(actionGroup));
-            coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+//            coreClient.invalidateActionGroupCacheById(actionGroup.getId());
         }
     }
 }
