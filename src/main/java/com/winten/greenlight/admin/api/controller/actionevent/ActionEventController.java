@@ -12,10 +12,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("action-events")
 @RequiredArgsConstructor
 public class ActionEventController {
-    private final ActionEventTrafficEmitter trafficScheduler;
+    private final ActionEventTrafficEmitter actionEventTrafficEmitter;
 
     @GetMapping(value = "/traffic/sse/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() {
-        return trafficScheduler.createEmitter();
+        return actionEventTrafficEmitter.createEmitter();
     }
 }
