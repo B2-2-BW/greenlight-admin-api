@@ -14,8 +14,8 @@ public class InfluxDBConfig {
     private String token;
     @Value("${influxdb.org}")
     private String org;
-    @Value("${influxdb.bucket}")
-    private String bucket;
+    @Value("${influxdb.default-bucket}")
+    private String defaultBucket;
 
     @Bean(destroyMethod = "close")
     public InfluxDBClient influxDBClient() {
@@ -23,7 +23,7 @@ public class InfluxDBConfig {
                 .url(influxUrl)
                 .authenticateToken(token.toCharArray())
                 .org(org)
-                .bucket(bucket)
+                .bucket(defaultBucket)
                 .build();
         return InfluxDBClientFactory.create(options);
     }
