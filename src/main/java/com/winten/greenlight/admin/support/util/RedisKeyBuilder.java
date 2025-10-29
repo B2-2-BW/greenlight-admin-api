@@ -61,4 +61,8 @@ public class RedisKeyBuilder {
     public String actionGroupAccessLog(Long actionGroupId) {
         return prefix + ":action_group:" + actionGroupId + ":accesslog";
     }
+
+    public String urlCachingKey(String url) {
+        return prefix + ":url_action_mapping:" + url;
+    }
 }

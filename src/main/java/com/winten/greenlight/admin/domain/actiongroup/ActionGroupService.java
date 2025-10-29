@@ -1,10 +1,7 @@
 package com.winten.greenlight.admin.domain.actiongroup;
 
-import com.winten.greenlight.admin.client.core.CoreClient;
 import com.winten.greenlight.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
-import com.winten.greenlight.admin.db.repository.redis.RedisWriter;
 import com.winten.greenlight.admin.domain.action.Action;
-import com.winten.greenlight.admin.domain.action.ActionConverter;
 import com.winten.greenlight.admin.domain.action.ActionService;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserService;
@@ -28,14 +25,11 @@ import java.util.List;
 public class ActionGroupService {
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
-    private final RedisWriter redisWriter;
     private final ActionGroupMapper actionGroupMapper;
     private final ActionService actionService;
-    private final ActionGroupConverter actionGroupConverter;
-    private final ActionConverter actionConverter;
     private final UserService userService;
     private final CachedActionGroupService cachedActionGroupService;
-    private final CoreClient coreClient;
+    private final ActionGroupCacheManager actionGroupCacheManager;
 
     public List<ActionGroup> getAllActionGroupByOwnerId(ActionGroup actionGroup) {
         return actionGroupMapper.findAll(actionGroup);
@@ -64,8 +58,7 @@ public class ActionGroupService {
         ActionGroup result = actionGroupMapper.save(actionGroup);
 
         // Redis put
-        String key = keyBuilder.actionGroupMeta(result.getId());
-        redisWriter.putAll(key, actionGroupConverter.toEntity(result));
+        actionGroupCacheManager.updateActionGroupMetaCache(actionGroup);
 
         return result;
     }
@@ -79,23 +72,11 @@ public class ActionGroupService {
         ActionGroup result = actionGroupMapper.updateById(actionGroup);
 
         // Redis put
-        String key = keyBuilder.actionGroupMeta(result.getId());
-        redisWriter.putAll(key, actionGroupConverter.toEntity(result));
-
-//        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+        actionGroupCacheManager.updateActionGroupMetaCache(actionGroup);
 
         // 활성화 상태 변경 시 action 캐시 업데이트
         if (currentActionGroup.getEnabled() != result.getEnabled()) {
-            List<Action> actions = actionService.getActionsByGroup(actionGroup.getId(), currentUser);
-            for (Action action : actions) {
-                String actionKey = keyBuilder.action(action.getId());
-                if (result.getEnabled()) {
-                    redisWriter.putAll(actionKey, actionConverter.toEntity(action));
-                } else {
-                    redisWriter.delete(actionKey);
-                }
-//                coreClient.invalidateActionCacheById(action.getId());
-            }
+            actionService.reloadActionCache(currentUser);
         }
         return result;
     }
@@ -112,9 +93,8 @@ public class ActionGroupService {
 
         actionGroupMapper.deleteById(actionGroup);
 
-        // Redis put
-        String key = keyBuilder.actionGroupMeta(id);
-        redisWriter.delete(key);
+        // Redis delete
+        actionGroupCacheManager.deleteActionGroupMetaCache(actionGroup);
 
 //        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
 
@@ -159,14 +139,6 @@ public class ActionGroupService {
             return null;
         });
 
-//        List<Object> activeUserCounts = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-//            for (Long actionGroupId : actionGroupIds) {
-//                String key = keyBuilder.actionGroupAccessLog(actionGroupId);
-//                connection.zSetCommands().zCard(key.getBytes(StandardCharsets.UTF_8));
-//            }
-//            return null;
-//        });
-
         for (int i = 0; i < enabledActionGroups.size(); i++) {
             Long id = enabledActionGroups.get(i).getId();
             int waitingSize = 0;
@@ -206,9 +178,11 @@ public class ActionGroupService {
                         .build();
         List<ActionGroup> actionGroupList = getAllActionGroupByOwnerId(param);
         for (ActionGroup actionGroup : actionGroupList) {
-            String key = keyBuilder.actionGroupMeta(actionGroup.getId());
-            redisWriter.putAll(key, actionGroupConverter.toEntity(actionGroup));
-//            coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+            actionGroupCacheManager.deleteActionGroupMetaCache(actionGroup);
+            if (actionGroup.getEnabled()) {
+                actionGroupCacheManager.updateActionGroupMetaCache(actionGroup);
+            }
         }
+        actionService.reloadActionCache(currentUser);
     }
 }
