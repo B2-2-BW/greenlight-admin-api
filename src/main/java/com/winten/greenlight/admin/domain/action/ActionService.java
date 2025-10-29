@@ -1,13 +1,10 @@
 package com.winten.greenlight.admin.domain.action;
 
-import com.winten.greenlight.admin.client.core.CoreClient;
 import com.winten.greenlight.admin.db.repository.mapper.action.ActionMapper;
-import com.winten.greenlight.admin.db.repository.redis.RedisWriter;
 import com.winten.greenlight.admin.domain.actionrule.ActionRuleService;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
-import com.winten.greenlight.admin.support.util.RedisKeyBuilder;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,11 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActionService {
     private final ActionMapper actionMapper;
-    private final RedisKeyBuilder keyBuilder;
-    private final RedisWriter redisWriter;
     private final ActionRuleService actionRuleService;
-    private final ActionConverter actionConverter;
-    private final CoreClient coreClient;
+    private final ActionCacheManager actionCacheManager;
 
     // TODO Action Rule 추가하기
     public List<Action> getAllActionsByOwnerId(String ownerId) {
@@ -89,14 +83,7 @@ public class ActionService {
         List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
         actionResult.setActionRules(actionRuleResult);
 
-        // Redis put
-        String key = keyBuilder.action(actionResult.getId());
-        redisWriter.putAll(key, actionConverter.toEntity(actionResult));
-
-        // Core 프론트에서 landingId로 action을 조회해야함.
-        // landingId를 기준으로 action을 조회할 수 있는 기능을 위해 redis에 key로 저장
-        String landingCacheKey = keyBuilder.landingCacheKey(actionResult.getLandingId());
-        redisWriter.put(landingCacheKey, String.valueOf(actionResult.getId()));
+        actionCacheManager.updateActionCache(action);
 
         return actionResult;
     }
@@ -126,14 +113,7 @@ public class ActionService {
         List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
         actionResult.setActionRules(actionRuleResult);
 
-        // Redis put
-        String key = keyBuilder.action(actionResult.getId());
-        redisWriter.putAll(key, actionConverter.toEntity(actionResult));
-//        coreClient.invalidateActionCacheById(actionResult.getId());
-
-        String landingCacheKey = keyBuilder.landingCacheKey(actionResult.getLandingId());
-        redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
-//        coreClient.invalidateActionCacheByLandingId(actionResult.getLandingId());
+        actionCacheManager.updateActionCache(action);
 
         return actionResult;
     }
@@ -146,15 +126,7 @@ public class ActionService {
 
         actionRuleService.deleteAllByActionId(actionId);
 
-        // Redis Delete
-        String key = keyBuilder.action(actionId);
-        redisWriter.delete(key);
-//        coreClient.invalidateActionCacheById(actionId);
-
-
-        String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
-        redisWriter.delete(landingCacheKey);
-//        coreClient.invalidateActionCacheByLandingId(action.getLandingId());
+        actionCacheManager.deleteActionCache(action);
 
         return Action.builder()
                 .id(actionId)
@@ -179,24 +151,15 @@ public class ActionService {
         // 기존 액션 전체 삭제
         List<Action> allActions = getAllActionsByOwnerId(currentUser.getUserId());
         for (Action action : allActions) {
-            String key = keyBuilder.action(action.getId());
-            redisWriter.delete(key);
-//            coreClient.invalidateActionCacheById(action.getId());
-            
-            String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
-            redisWriter.delete(landingCacheKey);
-//            coreClient.invalidateActionCacheByLandingId(action.getLandingId());
+            actionCacheManager.deleteActionCache(action);
         }
 
         List<Action> enabledActions = getAllEnabledActionsByOwnerId(currentUser.getUserId());
         for (Action action : enabledActions) {
             List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRuleResult);
-            String key = keyBuilder.action(action.getId());
-            redisWriter.putAll(key, actionConverter.toEntity(action));
 
-            String landingCacheKey = keyBuilder.landingCacheKey(action.getLandingId());
-            redisWriter.put(landingCacheKey, String.valueOf(action.getId()));
+            actionCacheManager.updateActionCache(action);
         }
     }
 }

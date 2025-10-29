@@ -23,8 +23,6 @@ import java.util.List;
 @EnableScheduling
 @RequiredArgsConstructor
 public class ActionEventScheduler {
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final RedisKeyBuilder keyBuilder;
     private final WriteApi writeApi;
     private final ActionEventQueue actionEventQueue;
     private final ActionEventService actionEventService;
@@ -41,15 +39,6 @@ public class ActionEventScheduler {
         // influxDB는 [A-z,_]를 권장
         // https://docs.influxdata.com/influxdb/v1/concepts/schema_and_data_layout/
         actionEventMeasurementKey = prefix + "_action_event";
-    }
-
-    @Scheduled(fixedRate = 60000)
-    public void trimStream() {
-        try {
-            redisTemplate.opsForStream().trim(keyBuilder.actionEventStream(), 100_000);
-        } catch (Exception e) {
-            log.error("failed to trim stream", e);
-        }
     }
 
     @Scheduled(fixedRate = 1000)

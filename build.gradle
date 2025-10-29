@@ -41,7 +41,7 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     implementation 'org.mapstruct:mapstruct:1.6.3'
-    implementation 'com.influxdb:influxdb-client-java:7.3.0'
+        implementation 'com.influxdb:influxdb-client-java:7.3.0'
     implementation 'org.springframework.retry:spring-retry'
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor "org.mapstruct:mapstruct-processor:1.6.3"
