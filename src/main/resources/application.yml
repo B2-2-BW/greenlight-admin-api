@@ -38,6 +38,7 @@ influxdb:
   url: ${INFLUXDB_URL}
   token: ${INFLUXDB_TOKEN}
   org: ${INFLUXDB_ORG}
+  default-bucket: ${INFLUXDB_BUCKET}
 
 springdoc:
   swagger-ui:
