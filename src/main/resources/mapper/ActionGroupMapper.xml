@@ -9,6 +9,7 @@
             description,
             max_traffic_per_second,
             enabled,
+            image_url,
             created_by,
             created_at,
             updated_by,
@@ -40,6 +41,7 @@
             name,
             description,
             max_traffic_per_second,
+            image_url,
             created_by,
             updated_by
         )
@@ -49,6 +51,7 @@
             #{name},
             #{description},
             #{maxTrafficPerSecond},
+            #{imageUrl},
             #{ownerId},
             #{ownerId}
         )
@@ -63,6 +66,7 @@
             <if test="description != null and description != ''"> description = #{description}, </if>
             <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
             <if test="enabled != null"> enabled = #{enabled}, </if>
+            <if test="imageUrl != null"> image_url = #{imageUrl}, </if>
             updated_by = #{ownerId},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
@@ -103,6 +107,7 @@
         <result property="description" column="ag_description"/>
         <result property="maxTrafficPerSecond" column="ag_max_traffic_per_second"/>
         <result property="enabled" column="ag_enabled"/>
+        <result property="imageUrl" column="ag_image_url"/>
         <result property="createdBy" column="ag_created_by"/>
         <result property="createdAt" column="ag_created_at"/>
         <result property="updatedBy" column="ag_updated_by"/>
@@ -120,6 +125,7 @@
             ag.description              AS ag_description,
             ag.max_traffic_per_second   AS ag_max_traffic_per_second,
             ag.enabled                  AS ag_enabled,
+            ag.image_url                AS ag_image_url,
             ag.created_by               AS ag_created_by,
             ag.created_at               AS ag_created_at,
             ag.updated_by               AS ag_updated_by,

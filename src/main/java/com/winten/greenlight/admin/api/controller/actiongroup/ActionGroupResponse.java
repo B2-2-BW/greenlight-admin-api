@@ -22,6 +22,7 @@ public class ActionGroupResponse {
     private LocalDateTime createdAt;
     private String updatedBy;
     private LocalDateTime updatedAt;
+    private String imageUrl;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private List<Action> actions;
 }

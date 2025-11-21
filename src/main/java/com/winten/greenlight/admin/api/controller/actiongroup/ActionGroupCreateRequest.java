@@ -18,4 +18,5 @@ public class ActionGroupCreateRequest {
     private Integer maxTrafficPerSecond;
     @NotNull
     private Boolean enabled;
+    private String imageUrl;
 }

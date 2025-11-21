@@ -60,6 +60,11 @@ public class ActionGroup extends AuditDto {
      */
     private Boolean enabled;
 
+    /**
+     * 액션 그룹의 대기열 이미지의 URL입니다.
+     */
+    private String imageUrl; // <-- 이 필드를 추가합니다.
+
 
     /**
      * 그룹에 속한 Action 목록입니다.

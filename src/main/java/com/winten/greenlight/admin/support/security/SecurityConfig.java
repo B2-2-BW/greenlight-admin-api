@@ -51,6 +51,7 @@ public class SecurityConfig {
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
                     .requestMatchers("/action-events/traffic/sse/stream").permitAll()
+                    .requestMatchers("/support/**").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, objectMapper), UsernamePasswordAuthenticationFilter.class)
