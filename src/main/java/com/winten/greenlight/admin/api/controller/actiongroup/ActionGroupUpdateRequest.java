@@ -15,4 +15,5 @@ public class ActionGroupUpdateRequest {
     private String description;
     private Integer maxTrafficPerSecond;
     private Boolean enabled;
+    private String imageUrl;
 }
