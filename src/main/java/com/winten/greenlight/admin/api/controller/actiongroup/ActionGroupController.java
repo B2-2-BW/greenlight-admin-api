@@ -22,7 +22,7 @@ public class ActionGroupController {
     private final ActionGroupConverter actionGroupConverter;
     private final ActionGroupService actionGroupService;
 
-    // GET /api/v1/action-groups
+    // GET /action-groups
     @GetMapping
     public ResponseEntity<List<ActionGroupResponse>> getAllActionGroups(
             @AuthenticationPrincipal final CurrentUser currentUser,
