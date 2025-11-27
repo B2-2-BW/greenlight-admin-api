@@ -54,6 +54,11 @@ springdoc:
   paths-to-match:
     - /**
 
+aws:
+  s3:
+    url:
+      image-bucket: ${AWS_S3_IMAGE_BUCKET}
+
 custom:
   redis:
     key-prefix: ${REDIS_KEY_PREFIX}
@@ -61,10 +66,6 @@ custom:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
-
-greenlight:
-  core-api:
-    url: ${GREENLIGHT_CORE_API_URL}
 
 ---
 spring.config.activate.on-profile: local

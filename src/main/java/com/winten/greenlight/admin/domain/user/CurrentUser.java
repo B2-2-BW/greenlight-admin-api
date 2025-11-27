@@ -11,4 +11,5 @@ public class CurrentUser {
     private Long accountId;
     private String userId;
     private UserRole userRole;
+    private String siteId;
 }
