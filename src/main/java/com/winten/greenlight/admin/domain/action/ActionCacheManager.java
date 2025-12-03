@@ -32,6 +32,9 @@ public class ActionCacheManager {
         String landingMappingKey = keyBuilder.landingCacheKey(action.getLandingId());
         redisWriter.put(landingMappingKey, String.valueOf(action.getId()));
 //        }
+
+        String versionKey = keyBuilder.actionVersion();
+        redisWriter.put(versionKey, String.valueOf(System.currentTimeMillis()));
     }
 
     /**
@@ -46,5 +49,8 @@ public class ActionCacheManager {
 
         String landingMappingKey = keyBuilder.landingCacheKey(action.getLandingId());
         redisWriter.delete(landingMappingKey);
+
+        String versionKey = keyBuilder.actionVersion();
+        redisWriter.put(versionKey, String.valueOf(System.currentTimeMillis()));
     }
 }

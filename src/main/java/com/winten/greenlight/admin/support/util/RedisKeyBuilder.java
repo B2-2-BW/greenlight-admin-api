@@ -35,6 +35,10 @@ public class RedisKeyBuilder {
         return prefix + ":landing_action_mapping:" + landingId;
     }
 
+    public String actionVersion() {
+        return prefix + ":api:action:version";
+    }
+
     public String userApiKey() {
         return prefix + ":admin:user_api_key";
     }

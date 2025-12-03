@@ -17,10 +17,16 @@ public class ActionGroupCacheManager {
     public void updateActionGroupMetaCache(final ActionGroup actionGroup) {
         String key = redisKeyBuilder.actionGroupMeta(actionGroup.getId());
         redisWriter.putAll(key, actionGroupConverter.toEntity(actionGroup));
+
+        String versionKey = redisKeyBuilder.actionVersion();
+        redisWriter.put(versionKey, String.valueOf(System.currentTimeMillis()));
     }
 
     public void deleteActionGroupMetaCache(final ActionGroup actionGroup) {
         String key = redisKeyBuilder.actionGroupMeta(actionGroup.getId());
         redisWriter.delete(key);
+
+        String versionKey = redisKeyBuilder.actionVersion();
+        redisWriter.put(versionKey, String.valueOf(System.currentTimeMillis()));
     }
 }
