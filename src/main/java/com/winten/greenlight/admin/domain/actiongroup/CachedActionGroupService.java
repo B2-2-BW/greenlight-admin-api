@@ -17,7 +17,7 @@ public class CachedActionGroupService {
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
     private final ObjectMapper objectMapper;
-    private final RedisTemplate jsonRedisTemplate;
+    private final RedisTemplate<String, Object> jsonRedisTemplate;
 
     /**
      * @return actionGroupId : 대시보드 SSE 연결 시에 액션그룹 리스트 조회를 위해 사용
