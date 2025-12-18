@@ -23,6 +23,7 @@ public class ActionEntity implements Hashable {
     private String name;
     private String actionUrl;
     private ActionType actionType;
+    private boolean enabled;
     private String landingId;
     private LocalDateTime landingStartAt;
     private LocalDateTime landingEndAt;

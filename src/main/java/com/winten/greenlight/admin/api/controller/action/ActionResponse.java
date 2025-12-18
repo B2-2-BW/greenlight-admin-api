@@ -20,6 +20,7 @@ public class ActionResponse {
     private Long actionGroupId;
     private String actionGroupName;
     private String actionGroupDescription;
+    private boolean enabled;
     private String ownerId;
     private String name;
     private String actionUrl;

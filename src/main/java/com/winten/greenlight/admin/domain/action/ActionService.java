@@ -74,18 +74,22 @@ public class ActionService {
         // Action 저장
         Action actionResult = actionMapper.save(actionParam);
 
+        Long newActionId = actionResult.getId();
+
         // Action ID 세팅
         for (ActionRule actionRule : actionParam.getActionRules()) {
-            actionRule.setActionId(actionResult.getId());
+            actionRule.setActionId(newActionId);
         }
         // Action Rule 저장
         actionRuleService.saveAll(actionParam.getActionRules(), currentUser);
-        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
+        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(newActionId);
         actionResult.setActionRules(actionRuleResult);
 
-        actionCacheManager.updateActionCache(actionResult);
+        Action actionUpdateResult = getActionById(newActionId, currentUser);
 
-        return actionResult;
+        actionCacheManager.updateActionCache(actionUpdateResult);
+
+        return actionUpdateResult;
     }
 
     public Action updateActionById(
@@ -98,24 +102,26 @@ public class ActionService {
         validateActionType(actionParam); // actionType 검증
         
         // DB Update
-        Action actionResult = actionMapper.updateById(actionParam);
-        
+        actionMapper.updateById(actionParam);
+
         // TODO AWS처럼 action rule 개별 업데이트 및 삭제가 가능해야할수도?
         //  현재는 전체 삭제 후 다시 insert 중임
         // Action Rule 삭제 후 저장
-        actionRuleService.deleteAllByActionId(actionResult.getId());
+        actionRuleService.deleteAllByActionId(actionParam.getId());
 
         for (ActionRule actionRule : actionParam.getActionRules()) {
-            actionRule.setActionId(actionResult.getId());
+            actionRule.setActionId(actionParam.getId());
         }
         actionRuleService.saveAll(actionParam.getActionRules(), currentUser);
 
-        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionResult.getId());
-        actionResult.setActionRules(actionRuleResult);
+        List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionParam.getId());
+        actionParam.setActionRules(actionRuleResult);
 
-        actionCacheManager.updateActionCache(actionResult);
+        Action actionUpdateResult = getActionById(actionParam.getId(), currentUser);
 
-        return actionResult;
+        actionCacheManager.updateActionCache(actionUpdateResult);
+
+        return actionUpdateResult;
     }
 
     public Action deleteActionById(Long actionId, CurrentUser currentUser) {
@@ -154,7 +160,7 @@ public class ActionService {
             actionCacheManager.deleteActionCache(action);
         }
 
-        List<Action> enabledActions = getAllEnabledActionsByOwnerId(currentUser.getUserId());
+        List<Action> enabledActions = getAllActionsByOwnerId(currentUser.getUserId());
         for (Action action : enabledActions) {
             List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRuleResult);
