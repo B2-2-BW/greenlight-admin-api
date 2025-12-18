@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -18,6 +20,9 @@ public class ActionCacheManager {
      * Action이 변경될 때 redis에 캐시 저장
      */
     public void updateActionCache(Action action) {
+        if (action.getActionRules() == null) {
+            action.setActionRules(new ArrayList<>());
+        }
         String actionKey = keyBuilder.action(action.getId());
         redisWriter.putAll(actionKey, actionConverter.toEntity(action));
 
