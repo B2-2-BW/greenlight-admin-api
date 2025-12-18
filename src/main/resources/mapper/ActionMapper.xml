@@ -7,7 +7,7 @@
             a.action_group_id,
             ag.name as action_group_name,
             ag.description as action_group_description,
-            ag.enabled as action_group_enabled,
+            ag.enabled as enabled,
             a.owner_id,
             a.name,
             a.action_url,

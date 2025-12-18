@@ -154,7 +154,7 @@ public class ActionService {
             actionCacheManager.deleteActionCache(action);
         }
 
-        List<Action> enabledActions = getAllEnabledActionsByOwnerId(currentUser.getUserId());
+        List<Action> enabledActions = getAllActionsByOwnerId(currentUser.getUserId());
         for (Action action : enabledActions) {
             List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRuleResult);

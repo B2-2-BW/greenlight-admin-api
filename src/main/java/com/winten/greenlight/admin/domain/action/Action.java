@@ -46,6 +46,7 @@ public class Action extends AuditDto {
      */
     private String ownerId;
 
+    private boolean enabled;
     /**
      * Action을 식별하기 위한 사용자 친화적인 이름입니다. (예: "상품 상세 페이지 보기", "콘서트 티켓 예매")
      */
