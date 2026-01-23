@@ -21,10 +21,9 @@ public class ActionController {
     // GET /action-groups/{actionGroupId}/actions
     @GetMapping("/action-groups/{actionGroupId}/actions")
     public ResponseEntity<List<Action>> getActionsByGroup(
-            @PathVariable Long actionGroupId,
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @PathVariable Long actionGroupId
     ) {
-        List<Action> actions = actionService.getActionsByGroup(actionGroupId, currentUser);
+        List<Action> actions = actionService.getActionsByGroup(actionGroupId);
         return ResponseEntity.ok(actions);
     }
 
@@ -32,13 +31,11 @@ public class ActionController {
     @PostMapping("/action-groups/{actionGroupId}/actions")
     public ResponseEntity<Action> createActionInGroup(
             @PathVariable Long actionGroupId,
-            @RequestBody ActionCreateRequest actionRequest,
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @RequestBody ActionCreateRequest actionRequest
     ) {
         Action action = actionService.createActionInGroup(
                 actionGroupId,
-                actionConverter.toDto(actionRequest),
-                currentUser
+                actionConverter.toDto(actionRequest)
         );
         return ResponseEntity.ok(action);
     }
@@ -46,19 +43,17 @@ public class ActionController {
     // GET /actions
     @GetMapping("/actions")
     public ResponseEntity<List<Action>> getAllActions(
-            @AuthenticationPrincipal final CurrentUser currentUser
     ) {
-        List<Action> actions = actionService.getAllActionsByOwnerId(currentUser.getUserId());
+        List<Action> actions = actionService.getAllActionsBySiteId();
         return ResponseEntity.ok(actions);
     }
 
     // GET /actions/{actionId}
     @GetMapping("/actions/{actionId}")
     public ResponseEntity<Action> getActionById(
-            @PathVariable Long actionId,
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @PathVariable Long actionId
     ) {
-        Action action = actionService.getActionByIdWithRules(actionId, currentUser);
+        Action action = actionService.getActionByIdWithRules(actionId);
         return ResponseEntity.ok(action);
     }
 
@@ -66,22 +61,20 @@ public class ActionController {
     @PutMapping("/actions/{actionId}")
     public ResponseEntity<Action> updateActionById(
             @PathVariable Long actionId,
-            @RequestBody ActionUpdateRequest request,
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @RequestBody ActionUpdateRequest request
     ) {
         Action action = actionConverter.toDto(request);
         action.setId(actionId);
 
-        Action result = actionService.updateActionById(action, currentUser);
+        Action result = actionService.updateActionById(action);
         return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/actions/{actionId}")
     public ResponseEntity<Action> deleteActionById(
-            @PathVariable Long actionId,
-            @AuthenticationPrincipal final CurrentUser currentUser
+            @PathVariable Long actionId
     ) {
-        Action result = actionService.deleteActionById(actionId, currentUser);
+        Action result = actionService.deleteActionById(actionId);
         return ResponseEntity.ok(result);
     }
 
@@ -89,7 +82,7 @@ public class ActionController {
     public ResponseEntity<String> reloadActionCache(
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
-        actionService.reloadActionCache(currentUser);
+        actionService.reloadActionCache();
         return ResponseEntity.ok("action cache reload successful");
     }
 }

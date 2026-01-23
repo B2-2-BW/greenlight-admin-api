@@ -29,8 +29,8 @@ public class SecurityConfig {
                 .requestMatchers(CorsUtils::isPreFlightRequest)
                 .requestMatchers("/error")
                 .requestMatchers(HttpMethod.GET, "/favicon.ico")
-                .requestMatchers(HttpMethod.POST, "/users/login")
-                .requestMatchers(HttpMethod.GET, "/action-groups/list")
+                .requestMatchers(HttpMethod.POST, "/users/login", "/users/signin")
+                .requestMatchers(HttpMethod.GET, "/action-groups/list", "/sites/*")
                 .requestMatchers("/swagger-ui/**")
                 .requestMatchers("/api-docs/**")
                 .requestMatchers("/action-events/traffic/sse/stream");
@@ -45,18 +45,23 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS).permitAll()
                     .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                     .requestMatchers("/error").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/favicon.ico").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/action-groups/list").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/favicon.ico", "/sites/*").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/users/login", "/users/signin").permitAll()
+                    .requestMatchers("/action-events/traffic/sse/stream").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
-                    .requestMatchers("/action-events/traffic/sse/stream").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/**")
+                        .hasAnyAuthority(Permission.PERM_READ.name())
+                    .requestMatchers(HttpMethod.POST, "/**")
+                        .hasAnyAuthority(Permission.PERM_WRITE.name())
+                    .requestMatchers(HttpMethod.PUT, "/**")
+                        .hasAnyAuthority(Permission.PERM_WRITE.name())
+                    .requestMatchers(HttpMethod.DELETE, "/**")
+                        .hasAnyAuthority(Permission.PERM_WRITE.name())
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, objectMapper), UsernamePasswordAuthenticationFilter.class)
-            .exceptionHandling(exception -> exception
-                    .authenticationEntryPoint(authenticationEntryPoint)
-            )
+            .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
             ;
 
         return http.build();

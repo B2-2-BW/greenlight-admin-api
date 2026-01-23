@@ -1,7 +1,6 @@
 package com.winten.greenlight.admin.domain.actiongroup;
 
 import com.winten.greenlight.admin.domain.action.Action;
-import com.winten.greenlight.admin.domain.user.AdminUser;
 import com.winten.greenlight.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,14 +28,7 @@ public class ActionGroup extends AuditDto {
      */
     private Long id;
 
-    /**
-     * 이 Action Group을 소유하고 관리하는 관리자({@link AdminUser})의 고유 ID입니다.
-     * 이 필드는 특정 관리자가 자신이 소유한 Action Group만 조회하거나 수정할 수 있도록
-     * 권한을 제어하는 데 핵심적인 역할을 합니다.
-     *
-     * @see AdminUser#getUserId()
-     */
-    private String ownerId;
+    private String siteId;
 
     /**
      * ActionGroup을 식별하기 위한 사용자 친화적인 이름입니다. (예: "상품 관련 액션 그룹", "티켓 예매 그룹")

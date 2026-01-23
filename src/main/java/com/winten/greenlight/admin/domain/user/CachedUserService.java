@@ -12,7 +12,7 @@ public class CachedUserService {
     private final UserMapper userMapper;
 
     public User getUser(String userId) {
-        return userMapper.findOne(userId)
+        return userMapper.findUserById(userId)
                 .orElseThrow(() -> CoreException.of(ErrorType.USER_NOT_FOUND, "존재하지 않는 사용자입니다."));
     }
 

@@ -2,7 +2,6 @@ package com.winten.greenlight.admin.domain.actionrule;
 
 import com.winten.greenlight.admin.db.repository.mapper.action.ActionRuleMapper;
 import com.winten.greenlight.admin.domain.action.ActionRule;
-import com.winten.greenlight.admin.domain.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,26 +13,24 @@ public class ActionRuleService {
     private final ActionRuleMapper actionRuleMapper;
 
     public List<ActionRule> findAllActionRuleByActionId(Long actionId) {
-        List<ActionRule> actionRules = actionRuleMapper.findAllByActionId(actionId);
+        List<ActionRule> actionRules = actionRuleMapper.findAllActionRuleByActionId(actionId);
         if (actionRules == null) {
             actionRules = List.of();
         }
         return actionRules;
     }
 
-    public void save(ActionRule actionRule, CurrentUser currentUser) {
-        actionRule.setCreatedBy(currentUser.getUserId());
-        actionRule.setUpdatedBy(currentUser.getUserId());
-        actionRuleMapper.save(actionRule);
+    public void saveActionRule(ActionRule actionRule) {
+        actionRuleMapper.saveActionRule(actionRule);
     }
 
-    public void saveAll(List<ActionRule> actionRules, CurrentUser currentUser) {
+    public void saveAllActionRule(List<ActionRule> actionRules) {
         for (ActionRule actionRule : actionRules) {
-            save(actionRule, currentUser);
+            saveActionRule(actionRule);
         }
     }
 
     public void deleteAllByActionId(Long actionId) {
-        actionRuleMapper.deleteAllByActionId(actionId);
+        actionRuleMapper.deleteAllActionRuleByActionId(actionId);
     }
 }

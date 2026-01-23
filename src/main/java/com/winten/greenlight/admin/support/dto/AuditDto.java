@@ -1,5 +1,6 @@
 package com.winten.greenlight.admin.support.dto;
 
+import com.winten.greenlight.admin.domain.user.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,8 +15,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public abstract class AuditDto {
+    protected String siteId;
+    protected UserRole userRole;
     protected String createdBy;
     protected LocalDateTime createdAt;
+    protected String createdIp;
     protected String updatedBy;
     protected LocalDateTime updatedAt;
+    protected String updatedIp;
 }

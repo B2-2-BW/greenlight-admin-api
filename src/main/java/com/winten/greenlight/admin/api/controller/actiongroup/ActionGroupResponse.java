@@ -20,8 +20,10 @@ public class ActionGroupResponse {
     private Boolean enabled;
     private String createdBy;
     private LocalDateTime createdAt;
+    private String createdIp;
     private String updatedBy;
     private LocalDateTime updatedAt;
+    private String updatedIp;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private List<Action> actions;
 }

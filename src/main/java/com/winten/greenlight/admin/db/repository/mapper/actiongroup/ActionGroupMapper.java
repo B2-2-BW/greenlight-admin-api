@@ -8,10 +8,10 @@ import java.util.Optional;
 
 @Mapper
 public interface ActionGroupMapper {
-    List<ActionGroup> findAll(ActionGroup actionGroup);
-    List<ActionGroup> findAllEnabledWithActions(ActionGroup actionGroup);
+    List<ActionGroup> findAllActionGroup();
+    List<ActionGroup> findAllEnabledWithActions();
     Optional<ActionGroup> findOneById(ActionGroup actionGroup);
-    ActionGroup save(ActionGroup actionGroup);
-    ActionGroup updateById(ActionGroup actionGroup);
-    Long deleteById(ActionGroup actionGroup);
+    ActionGroup saveActionGroup(ActionGroup actionGroup);
+    ActionGroup updateActionGroupById(ActionGroup actionGroup);
+    Long deleteActionGroupById(ActionGroup actionGroup);
 }

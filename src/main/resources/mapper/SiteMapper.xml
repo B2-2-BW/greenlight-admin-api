@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper">
+    <select id="findSiteById" parameterType="SiteInfo" resultType="SiteInfo">
+        SELECT
+            site_id,
+            site_name,
+            site_comment,
+            created_by,
+            created_at,
+            created_ip,
+            updated_by,
+            updated_at,
+            updated_ip
+        FROM site_info
+        WHERE site_id = #{siteId}
+    </select>
+</mapper>

@@ -2,9 +2,11 @@ package com.winten.greenlight.admin.domain.action;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.winten.greenlight.admin.domain.actiongroup.ActionGroup;
-import com.winten.greenlight.admin.domain.user.AdminUser;
 import com.winten.greenlight.admin.support.dto.AuditDto;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
@@ -37,14 +39,7 @@ public class Action extends AuditDto {
     private String actionGroupName;
     private String actionGroupDescription;
 
-    /**
-     * 이 Action을 소유하고 관리하는 관리자({@link AdminUser})의 고유 ID입니다.
-     * 이 필드는 특정 관리자가 자신이 소유한 Action Group만 조회하거나 수정할 수 있도록
-     * 권한을 제어하는 데 핵심적인 역할을 합니다.
-     *
-     * @see AdminUser#getUserId()
-     */
-    private String ownerId;
+    private String siteId;
 
     private boolean enabled;
     /**

@@ -15,21 +15,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
-public class User extends AuditDto {
-    private Long accountId;
+public class UserLoginAttempt extends AuditDto {
     private String userId;
-    private String siteId;
-    private String siteName;
-    private String username;
-    private String userEmail;
-    private Boolean passwordResetRequired;
-    private AccountStatus accountStatus;
     @JsonIgnore
-    private LocalDateTime passwordChangedAt;
-    private String phoneNumber;
-    @JsonIgnore
-    private String password;
-    @JsonIgnore
-    private String passwordHash;
-    private UserRole userRole;
+    private Integer passwordErrorCount;
 }
