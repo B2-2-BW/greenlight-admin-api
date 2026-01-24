@@ -10,7 +10,6 @@ import java.util.Optional;
 public interface ActionMapper {
     // TODO 통신 시 ActionEntity로 왔다갔다 하도록 개선해야함
     List<Action> findAllAction();
-    List<Action> findAllEnabledAction(String ownerId);
     List<Action> findAllActionByGroupId(Action action);
     Optional<Action> findActionById(Action action);
     Action saveAction(Action action);

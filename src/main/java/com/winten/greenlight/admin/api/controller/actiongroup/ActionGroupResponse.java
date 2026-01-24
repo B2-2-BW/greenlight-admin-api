@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ActionGroupResponse {
     private Long id;
-    private String ownerId;
+    private String siteId;
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;

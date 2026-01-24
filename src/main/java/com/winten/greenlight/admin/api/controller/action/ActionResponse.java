@@ -21,7 +21,7 @@ public class ActionResponse {
     private String actionGroupName;
     private String actionGroupDescription;
     private boolean enabled;
-    private String ownerId;
+    private String siteId;
     private String name;
     private String actionUrl;
     private ActionType actionType;
