@@ -8,7 +8,7 @@ import org.mapstruct.ReportingPolicy;
 public interface UserConverter {
     User toDto(UserSigninRequest userSigninRequest);
     User toDto(UserUpdateRequest userUpdateRequest);
-    User toDto(UserLoginRequest userLoginRequest);
+    LoginInfo toDto(UserLoginRequest userLoginRequest);
     UserResponse toResponse(User user);
     UserLoginResponse toResponse(UserToken token);
 }

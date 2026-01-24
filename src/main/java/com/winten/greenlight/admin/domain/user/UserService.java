@@ -9,7 +9,6 @@ import com.winten.greenlight.admin.support.util.AuthUtil;
 import com.winten.greenlight.admin.support.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -28,17 +27,22 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserToken login(User userParam) {
+    public UserToken login(LoginInfo loginParam) {
         // 사용자 로그인 시도 조회
         var userLoginAttempt = userMapper.findUserLoginAttempt(
                 UserLoginAttempt.builder()
-                        .userId(userParam.getUserId())
+                        .loginId(loginParam.getLoginId())
                         .build()
         );
 
+        // 로그인 시도한 사용자가 있을 경우 로그인 시도 이력에 사용자 ID도 저장해야함
+        User user = userMapper.findUserWithCredential(loginParam.getLoginId())
+                .orElse(new User()); // 없으면 비어있는 사용자 생성
+
         if (userLoginAttempt == null) { // 로그인 시도 이력이 없을 경우 새로 저장 (최초로그인, ID 오입력 또는 공격일 수 있음)
             userLoginAttempt = UserLoginAttempt.builder()
-                    .userId(userParam.getUserId())
+                    .loginId(loginParam.getLoginId()) // loginId = 사용자가 로그인을 시도한 id
+                    .userId(user.getUserId()) // userId = 실제 사용자 id
                     .passwordErrorCount(0)
                     .build();
             loginAttemptTxService.saveNewLoginAttempt(userLoginAttempt); // 로그인 시도 성공/실패 여부와 상관 없는 별도 트랜잭션으로 분리
@@ -48,28 +52,23 @@ public class UserService {
             throw CoreException.of(ErrorType.USER_ACCOUNT_LOCKED, "비밀번호 입력 오류가 5회 누적되어 계정 이용이 제한되었습니다. '비밀번호 재설정'을 진행해 주세요.");
         }
 
-        User user = userMapper.findUserWithCredential(userParam.getUserId())
-                .orElse(new User()); // 없으면 비어있는 사용자 생성
-
         // 계정은 조회됐는데 password_reset_required 가 null이거나 true인 경우 비밀번호 세팅 필수
         // false인 경우에만 초기화 불필요
         if (user.getUserId() != null && (user.getPasswordResetRequired() == null || user.getPasswordResetRequired())) {
-            // TODO 비밀번호 설정 필요함 (최초 로그인 시 본인 비밀번호 세팅 필수
-            //  throw CoreException.of...
             throw CoreException.of(ErrorType.USER_ACCOUNT_LOCKED, "비밀번호 재설정이 완료되지 않아 로그인할 수 없습니다. 비밀번호를 재설정한 후 다시 시도해 주세요.");
         }
         
         // 계정이 조회되지 않았거나 비밀번호가 올바르지 않다면
-        if (!passwordManager.matches(userParam.getPassword(), user.getPasswordHash())) {
+        if (!passwordManager.matches(loginParam.getPassword(), user.getPasswordHash())) {
             // 로그인 실패 시도횟수 + 1
             // 로그인 시도 성공/실패 여부와 상관 없는 별도 트랜잭션으로 분리
-            loginAttemptTxService.updatePasswordErrorCountById(userParam.getUserId(), userLoginAttempt.getPasswordErrorCount() + 1);
+            loginAttemptTxService.updatePasswordErrorCountById(loginParam.getLoginId(), userLoginAttempt.getPasswordErrorCount() + 1);
             String unauthorizedMessage = "ID 또는 비밀번호가 올바르지 않습니다.";
             throw new CoreException(ErrorType.UNAUTHORIZED, unauthorizedMessage); // 문구 통일 "ID 또는 비밀번호가 올바르지 않습니다."
         }
 
         // 여기까지 도달했다면 정상 로그인 된 케이스
-        loginAttemptTxService.updatePasswordErrorCountById(userParam.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
+        loginAttemptTxService.updatePasswordErrorCountById(user.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
         return jwtUtil.generateToken(user);
     }
 
@@ -112,6 +111,8 @@ public class UserService {
         // PENDING 상태의 계정 생성
         userParam.setAccountStatus(AccountStatus.PENDING); // 사용자 생성 시 Pending 상태로 생성
         this.createUser(userParam);
+
+        // TODO 비정상 login attempt 가 있을 수 있으므로 가입한 ID 기준으로 기존 loginAttempt 삭제 or 초기화 로직 추가
 
         // 여기까지 왔다면 정상적으로 insert가 완료된 상태
         // findById 결과가 없다면 무언가 잘못된 상태. 전체 쿼리 트레이스를 봐야함
