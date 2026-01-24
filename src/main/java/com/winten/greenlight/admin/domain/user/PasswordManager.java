@@ -19,9 +19,4 @@ public class PasswordManager {
     public boolean matches(String rawPassword, String encryptedPassword) {
         return passwordEncoder.matches(rawPassword, encryptedPassword);
     }
-
-    public static void main(String[] args) {
-        var m = new PasswordManager();
-        System.out.println(m.encode("1"));
-    }
 }

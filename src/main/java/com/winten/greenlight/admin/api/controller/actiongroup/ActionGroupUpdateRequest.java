@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ActionGroupUpdateRequest {
     private String name;
-    private String ownerId;
     private String description;
     private Integer maxTrafficPerSecond;
     private Boolean enabled;

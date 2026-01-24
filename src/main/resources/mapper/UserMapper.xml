@@ -35,6 +35,7 @@
 
     <select id="findUserLoginAttempt" parameterType="UserLoginAttempt" resultType="UserLoginAttempt">
         SELECT
+            l.login_id,
             l.user_id,
             l.password_error_count,
             l.created_by,
@@ -44,20 +45,21 @@
             l.updated_at,
             l.updated_ip
         FROM user_login_attempt l
-        WHERE l.user_id = #{userId}
+        WHERE l.login_id = #{loginId}
     </select>
 
     <update id="updateUserLoginAttempt" parameterType="UserLoginAttempt">
         UPDATE user_login_attempt
         SET password_error_count = #{passwordErrorCount},
             updated_at = current_timestamp,
-            updated_by = #{userId}, /* login 시도 시에는 user_id 식별불가하여 로그인 시도 ID로 입력 */
+            updated_by = #{loginId}, /* login 시도 시에는 user_id 식별불가하여 로그인 시도 ID로 입력 */
             updated_ip = #{updatedIp}
-        WHERE user_id = #{userId}
+        WHERE login_id = #{loginId}
     </update>
 
     <insert id="saveUserLoginAttempt" parameterType="UserLoginAttempt">
         INSERT INTO user_login_attempt (
+            login_id,
             user_id,
             password_error_count,
             created_by,
@@ -66,6 +68,7 @@
             updated_ip
         )
         VALUES (
+           #{loginId},
            #{userId},
            0,
            'ANONYMOUS', /* login 시도 시에는 user_id 식별불가 */

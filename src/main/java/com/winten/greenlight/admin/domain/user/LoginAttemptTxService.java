@@ -17,9 +17,9 @@ public class LoginAttemptTxService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updatePasswordErrorCountById(String userId, int count) {
+    public void updatePasswordErrorCountById(String loginId, int count) {
         var user = UserLoginAttempt.builder()
-                .userId(userId)
+                .loginId(loginId)
                 .passwordErrorCount(count)
                 .build();
         userMapper.updateUserLoginAttempt(user);

@@ -19,7 +19,7 @@ import java.util.List;
 public class ActionEntity implements Hashable {
     private Long id;
     private Long actionGroupId;
-    private String ownerId;
+    private String siteId;
     private String name;
     private String actionUrl;
     private ActionType actionType;

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
@@ -18,12 +19,28 @@ import java.time.Duration;
 @Configuration
 public class CoreRedisConfig {
     @Bean
-    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties, ClientResources clientResources) {
-        return getClusterConnectionFactory(properties, clientResources);
+    @Profile({"local", "dev"})
+    public LettuceConnectionFactory redisStandaloneConnectionFactory(
+            RedisProperties properties,
+            ClientResources clientResources
+    ) {
+        var standaloneConfig = new RedisStandaloneConfiguration(
+                properties.getHost(),
+                properties.getPort()
+        );
+        standaloneConfig.setPassword(properties.getPassword());
 
+        var clientConfig = LettuceClientConfiguration.builder()
+                .clientResources(clientResources)
+                .commandTimeout(Duration.ofSeconds(10))
+                .build();
+
+        return new LettuceConnectionFactory(standaloneConfig, clientConfig);
     }
 
-    private LettuceConnectionFactory getClusterConnectionFactory(RedisProperties properties, ClientResources clientResources) {
+    @Bean
+    @Profile("live")
+    public LettuceConnectionFactory lettuceConnectionFactory(RedisProperties properties, ClientResources clientResources) {
         var clusterNodes = properties.getCluster().getNodes();
         var clusterConfig = new RedisClusterConfiguration(clusterNodes);
         clusterConfig.setPassword(properties.getPassword());
@@ -47,5 +64,4 @@ public class CoreRedisConfig {
 
         return new LettuceConnectionFactory(clusterConfig, clientConfig);
     }
-
 }

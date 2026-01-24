@@ -1,15 +1,15 @@
-package com.winten.greenlight.admin.api.controller.user;
+package com.winten.greenlight.admin.domain.user;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserLoginRequest {
-    @JsonAlias("userId")
+@SuperBuilder
+public class LoginInfo {
     private String loginId;
     private String password;
 }

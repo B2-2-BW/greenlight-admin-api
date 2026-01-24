@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ActionGroupEntity implements Hashable {
     private Long id;
-    private String ownerId;
+    private String siteId;
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;
