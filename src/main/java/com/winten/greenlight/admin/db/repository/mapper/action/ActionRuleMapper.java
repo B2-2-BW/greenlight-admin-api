@@ -7,9 +7,9 @@ import java.util.List;
 
 @Mapper
 public interface ActionRuleMapper {
-    List<ActionRule> findAllByActionId(Long actionId);
-    ActionRule save(ActionRule actionRule);
-    ActionRule updateById(ActionRule actionRule);
-    Long deleteAllByActionId(Long id);
-    Long deleteById(Long id);
+    List<ActionRule> findAllActionRuleByActionId(Long actionId);
+    ActionRule saveActionRule(ActionRule actionRule);
+    ActionRule updateActionRuleById(ActionRule actionRule);
+    Long deleteAllActionRuleByActionId(Long id);
+    Long deleteActionRuleById(Long id);
 }

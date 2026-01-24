@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.winten.greenlight.admin.db.repository.mapper.action.ActionRuleMapper">
-    <select id="findAllByActionId" parameterType="ActionRule" resultType="ActionRule">
+    <select id="findAllActionRuleByActionId" parameterType="ActionRule" resultType="ActionRule">
         SELECT
             ar.action_id,
             ar.rule_seq,
@@ -11,15 +11,20 @@
             ar.description,
             ar.created_by,
             ar.created_at,
+            ar.created_ip,
             ar.updated_by,
-            ar.updated_at
+            ar.updated_at,
+            ar.updated_ip
         FROM action_rule ar
         JOIN action a ON a.id = ar.action_id
         WHERE ar.action_id = #{actionId}
         AND a.default_rule_type != 'ALL'
+        <if test="userRole != null and !userRole.isSuper()">
+            AND a.site_id = #{siteId}
+        </if>
     </select>
 
-    <select id="save" parameterType="ActionRule" resultType="ActionRule">
+    <select id="saveActionRule" parameterType="ActionRule" resultType="ActionRule">
         INSERT INTO action_rule
             (
                 action_id,
@@ -29,7 +34,9 @@
                 match_operator,
                 description,
                 created_by,
-                updated_by
+                created_ip,
+                updated_by,
+                updated_ip
             )
         VALUES
             (
@@ -40,16 +47,18 @@
                 #{matchOperator},
                 #{description},
                 #{createdBy},
-                #{updatedBy}
+                #{createdIp},
+                #{updatedBy},
+                #{updatedIp}
             )
         RETURNING *
     </select>
 
-    <select id="updateById" parameterType="ActionRule" resultType="ActionRule">
+    <select id="updateActionRuleById" parameterType="ActionRule" resultType="ActionRule">
         
     </select>
 
-    <delete id="deleteAllByActionId" parameterType="ActionRule">
+    <delete id="deleteAllActionRuleByActionId" parameterType="ActionRule">
         DELETE FROM action_rule
         WHERE action_id = #{actionId}
     </delete>

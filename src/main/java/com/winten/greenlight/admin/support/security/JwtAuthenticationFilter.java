@@ -45,7 +45,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(
                                 currentUser, null, getAuthorities(currentUser.getUserRole())
                         );
-
                 // SecurityContext에 인증 정보 설정
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
@@ -59,18 +58,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private Collection<? extends GrantedAuthority> getAuthorities(UserRole userRole) {
-        if (userRole == UserRole.ADMIN) {
-            return List.of(
-                    new SimpleGrantedAuthority("ROLE_ADMIN"),
-                    new SimpleGrantedAuthority("ROLE_CLIENT")
+    private Collection<? extends GrantedAuthority> getAuthorities(UserRole role) {
+        return switch (role) {
+            case USER -> List.of(new SimpleGrantedAuthority(Permission.PERM_READ.name()));
+            case SITE_ADMIN -> List.of(
+                    new SimpleGrantedAuthority(Permission.PERM_READ.name()),
+                    new SimpleGrantedAuthority(Permission.PERM_WRITE.name())
             );
-        } else if (userRole == UserRole.CLIENT) {
-            return List.of(new SimpleGrantedAuthority("ROLE_CLIENT"));
-        }
-        // 시스템 에러 (개발이 정상적으로 되었다면 이곳에 도달하면 안됨)
-        throw new CoreException(ErrorType.DEFAULT_ERROR, "UserRole cannot be null");
-
+            case SUPER -> List.of(
+                    new SimpleGrantedAuthority(Permission.PERM_READ.name()),
+                    new SimpleGrantedAuthority(Permission.PERM_WRITE.name()),
+                    new SimpleGrantedAuthority(Permission.PERM_SUPER.name())
+            );
+            default -> List.of(); // GUEST는 보통 인증 객체 자체가 없게 처리(permitAll)
+        };
     }
 
     private String extractTokenFromHeader(HttpServletRequest request) {

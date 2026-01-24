@@ -3,10 +3,9 @@ package com.winten.greenlight.admin.domain.actiongroup;
 import com.winten.greenlight.admin.db.repository.mapper.actiongroup.ActionGroupMapper;
 import com.winten.greenlight.admin.domain.action.Action;
 import com.winten.greenlight.admin.domain.action.ActionService;
-import com.winten.greenlight.admin.domain.user.CurrentUser;
-import com.winten.greenlight.admin.domain.user.UserService;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
+import com.winten.greenlight.admin.support.util.AuthUtil;
 import com.winten.greenlight.admin.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,35 +26,35 @@ public class ActionGroupService {
     private final RedisKeyBuilder keyBuilder;
     private final ActionGroupMapper actionGroupMapper;
     private final ActionService actionService;
-    private final UserService userService;
     private final CachedActionGroupService cachedActionGroupService;
     private final ActionGroupCacheManager actionGroupCacheManager;
 
-    public List<ActionGroup> getAllActionGroupByOwnerId(ActionGroup actionGroup) {
-        return actionGroupMapper.findAll(actionGroup);
+    @Transactional(readOnly = true)
+    public List<ActionGroup> getAllActionGroup() {
+        return actionGroupMapper.findAllActionGroup();
     }
 
-    public ActionGroup getActionGroupById(Long id, CurrentUser currentUser) {
+    @Transactional(readOnly = true)
+    public ActionGroup getActionGroupById(Long id) {
         ActionGroup actionGroup = ActionGroup.builder()
                                         .id(id)
-                                        .ownerId(currentUser.getUserId())
                                         .build();
         return actionGroupMapper.findOneById(actionGroup)
                 .orElseThrow(() -> CoreException.of(ErrorType.ACTION_GROUP_NOT_FOUND, "액션 그룹을 찾을 수 없습니다. ID: " + id));
     }
 
-    public ActionGroup getActionGroupByIdWithAction(Long id, CurrentUser currentUser) {
-        ActionGroup actionGroup = getActionGroupById(id, currentUser);
-        List<Action> actions = actionService.getActionsByGroup(id, currentUser);
+    @Transactional(readOnly = true)
+    public ActionGroup getActionGroupByIdWithAction(Long id) {
+        ActionGroup actionGroup = getActionGroupById(id);
+        List<Action> actions = actionService.getActionsByGroup(id);
         actionGroup.setActions(actions);
         return actionGroup;
     }
 
 
     @Transactional
-    public ActionGroup createActionGroup(ActionGroup actionGroup, CurrentUser currentUser) {
-        actionGroup.setOwnerId(currentUser.getUserId());
-        ActionGroup result = actionGroupMapper.save(actionGroup);
+    public ActionGroup createActionGroup(ActionGroup actionGroup) {
+        ActionGroup result = actionGroupMapper.saveActionGroup(actionGroup);
 
         // Redis put
         actionGroupCacheManager.updateActionGroupMetaCache(result);
@@ -64,52 +63,51 @@ public class ActionGroupService {
     }
 
     @Transactional
-    public ActionGroup updateActionGroup(ActionGroup actionGroup, CurrentUser currentUser) {
-        // TODO currentUser가 ADMIN인 경우 ownerId를 맘대로 변경 가능. 현재는 currentUser의 userId로 강제 입력중
-        ActionGroup currentActionGroup = getActionGroupById(actionGroup.getId(), currentUser); // action group 존재여부 확인
-        actionGroup.setOwnerId(currentUser.getUserId());
+    public ActionGroup updateActionGroup(ActionGroup actionGroup) {
+        ActionGroup currentActionGroup = getActionGroupById(actionGroup.getId()); // action group 존재여부 확인
 
-        ActionGroup result = actionGroupMapper.updateById(actionGroup);
+        // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
+        AuthUtil.ensureCanUpdate(currentActionGroup.getSiteId());
+
+        ActionGroup result = actionGroupMapper.updateActionGroupById(actionGroup);
 
         // Redis put
         actionGroupCacheManager.updateActionGroupMetaCache(result);
 
         // 활성화 상태 변경 시 action 캐시 업데이트
         if (currentActionGroup.getEnabled() != result.getEnabled()) {
-            actionService.reloadActionCache(currentUser);
+            actionService.reloadActionCache();
         }
         return result;
     }
 
     @Transactional
-    public ActionGroup deleteActionGroup(Long id, CurrentUser currentUser) {
-        ActionGroup actionGroup = getActionGroupById(id, currentUser); // action group 존재여부 확인
+    public ActionGroup deleteActionGroup(Long id) {
+        ActionGroup currentActionGroup = getActionGroupById(id); // action group 존재여부 확인
 
-        List<Action> actions = actionService.getActionsByGroup(id, currentUser);
+        // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
+        AuthUtil.ensureCanDelete(currentActionGroup.getSiteId());
+
+        List<Action> actions = actionService.getActionsByGroup(id);
 
         if (!actions.isEmpty()) {
             throw CoreException.of(ErrorType.NONEMPTY_ACTION_GROUP, "액션 그룹 내에 액션이 존재하여 삭제할 수 없습니다. 액션을 다른 그룹으로 이동하거나 삭제해 주세요.");
         }
 
-        actionGroupMapper.deleteById(actionGroup);
+        actionGroupMapper.deleteActionGroupById(currentActionGroup);
 
         // Redis delete
-        actionGroupCacheManager.deleteActionGroupMetaCache(actionGroup);
-
-//        coreClient.invalidateActionGroupCacheById(actionGroup.getId());
+        actionGroupCacheManager.deleteActionGroupMetaCache(currentActionGroup);
 
         return ActionGroup.builder()
                 .id(id)
                 .build();
     }
 
-    public List<ActionGroup> getActionGroupByKey(String greenlightApiKey) {
-        var user = userService.getUserAccountIdByKey(greenlightApiKey);
-        var actionGroup = ActionGroup.builder()
-                .ownerId(user.getUserId())
-                .build();
-        return actionGroupMapper.findAllEnabledWithActions(actionGroup);
-    }
+//    public List<ActionGroup> getActionGroupByKey(String greenlightApiKey) {
+//        var user = userService.getUserAccountIdByKey(greenlightApiKey);
+//        return actionGroupMapper.findAllEnabledWithActions();
+//    }
 
     // action_group:{actionGroup}:queue:WAITING, action_group:{actionGroup}:session의 size 조회
     public List<ActionGroupQueue> getActionGroupQueueStatus() {
@@ -172,17 +170,14 @@ public class ActionGroupService {
 
     }
 
-    public void reloadActionGroupCache(CurrentUser currentUser) {
-        ActionGroup param = ActionGroup.builder()
-                        .ownerId(currentUser.getUserId())
-                        .build();
-        List<ActionGroup> actionGroupList = getAllActionGroupByOwnerId(param);
+    public void reloadActionGroupCache() {
+        List<ActionGroup> actionGroupList = getAllActionGroup();
         for (ActionGroup actionGroup : actionGroupList) {
             actionGroupCacheManager.deleteActionGroupMetaCache(actionGroup);
             if (actionGroup.getEnabled()) {
                 actionGroupCacheManager.updateActionGroupMetaCache(actionGroup);
             }
         }
-        actionService.reloadActionCache(currentUser);
+        actionService.reloadActionCache();
     }
 }

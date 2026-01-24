@@ -2,9 +2,9 @@ package com.winten.greenlight.admin.domain.action;
 
 import com.winten.greenlight.admin.db.repository.mapper.action.ActionMapper;
 import com.winten.greenlight.admin.domain.actionrule.ActionRuleService;
-import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
+import com.winten.greenlight.admin.support.util.AuthUtil;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,37 +20,30 @@ public class ActionService {
     private final ActionCacheManager actionCacheManager;
 
     // TODO Action Rule 추가하기
-    public List<Action> getAllActionsByOwnerId(String ownerId) {
-        return actionMapper.findAll(ownerId);
+    public List<Action> getAllActionsBySiteId() {
+        return actionMapper.findAllAction();
     }
 
-    public List<Action> getAllEnabledActionsByOwnerId(String ownerId) {
-        return actionMapper.findAllEnabled(ownerId);
-    }
-
-    public Action getActionById(Long id, CurrentUser currentUser) {
+    public Action getActionById(Long actionId) {
         Action action = Action.builder()
-                .id(id)
-                .ownerId(currentUser.getUserId())
+                .id(actionId)
                 .build();
-        return actionMapper.findOneById(action)
-                .orElseThrow(() -> CoreException.of(ErrorType.ACTION_NOT_FOUND, "액션을 찾을 수 없습니다. ID: " + id));
+        return actionMapper.findActionById(action)
+                .orElseThrow(() -> CoreException.of(ErrorType.ACTION_NOT_FOUND, "액션을 찾을 수 없습니다. ID: " + actionId));
     }
 
-    public Action getActionByIdWithRules(Long id, CurrentUser currentUser) {
-        Action action = getActionById(id, currentUser);
-        List<ActionRule> actionRules = actionRuleService.findAllActionRuleByActionId(id);
+    public Action getActionByIdWithRules(Long actionId) {
+        Action action = getActionById(actionId);
+        List<ActionRule> actionRules = actionRuleService.findAllActionRuleByActionId(actionId);
         action.setActionRules(actionRules);
         return action;
     }
 
-    public List<Action> getActionsByGroup(Long actionGroupId, CurrentUser currentUser) {
+    public List<Action> getActionsByGroup(Long actionGroupId) {
         Action param = Action.builder()
                 .actionGroupId(actionGroupId)
-                .ownerId(currentUser.getUserId())
                 .build();
-        param.setOwnerId(currentUser.getUserId());
-        List<Action> actions = actionMapper.findAllByGroupId(param);
+        List<Action> actions = actionMapper.findAllActionByGroupId(param);
         for (Action action : actions) {
             List<ActionRule> actionRules = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRules);
@@ -61,18 +54,16 @@ public class ActionService {
     @Transactional
     public Action createActionInGroup(
             Long actionGroupId,
-            Action actionParam,
-            CurrentUser currentUser
+            Action actionParam
     ) {
         // DB Insert
         actionParam.setActionGroupId(actionGroupId);
-        actionParam.setOwnerId(currentUser.getUserId());
         actionParam.setLandingId(TSID.fast().toString()); // actionType과 관계없이 고유한 LandingId 부여
 
         validateActionType(actionParam); // actionType 검증
 
         // Action 저장
-        Action actionResult = actionMapper.save(actionParam);
+        Action actionResult = actionMapper.saveAction(actionParam);
 
         Long newActionId = actionResult.getId();
 
@@ -81,11 +72,11 @@ public class ActionService {
             actionRule.setActionId(newActionId);
         }
         // Action Rule 저장
-        actionRuleService.saveAll(actionParam.getActionRules(), currentUser);
+        actionRuleService.saveAllActionRule(actionParam.getActionRules());
         List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(newActionId);
         actionResult.setActionRules(actionRuleResult);
 
-        Action actionUpdateResult = getActionById(newActionId, currentUser);
+        Action actionUpdateResult = getActionById(newActionId);
 
         actionCacheManager.updateActionCache(actionUpdateResult);
 
@@ -93,16 +84,17 @@ public class ActionService {
     }
 
     public Action updateActionById(
-            Action actionParam,
-            CurrentUser currentUser
+            Action actionParam
     ) {
-        var currentAction = getActionById(actionParam.getId(), currentUser); // 존재여부 확인, 없으면 exception
-        actionParam.setOwnerId(currentUser.getUserId());
+        var currentAction = getActionById(actionParam.getId()); // 존재여부 확인, 없으면 exception
+
+        // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
+        AuthUtil.ensureCanUpdate(currentAction.getSiteId());
 
         validateActionType(actionParam); // actionType 검증
         
         // DB Update
-        actionMapper.updateById(actionParam);
+        actionMapper.updateActionById(actionParam);
 
         // TODO AWS처럼 action rule 개별 업데이트 및 삭제가 가능해야할수도?
         //  현재는 전체 삭제 후 다시 insert 중임
@@ -112,23 +104,26 @@ public class ActionService {
         for (ActionRule actionRule : actionParam.getActionRules()) {
             actionRule.setActionId(actionParam.getId());
         }
-        actionRuleService.saveAll(actionParam.getActionRules(), currentUser);
+        actionRuleService.saveAllActionRule(actionParam.getActionRules());
 
         List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(actionParam.getId());
         actionParam.setActionRules(actionRuleResult);
 
-        Action actionUpdateResult = getActionById(actionParam.getId(), currentUser);
+        Action actionUpdateResult = getActionById(actionParam.getId());
 
         actionCacheManager.updateActionCache(actionUpdateResult);
 
         return actionUpdateResult;
     }
 
-    public Action deleteActionById(Long actionId, CurrentUser currentUser) {
-        Action action = getActionById(actionId, currentUser); // 존재여부 확인, 없으면 exception
+    public Action deleteActionById(Long actionId) {
+        Action action = getActionById(actionId); // 존재여부 확인, 없으면 exception
+
+        // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
+        AuthUtil.ensureCanDelete(action.getSiteId());
 
         // DB Delete
-        actionMapper.deleteById(action);
+        actionMapper.deleteActionById(action);
 
         actionRuleService.deleteAllByActionId(actionId);
 
@@ -153,14 +148,14 @@ public class ActionService {
         }
     }
 
-    public void reloadActionCache(CurrentUser currentUser) {
+    public void reloadActionCache() {
         // 기존 액션 전체 삭제
-        List<Action> allActions = getAllActionsByOwnerId(currentUser.getUserId());
+        List<Action> allActions = getAllActionsBySiteId();
         for (Action action : allActions) {
             actionCacheManager.deleteActionCache(action);
         }
 
-        List<Action> enabledActions = getAllActionsByOwnerId(currentUser.getUserId());
+        List<Action> enabledActions = getAllActionsBySiteId();
         for (Action action : enabledActions) {
             List<ActionRule> actionRuleResult = actionRuleService.findAllActionRuleByActionId(action.getId());
             action.setActionRules(actionRuleResult);

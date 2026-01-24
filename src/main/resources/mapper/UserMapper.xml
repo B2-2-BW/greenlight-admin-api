@@ -1,39 +1,90 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.winten.greenlight.admin.db.repository.mapper.user.UserMapper">
-    <select id="findOne" parameterType="User">
+    <select id="findUserById" parameterType="User">
         SELECT
-            account_id,
-            user_id,
-            username,
-            user_role,
-            created_by,
-            created_at,
-            updated_by,
-            updated_at
-        FROM user_account
-        WHERE user_id = #{userId}
+            u.account_id,
+            u.user_id,
+            u.site_id,
+            (select sub.site_name from site_info sub where u.site_id = sub.site_id) as site_name,
+            u.username,
+            u.user_role,
+            u.account_status,
+            u.created_by,
+            u.created_at,
+            u.created_ip,
+            u.updated_by,
+            u.updated_at,
+            u.updated_ip
+        FROM user_account u
+        WHERE u.user_id = #{userId}
     </select>
 
     <select id="findUserWithCredential" parameterType="User">
         SELECT
-            account_id,
-            user_id,
-            user_role,
-            password_hash
-        FROM user_account
-        WHERE user_id = #{userId}
+            u.account_id,
+            u.user_id,
+            u.site_id,
+            u.user_role,
+            u.password_hash,
+            u.password_changed_at,
+            u.password_reset_required
+        FROM user_account u
+        WHERE u.user_id = #{userId}
     </select>
 
-    <insert id="save" parameterType="User">
-        INSERT INTO user_account
-        (
+    <select id="findUserLoginAttempt" parameterType="UserLoginAttempt" resultType="UserLoginAttempt">
+        SELECT
+            l.user_id,
+            l.password_error_count,
+            l.created_by,
+            l.created_at,
+            l.created_ip,
+            l.updated_by,
+            l.updated_at,
+            l.updated_ip
+        FROM user_login_attempt l
+        WHERE l.user_id = #{userId}
+    </select>
+
+    <update id="updateUserLoginAttempt" parameterType="UserLoginAttempt">
+        UPDATE user_login_attempt
+        SET password_error_count = #{passwordErrorCount},
+            updated_at = current_timestamp,
+            updated_by = #{userId}, /* login 시도 시에는 user_id 식별불가하여 로그인 시도 ID로 입력 */
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+    </update>
+
+    <insert id="saveUserLoginAttempt" parameterType="UserLoginAttempt">
+        INSERT INTO user_login_attempt (
+            user_id,
+            password_error_count,
+            created_by,
+            created_ip,
+            updated_by,
+            updated_ip
+        )
+        VALUES (
+           #{userId},
+           0,
+           'ANONYMOUS', /* login 시도 시에는 user_id 식별불가 */
+           #{createdIp},
+           'ANONYMOUS', /* login 시도 시에는 user_id 식별불가 */
+           #{updatedIp}
+       )
+    </insert>
+
+    <insert id="saveUser" parameterType="User">
+        INSERT INTO user_account (
             user_id,
             username,
             password_hash,
             user_role,
             created_by,
-            updated_by
+            created_ip,
+            updated_by,
+            updated_ip
         )
         VALUES (
             #{userId},
@@ -41,7 +92,9 @@
             #{passwordHash},
             #{userRole},
             #{createdBy},
-            #{updatedBy}
+            #{createdIp},
+            #{updatedBy},
+            #{updatedIp}
         )
     </insert>
 

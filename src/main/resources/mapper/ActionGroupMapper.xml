@@ -3,24 +3,28 @@
 <mapper namespace="com.winten.greenlight.admin.db.repository.mapper.actiongroup.ActionGroupMapper">
     <sql id="selectFromActionGroup">
         SELECT
-            id,
-            owner_id,
-            name,
-            description,
-            max_traffic_per_second,
-            enabled,
-            created_by,
-            created_at,
-            updated_by,
-            updated_at
-        FROM action_group
+            ag.id,
+            ag.site_id,
+            ag.name,
+            ag.description,
+            ag.max_traffic_per_second,
+            ag.enabled,
+            ag.created_by,
+            ag.created_at,
+            ag.created_ip,
+            ag.updated_by,
+            ag.updated_at,
+            ag.updated_ip
+        FROM action_group ag
     </sql>
 
-    <select id="findAll" parameterType="ActionGroup" resultType="ActionGroup">
+    <select id="findAllActionGroup" parameterType="ActionGroup" resultType="ActionGroup">
         <include refid="selectFromActionGroup"/>
         <where>
-            owner_id = #{ownerId}
-            <if test="enabled != null">and enabled = #{enabled}</if>
+            <if test="enabled != null">and ag.enabled = #{enabled}</if>
+            <if test="userRole != null and !userRole.isSuper()">
+                AND ag.site_id = #{siteId}
+            </if>
         </where>
         ORDER BY id
     </select>
@@ -28,59 +32,67 @@
     <select id="findOneById" parameterType="ActionGroup" resultType="ActionGroup">
         <include refid="selectFromActionGroup"/>
         <where>
-            id = #{id}
-            AND owner_id = #{ownerId}
+            ag.id = #{id}
+            <if test="userRole != null and !userRole.isSuper()">
+                AND ag.site_id = #{siteId}
+            </if>
         </where>
     </select>
 
-    <select id="save" parameterType="ActionGroup" resultType="ActionGroup">
+    <select id="saveActionGroup" parameterType="ActionGroup" resultType="ActionGroup">
         INSERT INTO action_group
         (
-            owner_id,
+            site_id,
             name,
             description,
             max_traffic_per_second,
             created_by,
-            updated_by
+            created_ip,
+            updated_by,
+            updated_ip
         )
         VALUES
         (
-            #{ownerId},
+            #{siteId},
             #{name},
             #{description},
             #{maxTrafficPerSecond},
-            #{ownerId},
-            #{ownerId}
+            #{createdBy},
+            #{createdIp},
+            #{updatedBy},
+            #{updatedIp}
         )
         RETURNING *
     </select>
 
-    <select id="updateById" parameterType="ActionGroup" resultType="ActionGroup">
+    <select id="updateActionGroupById" parameterType="ActionGroup" resultType="ActionGroup">
         UPDATE action_group
         SET
             <if test="name != null and name != ''"> name = #{name}, </if>
-            <if test="ownerId != null and ownerId != ''"> owner_id = #{ownerId}, </if>
             <if test="description != null and description != ''"> description = #{description}, </if>
             <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
             <if test="enabled != null"> enabled = #{enabled}, </if>
-            updated_by = #{ownerId},
-            updated_at = CURRENT_TIMESTAMP
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
         WHERE id = #{id}
-        AND owner_id = #{ownerId}
+        <if test="userRole != null and !userRole.isSuper()">
+            AND site_id = #{siteId}
+        </if>
         RETURNING *
     </select>
 
-    <delete id="deleteById" parameterType="ActionGroup">
+    <delete id="deleteActionGroupById" parameterType="ActionGroup">
         DELETE FROM action_group
         WHERE id = #{id}
-        AND owner_id = #{ownerId}
+        AND site_id = #{siteId}
     </delete>
 
 
     <resultMap id="actionResultMap" type="Action">
         <id property="id" column="a_id"/>
         <result property="actionGroupId" column="a_action_group_id"/>
-        <result property="ownerId" column="a_owner_id"/>
+        <result property="siteId" column="a_site_id"/>
         <result property="name" column="a_name"/>
         <result property="actionUrl" column="a_action_url"/>
         <result property="actionType" column="a_action_type"/>
@@ -91,22 +103,26 @@
         <result property="defaultRuleType" column="a_default_rule_type"/>
         <result property="createdBy" column="a_created_by"/>
         <result property="createdAt" column="a_created_at"/>
+        <result property="createdIp" column="a_created_ip"/>
         <result property="updatedBy" column="a_updated_by"/>
         <result property="updatedAt" column="a_updated_at"/>
+        <result property="updatedIp" column="a_updated_ip"/>
     </resultMap>
 
     <!-- ActionGroup과 연관된 Action 리스트를 포함하는 ResultMap -->
     <resultMap id="actionGroupWithActionsResultMap" type="ActionGroup">
         <id property="id" column="ag_id"/>
-        <result property="ownerId" column="ag_owner_id"/>
+        <result property="siteId" column="ag_site_id"/>
         <result property="name" column="ag_name"/>
         <result property="description" column="ag_description"/>
         <result property="maxTrafficPerSecond" column="ag_max_traffic_per_second"/>
         <result property="enabled" column="ag_enabled"/>
         <result property="createdBy" column="ag_created_by"/>
         <result property="createdAt" column="ag_created_at"/>
+        <result property="createdIp" column="ag_created_ip"/>
         <result property="updatedBy" column="ag_updated_by"/>
         <result property="updatedAt" column="ag_updated_at"/>
+        <result property="updatedIp" column="ag_updated_ip"/>
 
         <!-- 1:N 관계 매핑 -->
         <collection property="actions" ofType="Action" resultMap="actionResultMap"/>
@@ -115,19 +131,21 @@
     <select id="findAllEnabledWithActions" parameterType="ActionGroup" resultMap="actionGroupWithActionsResultMap">
         SELECT
             ag.id                       AS ag_id,
-            ag.owner_id                 AS ag_owner_id,
+            ag.site_id                 AS ag_site_id,
             ag.name                     AS ag_name,
             ag.description              AS ag_description,
             ag.max_traffic_per_second   AS ag_max_traffic_per_second,
             ag.enabled                  AS ag_enabled,
             ag.created_by               AS ag_created_by,
             ag.created_at               AS ag_created_at,
+            ag.created_ip               AS ag_created_ip,
             ag.updated_by               AS ag_updated_by,
             ag.updated_at               AS ag_updated_at,
+            ag.updated_ip               AS ag_updated_ip,
 
             a.id                        AS a_id,
             a.action_group_id           AS a_action_group_id,
-            a.owner_id                  AS a_owner_id,
+            a.site_id                  AS a_site_id,
             a.name                      AS a_name,
             a.action_url                AS a_action_url,
             a.action_type               AS a_action_type,
@@ -138,11 +156,13 @@
             a.default_rule_type         AS a_default_rule_type,
             a.created_by                AS a_created_by,
             a.created_at                AS a_created_at,
+            a.created_ip                AS a_created_ip,
             a.updated_by                AS a_updated_by,
-            a.updated_at                AS a_updated_at
+            a.updated_at                AS a_updated_at,
+            a.updated_ip                AS a_updated_ip
         FROM ACTION_GROUP ag
         LEFT JOIN ACTION a ON ag.id = a.action_group_id
-        WHERE ag.owner_id = #{ownerId}
+        WHERE ag.site_id = #{siteId} -- TODO SUPER는 전체조회 가능하게?
         AND ag.enabled = true
         ORDER BY
             ag.id, a.id
