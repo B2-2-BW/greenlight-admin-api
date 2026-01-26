@@ -13,7 +13,7 @@ public class ActionRuleService {
     private final ActionRuleMapper actionRuleMapper;
 
     public List<ActionRule> findAllActionRuleByActionId(Long actionId) {
-        List<ActionRule> actionRules = actionRuleMapper.findAllActionRuleByActionId(actionId);
+        List<ActionRule> actionRules = actionRuleMapper.findAllActionRuleByActionId(ActionRule.builder().actionId(actionId).build());
         if (actionRules == null) {
             actionRules = List.of();
         }
