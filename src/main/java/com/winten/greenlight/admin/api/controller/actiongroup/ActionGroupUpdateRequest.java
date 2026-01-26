@@ -13,5 +13,6 @@ public class ActionGroupUpdateRequest {
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;
+    private Integer roomCapacity;
     private Boolean enabled;
 }

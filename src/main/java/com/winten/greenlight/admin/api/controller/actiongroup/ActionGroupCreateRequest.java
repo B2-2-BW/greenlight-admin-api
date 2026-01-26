@@ -17,5 +17,7 @@ public class ActionGroupCreateRequest {
     @NotNull
     private Integer maxTrafficPerSecond;
     @NotNull
+    private Integer roomCapacity;
+    @NotNull
     private Boolean enabled;
 }

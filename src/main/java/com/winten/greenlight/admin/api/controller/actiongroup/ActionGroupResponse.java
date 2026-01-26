@@ -17,6 +17,7 @@ public class ActionGroupResponse {
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;
+    private Integer roomCapacity;
     private Boolean enabled;
     private String createdBy;
     private LocalDateTime createdAt;

@@ -8,6 +8,7 @@
             ag.name,
             ag.description,
             ag.max_traffic_per_second,
+            ag.room_capacity,
             ag.enabled,
             ag.created_by,
             ag.created_at,
@@ -46,6 +47,7 @@
             name,
             description,
             max_traffic_per_second,
+            room_capacity,
             created_by,
             created_ip,
             updated_by,
@@ -57,6 +59,7 @@
             #{name},
             #{description},
             #{maxTrafficPerSecond},
+            #{roomCapacity},
             #{createdBy},
             #{createdIp},
             #{updatedBy},
@@ -71,6 +74,7 @@
             <if test="name != null and name != ''"> name = #{name}, </if>
             <if test="description != null and description != ''"> description = #{description}, </if>
             <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
+            <if test="roomCapacity != null and roomCapacity >= 0"> room_capacity = #{roomCapacity}, </if>
             <if test="enabled != null"> enabled = #{enabled}, </if>
             updated_by = #{updatedBy},
             updated_at = CURRENT_TIMESTAMP,
@@ -116,6 +120,7 @@
         <result property="name" column="ag_name"/>
         <result property="description" column="ag_description"/>
         <result property="maxTrafficPerSecond" column="ag_max_traffic_per_second"/>
+        <result property="roomCapacity" column="ag_room_capacity"/>
         <result property="enabled" column="ag_enabled"/>
         <result property="createdBy" column="ag_created_by"/>
         <result property="createdAt" column="ag_created_at"/>
@@ -131,10 +136,11 @@
     <select id="findAllEnabledWithActions" parameterType="ActionGroup" resultMap="actionGroupWithActionsResultMap">
         SELECT
             ag.id                       AS ag_id,
-            ag.site_id                 AS ag_site_id,
+            ag.site_id                  AS ag_site_id,
             ag.name                     AS ag_name,
             ag.description              AS ag_description,
             ag.max_traffic_per_second   AS ag_max_traffic_per_second,
+            ag.room_capacity            AS ag_room_capacity,
             ag.enabled                  AS ag_enabled,
             ag.created_by               AS ag_created_by,
             ag.created_at               AS ag_created_at,
@@ -145,7 +151,7 @@
 
             a.id                        AS a_id,
             a.action_group_id           AS a_action_group_id,
-            a.site_id                  AS a_site_id,
+            a.site_id                   AS a_site_id,
             a.name                      AS a_name,
             a.action_url                AS a_action_url,
             a.action_type               AS a_action_type,
@@ -162,8 +168,10 @@
             a.updated_ip                AS a_updated_ip
         FROM ACTION_GROUP ag
         LEFT JOIN ACTION a ON ag.id = a.action_group_id
-        WHERE ag.site_id = #{siteId} -- TODO SUPER는 전체조회 가능하게?
-        AND ag.enabled = true
+        WHERE ag.enabled = true
+        <if test="userRole != null and !userRole.isSuper()">
+            AND site_id = #{siteId}
+        </if>
         ORDER BY
             ag.id, a.id
     </select>
