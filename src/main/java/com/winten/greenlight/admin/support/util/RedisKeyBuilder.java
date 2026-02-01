@@ -69,4 +69,8 @@ public class RedisKeyBuilder {
     public String urlCachingKey(String url) {
         return prefix + ":url_action_mapping:" + url;
     }
+
+    public String roomMeta(String roomId) {
+        return prefix + ":room:" + roomId + ":meta";
+    }
 }
