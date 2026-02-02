@@ -149,6 +149,7 @@ public class ActionService {
     }
 
     public void reloadActionCache() {
+        AuthUtil.ensureSuper();
         // 기존 액션 전체 삭제
         List<Action> allActions = getAllActionsBySiteId();
         for (Action action : allActions) {

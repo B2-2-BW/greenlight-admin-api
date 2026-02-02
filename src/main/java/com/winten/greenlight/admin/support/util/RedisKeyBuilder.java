@@ -73,4 +73,8 @@ public class RedisKeyBuilder {
     public String roomMeta(String roomId) {
         return prefix + ":room:" + roomId + ":meta";
     }
+
+    public String siteApiKey(String siteId) {
+        return prefix + ":site:" + siteId + ":api_key";
+    }
 }

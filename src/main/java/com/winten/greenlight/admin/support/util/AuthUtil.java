@@ -8,18 +8,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 public class AuthUtil {
-    public static CurrentUser getCurrentUserOrNull() {
+    public static CurrentUser getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) return null;
+        if (auth == null || !auth.isAuthenticated()) return CurrentUser.guest();
 
         Object principal = auth.getPrincipal();
         if (principal instanceof CurrentUser currentUser) return currentUser;
-        return null;
+        return CurrentUser.guest();
     }
 
     private static boolean canUpdate(String siteId) {
-        var currentUser = getCurrentUserOrNull();
-        if (currentUser == null) return false;
+        var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
             || currentUser.getSiteId().equals(siteId);
@@ -27,11 +26,17 @@ public class AuthUtil {
 
     // TODO 이후 삭제권한 분리가 필요할 경우를 위해 놔둠
     private static boolean canDelete(String siteId) {
-        var currentUser = getCurrentUserOrNull();
-        if (currentUser == null) return false;
+        var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
                 || currentUser.getSiteId().equals(siteId);
+    }
+
+    public static void ensureSuper() {
+        var currentUser = getCurrentUser();
+        if (currentUser.getUserRole() != UserRole.SUPER) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "해당 요청에 대한 권한이 없습니다");
+        }
     }
 
     public static void ensureCanUpdate(String siteId) {
