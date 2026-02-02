@@ -171,6 +171,7 @@ public class ActionGroupService {
     }
 
     public void reloadActionGroupCache() {
+        AuthUtil.ensureSuper();
         List<ActionGroup> actionGroupList = getAllActionGroup();
         for (ActionGroup actionGroup : actionGroupList) {
             actionGroupCacheManager.deleteActionGroupMetaCache(actionGroup);

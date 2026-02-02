@@ -23,4 +23,10 @@ public class SiteController {
         var site = siteService.findSiteById(siteId);
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }
+
+    @GetMapping("cache")
+    public ResponseEntity<String> findSiteByCache() {
+        siteService.reloadSiteCache();
+        return ResponseEntity.ok("site cache reload successful");
+    }
 }

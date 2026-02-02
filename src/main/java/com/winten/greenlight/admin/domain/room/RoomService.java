@@ -3,6 +3,7 @@ package com.winten.greenlight.admin.domain.room;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
+import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.AuthUtil;
@@ -81,14 +82,18 @@ public class RoomService {
 
         roomMapper.updateRoomById(roomConverter.toEntity(room));
 
-        // Rule 일괄 삭제
-        // TODO 개별 삭제 가능하게 개선?
-        roomMapper.deleteAllRoomRuleByRoomId(RoomRuleEntity.builder().roomId(room.getRoomId()).build());
-
-        // Rule 일괄 insert
-        for (RoomRule roomRule : room.getRoomRules()) {
-            roomRule.setRoomId(room.getRoomId());
-            roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
+        // Rule 업데이트
+        if (room.isUpdateRule()) {
+            // Rule 일괄 삭제
+            roomMapper.deleteAllRoomRuleByRoomId(RoomRuleEntity.builder().roomId(room.getRoomId()).build());
+            // DefaultRuleType 이 ALL 이 아닌 경우에 추가
+            if (room.getDefaultRuleType() != DefaultRuleType.ALL && room.getRoomRules() != null) {
+                // Rule 일괄 insert
+                for (RoomRule roomRule : room.getRoomRules()) {
+                    roomRule.setRoomId(room.getRoomId());
+                    roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
+                }
+            }
         }
 
         var updatedRoom = getRoomById(room.getRoomId());
@@ -118,6 +123,7 @@ public class RoomService {
     }
 
     public void reloadRoomMetaCache() {
+        AuthUtil.ensureSuper();
         List<Room> roomList = getAllRoom();
         for (Room room : roomList) {
             var roomDetail = this.getRoomById(room.getRoomId());

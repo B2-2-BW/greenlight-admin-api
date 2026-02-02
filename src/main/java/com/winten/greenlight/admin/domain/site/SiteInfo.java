@@ -15,5 +15,6 @@ import lombok.experimental.SuperBuilder;
 public class SiteInfo extends AuditDto {
     private String siteId;
     private String siteName;
-    private String siteComment;
+    private String siteDescription;
+    private String siteApiKey;
 }

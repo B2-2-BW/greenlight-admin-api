@@ -5,7 +5,8 @@
         SELECT
             site_id,
             site_name,
-            site_comment,
+            site_description,
+            site_api_key,
             created_by,
             created_at,
             created_ip,
@@ -14,5 +15,20 @@
             updated_ip
         FROM site_info
         WHERE site_id = #{siteId}
+    </select>
+
+    <select id="findAllSite">
+        SELECT
+            site_id,
+            site_name,
+            site_description,
+            site_api_key,
+            created_by,
+            created_at,
+            created_ip,
+            updated_by,
+            updated_at,
+            updated_ip
+        FROM site_info
     </select>
 </mapper>

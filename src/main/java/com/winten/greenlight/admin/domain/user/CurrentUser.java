@@ -12,4 +12,8 @@ public class CurrentUser {
     private String userId;
     private UserRole userRole;
     private String siteId;
+
+    public static CurrentUser guest() {
+        return CurrentUser.builder().userRole(UserRole.GUEST).build();
+    }
 }
