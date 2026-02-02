@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper">
+    <sql id="selectFromRoom">
+        SELECT
+            r.room_id,
+            r.site_id,
+            r.name,
+            r.description,
+            r.max_traffic_per_second,
+            r.capacity,
+            r.enabled,
+            r.default_rule_type,
+            r.created_by,
+            r.created_at,
+            r.created_ip,
+            r.updated_by,
+            r.updated_at,
+            r.updated_ip
+        FROM room r
+    </sql>
+
+    <select id="findAllRoom" parameterType="RoomEntity" resultType="RoomEntity">
+        <include refid="selectFromRoom"/>
+        <where>
+            <if test="enabled != null">and ag.enabled = #{enabled}</if>
+            <if test="userRole != null and !userRole.isSuper()">
+                AND r.site_id = #{siteId}
+            </if>
+        </where>
+        ORDER BY room_id
+    </select>
+
+    <select id="findRoomById" parameterType="RoomEntity" resultType="RoomEntity">
+        <include refid="selectFromRoom"/>
+        <where>
+            r.room_id = #{roomId}
+            <if test="userRole != null and !userRole.isSuper()">
+                AND r.site_id = #{siteId}
+            </if>
+        </where>
+    </select>
+    <select id="saveRoom" parameterType="RoomEntity" resultType="RoomEntity">
+        INSERT INTO room
+        (
+            room_id,
+            site_id,
+            name,
+            description,
+            max_traffic_per_second,
+            default_rule_type,
+            capacity,
+            created_by,
+            created_ip,
+            updated_by,
+            updated_ip
+        )
+        VALUES
+            (
+                #{roomId},
+                #{siteId},
+                #{name},
+                #{description},
+                #{maxTrafficPerSecond},
+                #{defaultRuleType},
+                #{capacity},
+                #{createdBy},
+                #{createdIp},
+                #{updatedBy},
+                #{updatedIp}
+            )
+        RETURNING *
+    </select>
+
+    <select id="updateRoomById" parameterType="RoomEntity" resultType="RoomEntity">
+        UPDATE room
+        SET
+        <if test="name != null and name != ''"> name = #{name}, </if>
+        <if test="description != null and description != ''"> description = #{description}, </if>
+        <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
+        <if test="capacity != null and capacity >= 0"> capacity = #{capacity}, </if>
+        <if test="enabled != null"> enabled = #{enabled}, </if>
+        updated_by = #{updatedBy},
+        updated_at = CURRENT_TIMESTAMP,
+        updated_ip = #{updatedIp}
+        WHERE room_id = #{roomId}
+        <if test="userRole != null and !userRole.isSuper()">
+            AND site_id = #{siteId}
+        </if>
+        RETURNING *
+    </select>
+
+    <delete id="deleteRoomById" parameterType="RoomEntity">
+        DELETE FROM room
+        WHERE room_id = #{roomId}
+        <if test="userRole != null and !userRole.isSuper()">
+            AND site_id = #{siteId}
+        </if>
+    </delete>
+
+    <select id="findAllRoomRuleByRoomId" parameterType="RoomRuleEntity" resultType="RoomRuleEntity">
+        SELECT
+            rule.room_id,
+            rule.rule_seq,
+            rule.value,
+            rule.match_operator,
+            rule.description,
+            rule.created_by,
+            rule.created_at,
+            rule.created_ip,
+            rule.updated_by,
+            rule.updated_at,
+            rule.updated_ip
+        FROM room_rule rule
+        JOIN room rm ON rule.room_id = rm.room_id
+        WHERE rule.room_id = #{roomId}
+        AND rm.default_rule_type != 'ALL'
+        <if test="userRole != null and !userRole.isSuper()">
+            AND rm.site_id = #{siteId}
+        </if>
+    </select>
+
+    <select id="saveRoomRule" parameterType="RoomRuleEntity" resultType="RoomRuleEntity">
+        INSERT INTO room_rule
+        (
+            room_id,
+            rule_seq,
+            site_id,
+            value,
+            match_operator,
+            description,
+            created_by,
+            created_ip,
+            updated_by,
+            updated_ip
+        )
+        VALUES
+        (
+            #{roomId},
+            COALESCE((SELECT max(rule_seq) FROM room_rule WHERE room_id = #{roomId}), 0) + 1,
+            #{siteId},
+            #{value},
+            #{matchOperator},
+            #{description},
+            #{createdBy},
+            #{createdIp},
+            #{updatedBy},
+            #{updatedIp}
+        )
+        RETURNING *
+    </select>
+
+    <delete id="deleteAllRoomRuleByRoomId" parameterType="RoomRuleEntity">
+        DELETE FROM room_rule
+        WHERE room_id = #{roomId}
+        <if test="userRole != null and !userRole.isSuper()">
+            AND site_id = #{siteId}
+        </if>
+    </delete>
+</mapper>
