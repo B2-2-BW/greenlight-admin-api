@@ -1,5 +1,6 @@
 package com.winten.greenlight.admin.domain.room;
 
+import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class Room extends AuditDto {
     private Integer maxTrafficPerSecond;
     private Integer capacity;
     private Boolean enabled;
-    private String defaultRuleType;
+    private DefaultRuleType defaultRuleType;
+    private boolean updateRule;
     private List<RoomRule> roomRules;
 }

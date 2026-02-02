@@ -1,6 +1,7 @@
 package com.winten.greenlight.admin.api.controller.room;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,7 +24,7 @@ public class RoomResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Boolean enabled;
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String defaultRuleType;
+    private DefaultRuleType defaultRuleType;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private List<RoomRuleResponse> roomRules;
 }

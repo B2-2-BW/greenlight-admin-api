@@ -1,5 +1,6 @@
 package com.winten.greenlight.admin.api.controller.room;
 
+import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,6 @@ public class RoomCreateRequest {
     private Integer maxTrafficPerSecond;
     private Integer capacity;
     private boolean enabled;
-    private String defaultRuleType;
+    private DefaultRuleType defaultRuleType;
     private List<RoomRuleCreateRequest> roomRules;
 }
