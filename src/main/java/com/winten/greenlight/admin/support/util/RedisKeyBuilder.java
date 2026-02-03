@@ -75,6 +75,6 @@ public class RedisKeyBuilder {
     }
 
     public String siteApiKey(String apiKey) {
-        return prefix + ":site:api_keys:" + apiKey + ":site_id";
+        return prefix + ":site:key_id_mapping:" + apiKey;
     }
 }

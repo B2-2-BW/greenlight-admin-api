@@ -81,7 +81,7 @@ public class ActionGroupController {
 //        return ResponseEntity.ok(response);
 //    }
 
-    @GetMapping("/cache")
+    @PostMapping("/cache")
     public ResponseEntity<String> reloadActionGroupCache() {
         actionGroupService.reloadActionGroupCache();
         return ResponseEntity.ok("action group cache reload successful");
