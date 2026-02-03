@@ -19,10 +19,10 @@ public class SiteCacheManager {
     private final RedisTemplate<String, String> redisTemplate;
 
     public void updateSiteApiKeyCache(final SiteInfo siteInfo) {
-        var key = redisKeyBuilder.siteApiKey(siteInfo.getSiteId());
+        var key = redisKeyBuilder.siteApiKey(siteInfo.getSiteApiKey());
 
         try {
-            redisTemplate.opsForValue().set(key, siteInfo.getSiteApiKey());
+            redisTemplate.opsForValue().set(key, siteInfo.getSiteId());
         } catch (RedisException e) {
             log.error(e.getMessage());
             throw new CoreException(ErrorType.REDIS_ERROR, e);
