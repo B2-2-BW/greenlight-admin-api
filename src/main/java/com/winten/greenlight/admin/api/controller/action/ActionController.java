@@ -78,7 +78,7 @@ public class ActionController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/actions/cache")
+    @PostMapping("/actions/cache")
     public ResponseEntity<String> reloadActionCache(
             @AuthenticationPrincipal final CurrentUser currentUser
     ) {
