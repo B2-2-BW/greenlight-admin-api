@@ -1,9 +1,8 @@
 package com.winten.greenlight.admin.domain.room;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
-import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.ser.PropertyFilter;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -13,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ser.std.SimpleBeanPropertyFilter;
+import tools.jackson.databind.ser.std.SimpleFilterProvider;
 
 @Slf4j
 @Component
@@ -20,8 +21,8 @@ import org.springframework.stereotype.Component;
 public class RoomCacheManager {
     private final RedisKeyBuilder redisKeyBuilder;
     private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
-    private final SimpleBeanPropertyFilter roomFilter = SimpleBeanPropertyFilter.serializeAllExcept(
+    private final JsonMapper jsonMapper;
+    private final PropertyFilter roomFilter = SimpleBeanPropertyFilter.serializeAllExcept(
             "userRole",
             "description",
             "createdBy",
@@ -31,7 +32,7 @@ public class RoomCacheManager {
             "updatedAt",
             "updatedIp"
     );
-    private final SimpleBeanPropertyFilter roomRuleFilter = SimpleBeanPropertyFilter.serializeAllExcept(
+    private final PropertyFilter roomRuleFilter = SimpleBeanPropertyFilter.serializeAllExcept(
             "siteId",
             "roomId",
             "ruleSeq",
@@ -51,9 +52,9 @@ public class RoomCacheManager {
                     .addFilter("roomFilter", roomFilter)
                     .addFilter("roomRuleFilter", roomRuleFilter);
             String key = redisKeyBuilder.roomMeta(room.getRoomId());
-            String value = objectMapper.writer(filters).writeValueAsString(room);
+            String value = jsonMapper.writer(filters).writeValueAsString(room);
             redisTemplate.opsForValue().set(key, value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new CoreException(ErrorType.FAILED_TO_PARSE_JSON, e);
         } catch (RedisException e) {
             log.error(e.getMessage());

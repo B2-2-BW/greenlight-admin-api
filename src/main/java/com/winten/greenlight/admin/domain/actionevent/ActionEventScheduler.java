@@ -5,13 +5,11 @@ import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.winten.greenlight.admin.domain.actionevent.dto.ActionEvent;
 import com.winten.greenlight.admin.domain.actionevent.dto.ActionEventTrafficResponse;
-import com.winten.greenlight.admin.support.util.RedisKeyBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -30,7 +28,7 @@ public class ActionEventScheduler {
 
     private final int MAX_DRAIN = 10000;
 
-    @Value("${custom.redis.key-prefix}")
+    @Value("${redis.key-prefix}")
     private String prefix;
     private String actionEventMeasurementKey;
 
@@ -72,7 +70,7 @@ public class ActionEventScheduler {
     /**
      * 수집된 데이터를 기반으로 InfluxDB에 저장할 Point 객체를 생성
      */
-    // TODO ObjectMapper로 ActionEvent에 매핑
+    // TODO jsonMapper로 ActionEvent에 매핑
     private Point toPoint(ActionEvent actionEvent) {
         Point point = Point.measurement(actionEventMeasurementKey)
                 .addTag("eventType", actionEvent.getEventType().name())

@@ -23,6 +23,7 @@ public class Room extends AuditDto {
     private Integer maxTrafficPerSecond;
     private Integer capacity;
     private Boolean enabled;
+    private String defaultDestinationUrl;
     private DefaultRuleType defaultRuleType;
     private boolean updateRule;
     private List<RoomRule> roomRules;

@@ -1,6 +1,6 @@
 package com.winten.greenlight.admin.support.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorResponse;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -16,7 +16,7 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class CoreAuthenticationEntryPoint implements AuthenticationEntryPoint {
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
@@ -29,6 +29,6 @@ public class CoreAuthenticationEntryPoint implements AuthenticationEntryPoint {
         var exception = CoreException.of(ErrorType.UNAUTHORIZED, authException.getMessage());
         var errorResponse = new ErrorResponse(exception);
 
-        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
+        response.getWriter().write(jsonMapper.writeValueAsString(errorResponse));
     }
 }

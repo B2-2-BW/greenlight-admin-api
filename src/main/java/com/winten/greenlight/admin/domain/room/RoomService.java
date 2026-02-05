@@ -47,7 +47,6 @@ public class RoomService {
         return roomConverter.toDto(room);
     }
 
-
     @Transactional
     public Room createRoom(Room room) {
         var roomParam = roomConverter.toEntity(room);
@@ -57,10 +56,12 @@ public class RoomService {
         // Room 저장
         RoomEntity result = roomMapper.saveRoom(roomParam);
 
-        // RoomRule 저장
-        for (RoomRule roomRule : room.getRoomRules()) {
-            roomRule.setRoomId(newRoomId);
-            roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
+        if (room.getDefaultRuleType() != DefaultRuleType.ALL && room.getRoomRules() != null) {
+            // RoomRule 저장
+            for (RoomRule roomRule : room.getRoomRules()) {
+                roomRule.setRoomId(newRoomId);
+                roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
+            }
         }
 
         // 저장된 roomRule 조회
@@ -96,10 +97,10 @@ public class RoomService {
             }
         }
 
-        var updatedRoom = getRoomById(room.getRoomId());
-        var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
+        var updatedRoom = this.getRoomById(room.getRoomId());
 
         // Redis put
+        var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
         roomCacheManager.updateRoomMetaCache(updatedRoomEntity);
 
         return updatedRoom;

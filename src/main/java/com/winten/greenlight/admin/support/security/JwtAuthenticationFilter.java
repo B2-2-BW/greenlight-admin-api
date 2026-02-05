@@ -1,6 +1,6 @@
 package com.winten.greenlight.admin.support.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
@@ -27,7 +27,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.setContentType("application/json;charset=UTF-8");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             var errorResponse = new ErrorResponse(e);
-            response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
+            response.getWriter().write(jsonMapper.writeValueAsString(errorResponse));
             return;
         }
         filterChain.doFilter(request, response);

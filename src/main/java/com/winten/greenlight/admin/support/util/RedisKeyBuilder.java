@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class RedisKeyBuilder {
-    @Value("${custom.redis.key-prefix}")
+    @Value("${redis.key-prefix}")
     private String prefix;
 
     public String actionGroupKeyPattern() {
