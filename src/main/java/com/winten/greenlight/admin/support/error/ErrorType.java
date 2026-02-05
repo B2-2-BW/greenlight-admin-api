@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum ErrorType {
-    DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error has occurred.", LogLevel.WARN),
+    DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error has occurred.", LogLevel.ERROR),
     INVALID_DATA(HttpStatus.BAD_REQUEST, "Data is not valid." , LogLevel.INFO ),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Unauthorized.", LogLevel.INFO),
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden.", LogLevel.INFO),

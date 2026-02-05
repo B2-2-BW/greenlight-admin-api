@@ -1,7 +1,7 @@
 package com.winten.greenlight.admin.db.repository.redis;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.admin.support.dto.Hashable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -14,7 +14,7 @@ import java.util.Map;
 public class RedisWriter {
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisTemplate<String, Object> jsonRedisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     public void put(String key, String value) {
         stringRedisTemplate.opsForValue().set(key, value);
@@ -22,7 +22,7 @@ public class RedisWriter {
 
     public void putAll(String key, Hashable dto) {
         Map<String, Object> map =
-                objectMapper.convertValue(dto, new TypeReference<>() {}); // DTO to Map 변환
+                jsonMapper.convertValue(dto, new TypeReference<>() {}); // DTO to Map 변환
         jsonRedisTemplate.opsForHash().putAll(key, map);
     }
 

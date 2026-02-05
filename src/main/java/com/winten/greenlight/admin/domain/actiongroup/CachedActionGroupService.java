@@ -1,6 +1,6 @@
 package com.winten.greenlight.admin.domain.actiongroup;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.winten.greenlight.admin.support.util.RedisKeyBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisCallback;
@@ -16,7 +16,7 @@ import java.util.Set;
 public class CachedActionGroupService {
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final RedisKeyBuilder keyBuilder;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final RedisTemplate<String, Object> jsonRedisTemplate;
 
     /**
@@ -34,6 +34,6 @@ public class CachedActionGroupService {
             }
             return null;
         });
-        return actionGroups.stream().map(ag -> objectMapper.convertValue(ag, ActionGroup.class)).toList();
+        return actionGroups.stream().map(ag -> jsonMapper.convertValue(ag, ActionGroup.class)).toList();
     }
 }

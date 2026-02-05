@@ -51,6 +51,7 @@ public class RoomController {
     ) {
         Room room = roomConverter.toDto(request);
         room.setRoomId(roomId);
+        // TODO 업데이트 이후
         var result = roomService.updateRoom(room);
         return ResponseEntity.ok(roomConverter.toResponse(result));
     }

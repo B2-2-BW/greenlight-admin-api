@@ -31,7 +31,7 @@
         ORDER BY room_id
     </select>
 
-    <select id="findRoomById" parameterType="RoomEntity" resultType="RoomEntity">
+    <select id="findRoomById" parameterType="RoomEntity" resultType="RoomEntity" flushCache="true" useCache="false">
         <include refid="selectFromRoom"/>
         <where>
             r.room_id = #{roomId}
@@ -40,6 +40,7 @@
             </if>
         </where>
     </select>
+
     <select id="saveRoom" parameterType="RoomEntity" resultType="RoomEntity">
         INSERT INTO room
         (
@@ -47,28 +48,32 @@
             site_id,
             name,
             description,
+            enabled,
             max_traffic_per_second,
-            default_rule_type,
             capacity,
+            default_rule_type,
+            default_destination_url,
             created_by,
             created_ip,
             updated_by,
             updated_ip
         )
         VALUES
-            (
-                #{roomId},
-                #{siteId},
-                #{name},
-                #{description},
-                #{maxTrafficPerSecond},
-                #{defaultRuleType},
-                #{capacity},
-                #{createdBy},
-                #{createdIp},
-                #{updatedBy},
-                #{updatedIp}
-            )
+        (
+            #{roomId},
+            #{siteId},
+            #{name},
+            #{description},
+            true,
+            #{maxTrafficPerSecond},
+            #{capacity},
+            #{defaultRuleType},
+            #{defaultDestinationUrl},
+            #{createdBy},
+            #{createdIp},
+            #{updatedBy},
+            #{updatedIp}
+        )
         RETURNING *
     </select>
 

@@ -3,8 +3,6 @@ spring.profiles.active: local
 
 server:
   port: 28080
-  error:
-    include-message: always
   url: ${SERVER_URL}
 
 spring:
@@ -18,6 +16,9 @@ spring:
       idle-timeout: 30000
       max-lifetime: 1800000
       connection-timeout: 30000
+  web:
+    error:
+      include-message: always
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
@@ -57,9 +58,9 @@ aws:
     url:
       image-bucket: ${AWS_S3_IMAGE_BUCKET}
 
-custom:
-  redis:
-    key-prefix: ${REDIS_KEY_PREFIX}
+redis:
+  key-prefix: ${REDIS_KEY_PREFIX}
+  connection-type: ${REDIS_CONNECTION_TYPE:standalone}
 
 jwt:
   secret: ${JWT_SECRET}

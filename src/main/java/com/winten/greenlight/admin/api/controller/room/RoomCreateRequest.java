@@ -15,7 +15,7 @@ public class RoomCreateRequest {
     private String description;
     private Integer maxTrafficPerSecond;
     private Integer capacity;
-    private boolean enabled;
+    private String defaultDestinationUrl;
     private DefaultRuleType defaultRuleType;
     private List<RoomRuleCreateRequest> roomRules;
 }
