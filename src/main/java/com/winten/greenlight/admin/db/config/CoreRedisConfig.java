@@ -44,12 +44,15 @@ public class CoreRedisConfig {
         );
         standaloneConfig.setPassword(properties.getPassword());
 
-        var clientConfig = LettuceClientConfiguration.builder()
+        var clientConfigBuilder = LettuceClientConfiguration.builder()
                 .clientResources(clientResources)
-                .commandTimeout(Duration.ofSeconds(10))
-                .build();
+                .commandTimeout(Duration.ofSeconds(10));
 
-        return new LettuceConnectionFactory(standaloneConfig, clientConfig);
+        if (properties.getSsl().isEnabled()) {
+            clientConfigBuilder.useSsl();
+        }
+
+        return new LettuceConnectionFactory(standaloneConfig, clientConfigBuilder.build());
     }
 
     private LettuceConnectionFactory redisClusterConnectionFactory(DataRedisProperties properties, ClientResources clientResources) {
@@ -73,13 +76,16 @@ public class CoreRedisConfig {
                 .autoReconnect(true)
                 .build();
 
-        var clientConfig = LettuceClientConfiguration.builder()
+        var clientConfigBuilder = LettuceClientConfiguration.builder()
                 .clientResources(clientResources)
                 .clientOptions(clusterClientOptions)
                 .readFrom(ReadFrom.REPLICA_PREFERRED) // 읽기 작업을 슬레이브 노드에서 수행하도록 설정
-                .commandTimeout(Duration.ofSeconds(3)) // 커맨드 타임아웃 설정
-                .build();
+                .commandTimeout(Duration.ofSeconds(3)); // 커맨드 타임아웃 설정
 
-        return new LettuceConnectionFactory(clusterConfig, clientConfig);
+        if (properties.getSsl().isEnabled()) {
+            clientConfigBuilder.useSsl();
+        }
+
+        return new LettuceConnectionFactory(clusterConfig, clientConfigBuilder.build());
     }
 }

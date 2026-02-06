@@ -81,6 +81,8 @@ spring:
       cluster:
         max-redirects: 5
         nodes: ${REDIS_CLUSTER_NODES:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 ---
 spring.config.activate.on-profile: dev
 spring:
@@ -96,6 +98,8 @@ spring:
       cluster:
         max-redirects: 5
         nodes: ${REDIS_CLUSTER_NODES:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 ---
 spring.config.activate.on-profile: live
 spring:
@@ -109,7 +113,8 @@ spring:
         max-redirects: 5
         nodes: ${REDIS_CLUSTER_NODES}
       password: ${REDIS_PASSWORD}
-
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 logging:
   level:
     root: ERROR
