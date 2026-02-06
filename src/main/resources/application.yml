@@ -29,7 +29,11 @@ spring:
         nodes: ${REDIS_CLUSTER_NODES:}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
-
+      connect-timeout: 3s
+      timeout: 5s
+      lettuce:
+        pool:
+          time-between-eviction-runs: 300000
   web:
     error:
       include-message: always
