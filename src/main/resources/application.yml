@@ -21,10 +21,12 @@ spring:
       connection-timeout: 30000
   data:
     redis:
+      host: ${REDIS_DEV_HOST:127.0.0.1}
+      port: ${REDIS_DEV_PORT:6379}
+      password: ${REDIS_PASSWORD}
       cluster:
         max-redirects: 5
-        nodes: ${REDIS_CLUSTER_NODES}
-      password: ${REDIS_PASSWORD}
+        nodes: ${REDIS_CLUSTER_NODES:}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
 
