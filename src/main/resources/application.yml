@@ -100,14 +100,8 @@ spring:
   data:
     redis:
       cluster:
-        max-redirects: 3
-        nodes:
-          - ${REDIS_CLUSTER_MASTER_NODE_1}
-          - ${REDIS_CLUSTER_MASTER_NODE_2}
-          - ${REDIS_CLUSTER_MASTER_NODE_3}
-          - ${REDIS_CLUSTER_WORKER_NODE_1}
-          - ${REDIS_CLUSTER_WORKER_NODE_2}
-          - ${REDIS_CLUSTER_WORKER_NODE_3}
+        max-redirects: 5
+        nodes: ${REDIS_CLUSTER_NODES}
       password: ${REDIS_PASSWORD}
 
 logging:
