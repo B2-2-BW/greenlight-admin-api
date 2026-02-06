@@ -75,9 +75,12 @@ spring:
     password: ${STORAGE_POSTGRESQL_PASSWORD}
   data:
     redis:
-      host: ${REDIS_DEV_HOST}
-      port: ${REDIS_DEV_PORT}
+      host: ${REDIS_DEV_HOST:127.0.0.1}
+      port: ${REDIS_DEV_PORT:6379}
       password: ${REDIS_PASSWORD}
+      cluster:
+        max-redirects: 5
+        nodes: ${REDIS_CLUSTER_NODES:}
 ---
 spring.config.activate.on-profile: dev
 spring:
@@ -87,9 +90,12 @@ spring:
     password: ${STORAGE_POSTGRESQL_PASSWORD}
   data:
     redis:
-      host: ${REDIS_DEV_HOST}
-      port: ${REDIS_DEV_PORT}
+      host: ${REDIS_DEV_HOST:127.0.0.1}
+      port: ${REDIS_DEV_PORT:6379}
       password: ${REDIS_PASSWORD}
+      cluster:
+        max-redirects: 5
+        nodes: ${REDIS_CLUSTER_NODES:}
 ---
 spring.config.activate.on-profile: live
 spring:
