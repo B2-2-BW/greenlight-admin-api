@@ -12,5 +12,5 @@ import java.util.Map;
 @NoArgsConstructor
 public class DashboardResponse {
     private Map<String, RoomStatus> detail;
+    private long timestamp;
 }
-

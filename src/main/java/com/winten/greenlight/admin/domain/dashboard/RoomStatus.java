@@ -15,6 +15,7 @@ public class RoomStatus {
     private int waitingCount;
     private int roomCapacity;
     private int roomCustomerCount;
-    private double inflowRate;
-    private double outflowRate;
+    private int inflowRate;
+    private int enteredRate;
+    private int outflowRate;
 }

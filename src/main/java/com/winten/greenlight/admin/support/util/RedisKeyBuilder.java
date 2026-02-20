@@ -1,5 +1,6 @@
 package com.winten.greenlight.admin.support.util;
 
+import com.winten.greenlight.admin.domain.customer.WaitStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -72,6 +73,10 @@ public class RedisKeyBuilder {
 
     public String roomMeta(String roomId) {
         return prefix + ":room:" + roomId + ":meta";
+    }
+
+    public String heartbeat(String roomId, WaitStatus waitStatus) {
+        return prefix + ":room:" + roomId + ":heartbeat:" + waitStatus.name();
     }
 
     public String siteApiKey(String apiKey) {
