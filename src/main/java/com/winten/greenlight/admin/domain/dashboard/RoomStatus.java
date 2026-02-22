@@ -11,11 +11,14 @@ import lombok.NoArgsConstructor;
 @Builder
 public class RoomStatus {
     private String roomId;
-    private int estimatedWaitTime;
-    private int waitingCount;
     private int roomCapacity;
-    private int roomCustomerCount;
-    private int inflowRate;
-    private int enteredRate;
-    private int outflowRate;
+    private long waitingCount;
+    private long activeCustomerCount;
+    private long inflow;
+    private long entered;
+    private long outflow;
+    private double estimatedWaitTime;
+    private double inflowRate;
+    private double enteredRate;
+    private double outflowRate;
 }

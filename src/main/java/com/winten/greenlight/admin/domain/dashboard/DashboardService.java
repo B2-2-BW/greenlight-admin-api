@@ -35,46 +35,53 @@ public class DashboardService {
         }
 
         if (request.isMock()) {
-            return this.generateMockData(rooms);
+            return this.generateMockData(rooms, windowSeconds);
         }
 
-        for  (Room room : rooms) {
+        for (Room room : rooms) {
             if (!room.getEnabled()) continue;
-            var roomStatus = new RoomStatus();
-            roomStatus.setRoomId(room.getRoomId());
+            var roomStatus = dashboardCacheRepository.getRoomStatus(room.getRoomId(), windowSeconds);
+            roomStatus.setRoomCapacity(room.getCapacity());
+            // TODO 지금은 window size가 3일테지만, 이후에 변하게되면 예상시간 측정이 달라질수도 있음
+            //  Core API와 예상시간 계산 로직을 통일해야함
+            var estimatedWaitTime = roomStatus.getEnteredRate() != 0
+                    ? roomStatus.getActiveCustomerCount() / roomStatus.getEnteredRate()
+                    : 0 ;
 
-            // TODO redis 데이터 추출한 뒤 set
-            // TODO inflow는 어떻게 계산? WAITING LOG가 따로 필요해보임
-            // TODO outflow는 어떻게 계산?
-            // waitingCount // room:{roomId}:queue:WAITING size()
-            // roomCapacity // room.getCapacity()
-            // roomCustomerCount // room:{roomId}:heartbeat:ENTERED size
-            // inflowRate // room:{roomId}:metrics:traffic:inflow (window size 만큼 추출 후 평균)
-            // enteredRate // room:{roomId}:heartbeat:ENTERED ranged size (window size 만큼 추출 후 평균)
-            // outflowRate // room:{roomId}:metrics:traffic:outflow (window size 만큼 추출 후 평균)
-            // estimatedWaitTime // roomCustomerCount / 10초 평균 enteredRate;
+            roomStatus.setEnteredRate(roomStatus.getEntered() / (double) windowSeconds);
+            roomStatus.setInflowRate(roomStatus.getInflow() / (double) windowSeconds);
+            roomStatus.setOutflowRate(roomStatus.getOutflow() / (double) windowSeconds);
 
+            roomStatus.setEstimatedWaitTime(estimatedWaitTime);
+            dashboardDetail.getDetail().put(room.getRoomId(), roomStatus);
         }
         return dashboardDetail;
     }
 
-    private DashboardDetail generateMockData(List<Room> rooms) {
+    // 가짜 데이터 생성 (대시보드 보여주기용)
+    private DashboardDetail generateMockData(List<Room> rooms, long windowSeconds) {
         var dashboardDetail = DashboardDetail.empty();
         for (Room room : rooms) {
             if (!room.getEnabled()) continue;
             var roomCapacity = room.getCapacity();
             var waitingCount = ThreadLocalRandom.current().nextInt(300, 2001);
-            var roomCustomerCount = ThreadLocalRandom.current().nextInt(room.getCapacity()/3, room.getCapacity() + 1);
-            var inflowRate = ThreadLocalRandom.current().nextInt(1, 121);
-            var enteredRate = ThreadLocalRandom.current().nextInt(1, 101);
-            var outflowRate = enteredRate + 3;
-            var estimatedWaitTime = roomCustomerCount / enteredRate;
+            var activeCustomerCount = ThreadLocalRandom.current().nextInt(room.getCapacity()/4, room.getCapacity() + 1);
+            var inflow = ThreadLocalRandom.current().nextInt(1, 121);
+            var entered = ThreadLocalRandom.current().nextInt(1, 101);
+            var outflow = entered + ThreadLocalRandom.current().nextInt(-20, +21);
+            var inflowRate = inflow / (double) windowSeconds;
+            var enteredRate = entered / (double) windowSeconds;
+            var outflowRate = outflow / (double) windowSeconds;
+            var estimatedWaitTime = activeCustomerCount / enteredRate;
 
             var roomStatus = RoomStatus.builder()
                     .roomId(room.getRoomId())
                     .roomCapacity(roomCapacity)
                     .waitingCount(waitingCount)
-                    .roomCustomerCount(roomCustomerCount)
+                    .activeCustomerCount(activeCustomerCount)
+                    .inflow(inflow)
+                    .entered(entered)
+                    .outflow(outflow)
                     .inflowRate(inflowRate)
                     .enteredRate(enteredRate)
                     .outflowRate(outflowRate)
