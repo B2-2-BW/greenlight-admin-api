@@ -13,18 +13,13 @@ import java.util.List;
 @AllArgsConstructor
 public class RoomResponse {
     private String roomId;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String name;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String description;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Integer maxTrafficPerSecond;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Integer capacity;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Boolean enabled;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private DefaultRuleType defaultRuleType;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String defaultDestinationUrl;
+    private String adImageUrl;
     private List<RoomRuleResponse> roomRules;
 }

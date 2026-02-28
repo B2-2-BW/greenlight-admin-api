@@ -20,7 +20,7 @@ public class DashboardController {
     public ResponseEntity<DashboardResponse> getDashboardDetail(
             @ParameterObject DashboardRequest request
     ) {
-        var detail = dashboardService.getDashboardDetail(request);
+        var detail = dashboardService.getDashboardDetail(request.getVersion());
         return ResponseEntity.ok(dashboardConverter.toResponse(detail));
     }
 }

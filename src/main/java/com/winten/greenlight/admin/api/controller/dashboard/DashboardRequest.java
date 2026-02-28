@@ -8,6 +8,5 @@ import java.time.Duration;
 @Data
 @AllArgsConstructor
 public class DashboardRequest {
-    private Duration window;
-    private boolean mock;
+    private String version;
 }

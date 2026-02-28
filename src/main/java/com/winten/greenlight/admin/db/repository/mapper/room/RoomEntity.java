@@ -27,5 +27,6 @@ public class RoomEntity extends AuditDto {
     private Boolean enabled;
     private String defaultDestinationUrl;
     private DefaultRuleType defaultRuleType;
+    private String adImageUrl;
     private List<RoomRuleEntity> roomRules;
 }

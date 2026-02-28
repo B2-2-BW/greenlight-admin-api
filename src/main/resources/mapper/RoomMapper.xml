@@ -11,6 +11,8 @@
             r.capacity,
             r.enabled,
             r.default_rule_type,
+            r.default_destination_url,
+            r.ad_image_url,
             r.created_by,
             r.created_at,
             r.created_ip,
@@ -53,6 +55,7 @@
             capacity,
             default_rule_type,
             default_destination_url,
+            ad_image_url,
             created_by,
             created_ip,
             updated_by,
@@ -69,6 +72,7 @@
             #{capacity},
             #{defaultRuleType},
             #{defaultDestinationUrl},
+            #{adImageUrl},
             #{createdBy},
             #{createdIp},
             #{updatedBy},
@@ -85,6 +89,8 @@
         <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
         <if test="capacity != null and capacity >= 0"> capacity = #{capacity}, </if>
         <if test="defaultRuleType != null"> default_rule_type = #{defaultRuleType}, </if>
+        <if test="defaultDestinationUrl != null and defaultDestinationUrl != ''"> default_destination_url = #{defaultDestinationUrl}, </if>
+        <if test="adImageUrl != null and adImageUrl != ''"> ad_image_url = #{adImageUrl}, </if>
         <if test="enabled != null"> enabled = #{enabled}, </if>
         updated_by = #{updatedBy},
         updated_at = CURRENT_TIMESTAMP,

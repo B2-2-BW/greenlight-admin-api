@@ -17,5 +17,6 @@ public class RoomCreateRequest {
     private Integer capacity;
     private String defaultDestinationUrl;
     private DefaultRuleType defaultRuleType;
+    private String adImageUrl;
     private List<RoomRuleCreateRequest> roomRules;
 }

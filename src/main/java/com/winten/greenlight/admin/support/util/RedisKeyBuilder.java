@@ -94,4 +94,14 @@ public class RedisKeyBuilder {
     public String siteApiKey(String apiKey) {
         return prefix + ":site:key_id_mapping:" + apiKey;
     }
+    public String siteRoomList(String siteId) {
+        return prefix + ":site:" + siteId + ":room_enabled_id_list";
+    }
+    public String roomMetricLatest(String roomId) {
+        return prefix + ":room:" + roomId + ":metric:latest";
+    }
+
+    public String roomMetricVersion() {
+        return prefix + ":room:versions:metric";
+    }
 }

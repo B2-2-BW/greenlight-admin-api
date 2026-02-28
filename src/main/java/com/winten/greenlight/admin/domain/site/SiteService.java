@@ -1,6 +1,7 @@
 package com.winten.greenlight.admin.domain.site;
 
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
+import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.AuthUtil;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SiteService {
     private final SiteMapper siteMapper;
-    private final SiteCacheManager siteCacheManager;
+    private final SiteCacheRepository siteCacheRepository;
 
     public SiteInfo findSiteById(String siteId) {
         var param = SiteInfo.builder().siteId(siteId).build();
@@ -24,7 +25,7 @@ public class SiteService {
         AuthUtil.ensureSuper();
         var siteList = siteMapper.findAllSite();
         for (var site : siteList) {
-            siteCacheManager.updateSiteApiKeyCache(site);
+            siteCacheRepository.updateSiteApiKeyCache(site);
         }
     }
 }
