@@ -17,6 +17,8 @@ public class RoomUpdateRequest {
     private Integer capacity;
     private Boolean enabled;
     private DefaultRuleType defaultRuleType;
+    private String defaultDestinationUrl;
     private boolean updateRule;
+    private String adImageUrl;
     private List<RoomRuleCreateRequest> roomRules;
 }

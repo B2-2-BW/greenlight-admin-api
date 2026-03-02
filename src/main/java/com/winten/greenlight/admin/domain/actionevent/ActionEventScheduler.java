@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-@Configuration
-@EnableScheduling
+//@Configuration
+//@EnableScheduling
 @RequiredArgsConstructor
 public class ActionEventScheduler {
     private final WriteApi writeApi;

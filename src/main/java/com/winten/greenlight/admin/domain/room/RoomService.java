@@ -3,6 +3,8 @@ package com.winten.greenlight.admin.domain.room;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
+import com.winten.greenlight.admin.db.repository.redis.room.RoomCacheRepository;
+import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -21,7 +23,8 @@ import java.util.List;
 public class RoomService {
     private final RoomConverter roomConverter;
     private final RoomMapper roomMapper;
-    private final RoomCacheManager roomCacheManager;
+    private final RoomCacheRepository roomCacheRepository;
+    private final SiteCacheRepository siteCacheRepository;
 
     @Transactional(readOnly = true)
     public List<Room> getAllRoom() {
@@ -69,7 +72,10 @@ public class RoomService {
         result.setRoomRules(roomRules);
 
         // Redis put
-        roomCacheManager.updateRoomMetaCache(result);
+        roomCacheRepository.updateRoomMetaCache(result);
+
+        var roomList = this.getAllRoom();
+        siteCacheRepository.updateEnabledRoomList(roomList);
 
         return roomConverter.toDto(result);
     }
@@ -101,7 +107,10 @@ public class RoomService {
 
         // Redis put
         var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
-        roomCacheManager.updateRoomMetaCache(updatedRoomEntity);
+        roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
+
+        var roomList = this.getAllRoom();
+        siteCacheRepository.updateEnabledRoomList(roomList);
 
         return updatedRoom;
     }
@@ -113,10 +122,17 @@ public class RoomService {
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
         AuthUtil.ensureCanDelete(currentRoom.getSiteId());
 
+        if (currentRoom.getEnabled()) {
+            throw CoreException.of(ErrorType.ENABLED_ROOM_CANNOT_BE_DELETED, "활성화 상태의 대기열은 삭제할 수 없습니다.");
+        }
+
         roomMapper.deleteRoomById(RoomEntity.builder().roomId(roomId).build());
 
         // Redis delete
-        roomCacheManager.deleteRoomMetaCache(roomId);
+        roomCacheRepository.deleteRoomMetaCache(roomId);
+
+        var roomList = this.getAllRoom();
+        siteCacheRepository.updateEnabledRoomList(roomList);
 
         return Room.builder()
                 .roomId(roomId)
@@ -124,12 +140,14 @@ public class RoomService {
     }
 
     public void reloadRoomMetaCache() {
-        AuthUtil.ensureSuper();
-        List<Room> roomList = getAllRoom();
+        // 본인 Site만 조회됨
+        List<Room> roomList = this.getAllRoom();
         for (Room room : roomList) {
             var roomDetail = this.getRoomById(room.getRoomId());
-            roomCacheManager.deleteRoomMetaCache(room.getRoomId());
-            roomCacheManager.updateRoomMetaCache(roomConverter.toEntity(roomDetail));
+            roomCacheRepository.deleteRoomMetaCache(room.getRoomId());
+            roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(roomDetail));
         }
+
+        siteCacheRepository.updateEnabledRoomList(roomList);
     }
 }

@@ -29,6 +29,7 @@ public enum ErrorType {
     ACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "Action not found." , LogLevel.INFO),
     ACTION_EXISTS(HttpStatus.CONFLICT, "Duplicated action name.", LogLevel.INFO),
 
+    ENABLED_ROOM_CANNOT_BE_DELETED(HttpStatus.CONFLICT, "Enabled Room cannot be deleted", LogLevel.INFO)
     ;
 
     private final HttpStatus status; //HTTP 응답 코드

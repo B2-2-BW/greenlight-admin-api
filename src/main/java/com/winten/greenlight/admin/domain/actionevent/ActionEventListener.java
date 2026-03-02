@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class ActionEventListener implements StreamListener<String, MapRecord<String, String, String>> {
     private final RedisTemplate<String, String> redisTemplate;

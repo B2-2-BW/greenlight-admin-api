@@ -3,22 +3,21 @@ package com.winten.greenlight.admin.api;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorResponse;
 import com.winten.greenlight.admin.support.error.ErrorType;
-import io.hypersistence.tsid.TSID;
+import com.winten.greenlight.admin.support.error.NotModifiedException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.postgresql.util.PSQLException;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @RestControllerAdvice
@@ -50,9 +49,14 @@ public class ApiControllerAdvice {
     }
 
     @ExceptionHandler(RedisCommandTimeoutException.class)
-    public Mono<ResponseEntity<ErrorResponse>> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
+    public ResponseEntity<ErrorResponse> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
         lettuceConnectionFactory.resetConnection();
-        throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도");
+        throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도. 오류: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(NotModifiedException.class)
+    public ResponseEntity<ErrorResponse> handleNotModifiedException(NotModifiedException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
     }
 
 }

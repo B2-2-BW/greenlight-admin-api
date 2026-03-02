@@ -118,8 +118,7 @@ public class AuditInterceptor implements Interceptor {
         }
     }
 
-    // ---- Security / Request ----
-
+    // TODO AuthUtil 못쓰나??
     private CurrentUser getCurrentUserOrNull() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) return null;
