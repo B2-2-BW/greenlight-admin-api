@@ -72,23 +72,15 @@ public class RedisKeyBuilder {
     }
 
     public String roomMeta(String roomId) {
-        return prefix + ":room:" + roomId + ":meta";
+        return prefix + ":room:{" + roomId + "}:meta";
     }
 
     public String roomQueue(String roomId, WaitStatus waitStatus) {
-        return prefix + ":room:" + roomId + ":queue:" + waitStatus;
+        return prefix + ":room:{" + roomId + "}:queue:" + waitStatus;
     }
 
     public String roomHeartbeat(String roomId, WaitStatus heartbeatType) {
-        return prefix + ":room:" + roomId + ":heartbeat:" + heartbeatType;
-    }
-
-    public String roomMetricInflow(String roomId) {
-        return prefix + ":room:" + roomId + ":metric:inflow";
-    }
-
-    public String roomMetricOutflow(String roomId) {
-        return prefix + ":room:" + roomId + ":metric:outflow";
+        return prefix + ":room:{" + roomId + "}:heartbeat:" + heartbeatType;
     }
 
     public String siteApiKey(String apiKey) {
@@ -98,7 +90,7 @@ public class RedisKeyBuilder {
         return prefix + ":site:" + siteId + ":room_enabled_id_list";
     }
     public String roomMetricLatest(String roomId) {
-        return prefix + ":room:" + roomId + ":metric:latest";
+        return prefix + ":room:{" + roomId + "}:metric:latest";
     }
 
     public String roomMetricVersion() {
