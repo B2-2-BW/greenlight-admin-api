@@ -91,8 +91,8 @@ public class UserService {
     @Transactional
     public User signin(User userParam) {
         // 유효한 Site ID인지 검증
-        siteMapper.findSiteById(SiteInfo.builder().siteId(userParam.getUserSiteId()).build())
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + userParam.getUserSiteId()));
+        siteMapper.findSiteById(SiteInfo.builder().siteId(userParam.getSiteId()).build())
+                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + userParam.getSiteId()));
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
@@ -151,7 +151,7 @@ public class UserService {
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
         // 본인이 아닌 경우 해당 사이트 관리자 이상이어야 한다.
         if (!currentUser.getUserId().equals(user.getUserId())) {
-            AuthUtil.ensureCanUpdate(user.getUserSiteId());
+            AuthUtil.ensureCanUpdate(user.getSiteId());
         }
         userMapper.resetUserPassword(user);
 
