@@ -15,6 +15,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +24,7 @@ import java.util.List;
 public class SiteCacheRepository {
     private final RedisKeyBuilder redisKeyBuilder;
     private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> jsonRedisTemplate;
     private final JsonMapper jsonMapper;
 
     public void updateSiteApiKeyCache(final SiteInfo siteInfo) {
@@ -38,7 +40,7 @@ public class SiteCacheRepository {
 
     public void updateEnabledRoomList(List<Room> rooms) {
         var currentUser = AuthUtil.getCurrentUser();
-        String key = redisKeyBuilder.siteRoomList(currentUser.getSiteId());
+        String key = redisKeyBuilder.siteRoomList(currentUser.getUserSiteId());
 
         // Enable 상태인 room만 입력
         var roomIdList = rooms.stream()
@@ -48,6 +50,13 @@ public class SiteCacheRepository {
         String value = jsonMapper.writeValueAsString(roomIdList);
 
         redisTemplate.opsForValue().set(key, value);
+    }
+
+    public void updateSiteInfo(SiteInfo siteInfo) {
+        String key = redisKeyBuilder.siteInfoMeta(siteInfo.getSiteId());
+        var siteInfoMap = new HashMap<String, Object>();
+        siteInfoMap.put("siteEnabled", siteInfo.isSiteEnabled());
+        jsonRedisTemplate.opsForHash().putAll(key, siteInfoMap);
     }
 
     public List<String> getEnabledRoomIdList(String siteId) {

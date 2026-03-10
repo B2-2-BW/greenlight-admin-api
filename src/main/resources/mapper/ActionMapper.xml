@@ -31,7 +31,7 @@
         <include refid="selectFromAction"/>
         <where>
             <if test="userRole != null and !userRole.isSuper()">
-                a.site_id = #{siteId}
+                a.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -41,7 +41,7 @@
         <where>
             ag.enabled = true
             <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{siteId}
+                AND a.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -51,7 +51,7 @@
         <where>
             a.action_group_id = #{actionGroupId}
             <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{siteId}
+                AND a.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -61,7 +61,7 @@
         <where>
             a.id = #{id}
             <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{siteId}
+                AND a.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -87,7 +87,7 @@
         VALUES
         (
             #{actionGroupId},
-            #{siteId},
+            #{userSiteId},
             #{name},
             #{actionUrl},
             #{actionType},
@@ -120,7 +120,7 @@
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
         <if test="userRole != null and !userRole.isSuper()">
-            AND a.site_id = #{siteId}
+            AND a.site_id = #{userSiteId}
         </if>
         RETURNING *
     </select>
@@ -129,7 +129,7 @@
         DELETE FROM action
         WHERE id = #{id}
         <if test="userRole != null and !userRole.isSuper()">
-            AND a.site_id = #{siteId}
+            AND a.site_id = #{userSiteId}
         </if>
     </delete>
 

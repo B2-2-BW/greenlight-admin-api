@@ -96,4 +96,8 @@ public class RedisKeyBuilder {
     public String roomMetricVersion() {
         return prefix + ":room:versions:metric";
     }
+
+    public String siteInfoMeta(String siteId) {
+        return prefix + ":site:" + siteId + ":meta";
+    }
 }

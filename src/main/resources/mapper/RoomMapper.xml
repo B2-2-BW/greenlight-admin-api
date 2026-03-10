@@ -27,7 +27,7 @@
         <where>
             <if test="enabled != null">and ag.enabled = #{enabled}</if>
             <if test="userRole != null and !userRole.isSuper()">
-                AND r.site_id = #{siteId}
+                AND r.site_id = #{userSiteId}
             </if>
         </where>
         ORDER BY room_id
@@ -38,7 +38,7 @@
         <where>
             r.room_id = #{roomId}
             <if test="userRole != null and !userRole.isSuper()">
-                AND r.site_id = #{siteId}
+                AND r.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -64,7 +64,7 @@
         VALUES
         (
             #{roomId},
-            #{siteId},
+            #{userSiteId},
             #{name},
             #{description},
             true,
@@ -97,7 +97,7 @@
         updated_ip = #{updatedIp}
         WHERE room_id = #{roomId}
         <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{siteId}
+            AND site_id = #{userSiteId}
         </if>
         RETURNING *
     </select>
@@ -106,7 +106,7 @@
         DELETE FROM room
         WHERE room_id = #{roomId}
         <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{siteId}
+            AND site_id = #{userSiteId}
         </if>
     </delete>
 
@@ -128,7 +128,7 @@
         WHERE rule.room_id = #{roomId}
         AND rm.default_rule_type != 'ALL'
         <if test="userRole != null and !userRole.isSuper()">
-            AND rm.site_id = #{siteId}
+            AND rm.site_id = #{userSiteId}
         </if>
     </select>
 
@@ -150,7 +150,7 @@
         (
             #{roomId},
             COALESCE((SELECT max(rule_seq) FROM room_rule WHERE room_id = #{roomId}), 0) + 1,
-            #{siteId},
+            #{userSiteId},
             #{value},
             #{matchOperator},
             #{description},
@@ -166,7 +166,7 @@
         DELETE FROM room_rule
         WHERE room_id = #{roomId}
         <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{siteId}
+            AND site_id = #{userSiteId}
         </if>
     </delete>
 </mapper>

@@ -35,7 +35,7 @@ public class JwtUtil {
     public UserToken generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", user.getAccountId());
-        claims.put("siteId", user.getSiteId());
+        claims.put("userSiteId", user.getSiteId());
         claims.put("userRole", user.getUserRole());
 
         return new UserToken(createToken(claims, user.getUserId()));
@@ -109,7 +109,7 @@ public class JwtUtil {
         return CurrentUser.builder()
                 .accountId(claims.get("accountId", Long.class))
                 .userId(claims.getSubject())
-                .siteId(claims.get("siteId", String.class))
+                .userSiteId(claims.get("userSiteId", String.class))
                 .userRole(userRole)
                 .build();
     }

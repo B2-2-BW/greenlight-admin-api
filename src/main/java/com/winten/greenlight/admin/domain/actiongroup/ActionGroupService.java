@@ -67,7 +67,7 @@ public class ActionGroupService {
         ActionGroup currentActionGroup = getActionGroupById(actionGroup.getId()); // action group 존재여부 확인
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanUpdate(currentActionGroup.getSiteId());
+        AuthUtil.ensureCanUpdate(currentActionGroup.getUserSiteId());
 
         ActionGroup result = actionGroupMapper.updateActionGroupById(actionGroup);
 
@@ -86,7 +86,7 @@ public class ActionGroupService {
         ActionGroup currentActionGroup = getActionGroupById(id); // action group 존재여부 확인
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanDelete(currentActionGroup.getSiteId());
+        AuthUtil.ensureCanDelete(currentActionGroup.getUserSiteId());
 
         List<Action> actions = actionService.getActionsByGroup(id);
 

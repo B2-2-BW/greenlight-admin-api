@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public abstract class AuditDto {
-    protected String siteId;
+    protected String userSiteId;
     protected UserRole userRole;
     protected String createdBy;
     protected LocalDateTime createdAt;

@@ -24,7 +24,7 @@
         <where>
             <if test="enabled != null">and ag.enabled = #{enabled}</if>
             <if test="userRole != null and !userRole.isSuper()">
-                AND ag.site_id = #{siteId}
+                AND ag.site_id = #{userSiteId}
             </if>
         </where>
         ORDER BY id
@@ -35,7 +35,7 @@
         <where>
             ag.id = #{id}
             <if test="userRole != null and !userRole.isSuper()">
-                AND ag.site_id = #{siteId}
+                AND ag.site_id = #{userSiteId}
             </if>
         </where>
     </select>
@@ -55,7 +55,7 @@
         )
         VALUES
         (
-            #{siteId},
+            #{userSiteId},
             #{name},
             #{description},
             #{maxTrafficPerSecond},
@@ -81,7 +81,7 @@
             updated_ip = #{updatedIp}
         WHERE id = #{id}
         <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{siteId}
+            AND site_id = #{userSiteId}
         </if>
         RETURNING *
     </select>
@@ -89,7 +89,7 @@
     <delete id="deleteActionGroupById" parameterType="ActionGroup">
         DELETE FROM action_group
         WHERE id = #{id}
-        AND site_id = #{siteId}
+        AND site_id = #{userSiteId}
     </delete>
 
 
@@ -170,7 +170,7 @@
         LEFT JOIN ACTION a ON ag.id = a.action_group_id
         WHERE ag.enabled = true
         <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{siteId}
+            AND site_id = #{userSiteId}
         </if>
         ORDER BY
             ag.id, a.id

@@ -44,7 +44,7 @@ public class AuditInterceptor implements Interceptor {
             param = args[1];
         }
         CurrentUser user = getCurrentUserOrNull();
-        String siteId = user != null ? user.getSiteId() : null;
+        String userSiteId = user != null ? user.getUserSiteId() : null;
         UserRole userRole = user != null ? user.getUserRole() : UserRole.GUEST; // 일반적으로 회원가입 등의 public CRUD인 경우
         String userId = user != null ? user.getUserId() : null;
 
@@ -57,11 +57,11 @@ public class AuditInterceptor implements Interceptor {
         // SELECT, INSERT, UPDATE, DELETE 일 때 넣기
         if (cmd != SqlCommandType.UNKNOWN && cmd != SqlCommandType.FLUSH) {
             // INSERT/UPSERT를 "INSERT로 들어오는 케이스"로 처리
-            applyAudit(param, siteId, userRole, userId, now, ip);
+            applyAudit(param, userSiteId, userRole, userId, now, ip);
         } else {
-            // DELETE 등은 정책에 따라 처리(여기선 siteId만 주입)
-            if (siteId != null) {
-                setField(param, "siteId", siteId);
+            // DELETE 등은 정책에 따라 처리(여기선 userSiteId만 주입)
+            if (userSiteId != null) {
+                setField(param, "userSiteId", userSiteId);
             }
         }
         return invocation.proceed();
@@ -77,9 +77,9 @@ public class AuditInterceptor implements Interceptor {
         // no-op
     }
 
-    private void applyAudit(Object param, String siteId, UserRole userRole, String userId, LocalDateTime now, String ip) {
+    private void applyAudit(Object param, String userSiteId, UserRole userRole, String userId, LocalDateTime now, String ip) {
         // INSERT는 created + updated 둘 다 채우는 정책(요구사항)
-        setField(param, "siteId", siteId);
+        setField(param, "userSiteId", userSiteId);
         setField(param, "userRole", userRole);
 
         setField(param, "createdBy", userId);

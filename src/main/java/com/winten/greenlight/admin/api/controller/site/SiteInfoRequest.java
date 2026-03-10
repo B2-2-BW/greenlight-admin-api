@@ -5,11 +5,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class SiteResponse {
-    private String siteId;
+@AllArgsConstructor
+public class SiteInfoRequest {
     private String siteName;
     private String siteDescription;
-    private boolean siteEnabled;
+    private String siteApiKey;
+    private boolean enabled;
 }
