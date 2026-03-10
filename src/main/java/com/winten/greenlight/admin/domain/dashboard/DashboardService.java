@@ -20,7 +20,7 @@ public class DashboardService {
         }
 
         var currentUser = AuthUtil.getCurrentUser();
-        var roomIdList = siteCacheRepository.getEnabledRoomIdList(currentUser.getSiteId());
+        var roomIdList = siteCacheRepository.getEnabledRoomIdList(currentUser.getUserSiteId());
 
         var dashboardDetail = DashboardDetail.empty();
 

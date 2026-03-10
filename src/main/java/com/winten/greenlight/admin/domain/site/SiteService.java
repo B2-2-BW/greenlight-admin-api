@@ -28,4 +28,11 @@ public class SiteService {
             siteCacheRepository.updateSiteApiKeyCache(site);
         }
     }
+
+    public SiteInfo updateSiteInfoById(SiteInfo siteParam) {
+        siteMapper.updateSiteInfoById(siteParam); // returning으로 조회 잘 되는지 검사
+        var siteInfo = findSiteById(siteParam.getSiteId());
+        siteCacheRepository.updateSiteInfo(siteInfo);
+        return siteInfo;
+    }
 }

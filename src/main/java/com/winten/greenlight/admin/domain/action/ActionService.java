@@ -89,7 +89,7 @@ public class ActionService {
         var currentAction = getActionById(actionParam.getId()); // 존재여부 확인, 없으면 exception
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanUpdate(currentAction.getSiteId());
+        AuthUtil.ensureCanUpdate(currentAction.getUserSiteId());
 
         validateActionType(actionParam); // actionType 검증
         
@@ -120,7 +120,7 @@ public class ActionService {
         Action action = getActionById(actionId); // 존재여부 확인, 없으면 exception
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanDelete(action.getSiteId());
+        AuthUtil.ensureCanDelete(action.getUserSiteId());
 
         // DB Delete
         actionMapper.deleteActionById(action);

@@ -21,6 +21,14 @@ public class SiteController {
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }
 
+    @PutMapping("/{siteId}")
+    public ResponseEntity<SiteResponse> updateSiteInfo(@PathVariable String siteId, @RequestBody SiteInfoRequest request) {
+        var siteParam = siteConverter.toDto(request);
+        siteParam.setSiteId(siteId);
+        var site = siteService.updateSiteInfoById(siteParam);
+        return ResponseEntity.ok(siteConverter.toResponse(site));
+    }
+
     @PostMapping("/cache")
     public ResponseEntity<String> findSiteByCache() {
         siteService.reloadSiteCache();

@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper">
+
     <select id="findSiteById" parameterType="SiteInfo" resultType="SiteInfo">
         SELECT
             site_id,
             site_name,
             site_description,
             site_api_key,
+            site_enabled,
             created_by,
             created_at,
             created_ip,
@@ -23,6 +25,7 @@
             site_name,
             site_description,
             site_api_key,
+            site_enabled,
             created_by,
             created_at,
             created_ip,
@@ -30,5 +33,19 @@
             updated_at,
             updated_ip
         FROM site_info
+    </select>
+
+    <select id="updateSiteInfoById" parameterType="SiteInfo" resultType="SiteInfo">
+        UPDATE site_info
+        SET
+            <if test="siteName != null and siteName != ''"> site_name = #{siteName}, </if>
+            <if test="siteDescription != null and siteDescription != ''"> site_description = #{siteDescription}, </if>
+            <if test="siteApiKey != null and siteApiKey != ''"> site_api_key = #{siteApiKey}, </if>
+            <if test="siteEnabled != null"> site_enabled = #{siteEnabled}, </if>
+            updated_by = #{updatedBy},
+            updated_ip = #{updatedIp},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE site_id = #{userSiteId}
+        RETURNING *
     </select>
 </mapper>

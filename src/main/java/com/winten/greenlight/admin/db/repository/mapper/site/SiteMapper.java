@@ -8,7 +8,8 @@ import java.util.Optional;
 
 @Mapper
 public interface SiteMapper {
+    // TODO public 하게 모두가 쓸 수 있는 API임을 함수명에 명시해야함
     Optional<SiteInfo> findSiteById(SiteInfo siteInfo);
-
+    SiteInfo updateSiteInfoById(SiteInfo siteInfo);
     List<SiteInfo> findAllSite();
 }
