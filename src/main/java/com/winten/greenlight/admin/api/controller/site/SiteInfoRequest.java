@@ -11,5 +11,5 @@ public class SiteInfoRequest {
     private String siteName;
     private String siteDescription;
     private String siteApiKey;
-    private boolean enabled;
+    private boolean siteEnabled;
 }
