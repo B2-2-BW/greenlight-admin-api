@@ -85,7 +85,7 @@ public class RoomService {
         var currentRoom = this.getRoomById(room.getRoomId()); // action group 존재여부 확인
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanUpdate(currentRoom.getUserSiteId());
+        AuthUtil.ensureCanUpdate(currentRoom.getSiteId());
 
         roomMapper.updateRoomById(roomConverter.toEntity(room));
 
@@ -120,7 +120,7 @@ public class RoomService {
         Room currentRoom = this.getRoomById(roomId); // action group 존재여부 확인
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
-        AuthUtil.ensureCanDelete(currentRoom.getUserSiteId());
+        AuthUtil.ensureCanDelete(currentRoom.getSiteId());
 
         if (currentRoom.getEnabled()) {
             throw CoreException.of(ErrorType.ENABLED_ROOM_CANNOT_BE_DELETED, "활성화 상태의 대기열은 삭제할 수 없습니다.");
