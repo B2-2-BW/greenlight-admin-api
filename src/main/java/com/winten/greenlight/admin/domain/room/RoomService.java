@@ -27,8 +27,8 @@ public class RoomService {
     private final SiteCacheRepository siteCacheRepository;
 
     @Transactional(readOnly = true)
-    public List<Room> getAllRoom() {
-        var rooms = roomMapper.findAllRoom();
+    public List<Room> getAllRoom(Room roomParam) {
+        var rooms = roomMapper.findAllRoom(roomConverter.toEntity(roomParam));
         return roomConverter.toDto(rooms);
     }
 
@@ -74,8 +74,8 @@ public class RoomService {
         // Redis put
         roomCacheRepository.updateRoomMetaCache(result);
 
-        var roomList = this.getAllRoom();
-        siteCacheRepository.updateEnabledRoomList(roomList);
+        // 활성화된 Room만 업데이트
+        updateEnabledRoomListCache();
 
         return roomConverter.toDto(result);
     }
@@ -109,8 +109,8 @@ public class RoomService {
         var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
-        var roomList = this.getAllRoom();
-        siteCacheRepository.updateEnabledRoomList(roomList);
+        // 활성화된 Room만 업데이트
+        updateEnabledRoomListCache();
 
         return updatedRoom;
     }
@@ -131,8 +131,8 @@ public class RoomService {
         // Redis delete
         roomCacheRepository.deleteRoomMetaCache(roomId);
 
-        var roomList = this.getAllRoom();
-        siteCacheRepository.updateEnabledRoomList(roomList);
+        // 활성화된 Room만 업데이트
+        updateEnabledRoomListCache();
 
         return Room.builder()
                 .roomId(roomId)
@@ -141,13 +141,18 @@ public class RoomService {
 
     public void reloadRoomMetaCache() {
         // 본인 Site만 조회됨
-        List<Room> roomList = this.getAllRoom();
+        List<Room> roomList = this.getAllRoom(new Room());
         for (Room room : roomList) {
             var roomDetail = this.getRoomById(room.getRoomId());
             roomCacheRepository.deleteRoomMetaCache(room.getRoomId());
             roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(roomDetail));
         }
 
+        siteCacheRepository.updateEnabledRoomList(roomList);
+    }
+
+    public void updateEnabledRoomListCache() {
+        var roomList = this.getAllRoom(Room.builder().enabled(true).build());
         siteCacheRepository.updateEnabledRoomList(roomList);
     }
 }

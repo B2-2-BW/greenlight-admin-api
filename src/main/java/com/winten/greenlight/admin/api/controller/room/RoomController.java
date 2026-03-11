@@ -5,6 +5,7 @@ import com.winten.greenlight.admin.domain.room.RoomConverter;
 import com.winten.greenlight.admin.domain.room.RoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +20,10 @@ public class RoomController {
     private final RoomConverter roomConverter;
 
     @GetMapping
-    public ResponseEntity<List<RoomResponse>> getAllRooms() {
-        var result = roomService.getAllRoom();
+    public ResponseEntity<List<RoomResponse>> getAllRooms(
+           @ParameterObject RoomSearchRequest request
+    ) {
+        var result = roomService.getAllRoom(roomConverter.toDto(request));
         var response = result.stream().map(roomConverter::toResponse).toList();
         return ResponseEntity.ok(response);
     }

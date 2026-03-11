@@ -25,7 +25,7 @@
     <select id="findAllRoom" parameterType="RoomEntity" resultType="RoomEntity">
         <include refid="selectFromRoom"/>
         <where>
-            <if test="enabled != null">and ag.enabled = #{enabled}</if>
+            <if test="enabled != null">and r.enabled = #{enabled}</if>
             <if test="userRole != null and !userRole.isSuper()">
                 AND r.site_id = #{userSiteId}
             </if>

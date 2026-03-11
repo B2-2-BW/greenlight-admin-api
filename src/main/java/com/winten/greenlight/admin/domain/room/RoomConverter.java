@@ -14,6 +14,7 @@ public interface RoomConverter {
     Room toDto(RoomEntity roomEntity);
     RoomRule toDto(RoomRuleEntity roomEntity);
 
+    Room toDto(RoomSearchRequest request);
     Room toDto(RoomCreateRequest request);
     Room toDto(RoomUpdateRequest request);
 
