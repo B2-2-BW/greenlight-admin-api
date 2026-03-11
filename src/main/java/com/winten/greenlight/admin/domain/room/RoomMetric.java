@@ -13,6 +13,7 @@ public class RoomMetric {
     private String roomId;
     private long totalWaiting;
     private long totalActive;
+    private long recentlyExited;
     private long waitingCount;
     private long enteredCount;
     private long exitedCount;

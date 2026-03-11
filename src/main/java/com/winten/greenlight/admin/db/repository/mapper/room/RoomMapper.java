@@ -8,7 +8,7 @@ import java.util.Optional;
 @Mapper
 public interface RoomMapper {
     Optional<RoomEntity> findRoomById(RoomEntity roomEntity);
-    List<RoomEntity> findAllRoom();
+    List<RoomEntity> findAllRoom(RoomEntity roomEntity);
     RoomEntity saveRoom(RoomEntity roomEntity);
     RoomEntity updateRoomById(RoomEntity roomEntity);
     Long deleteRoomById(RoomEntity roomEntity);
