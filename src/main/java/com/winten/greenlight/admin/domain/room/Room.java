@@ -18,6 +18,7 @@ import java.util.List;
 public class Room extends AuditDto {
     private String roomId;
     private String siteId;
+    private RoomEnvironment roomEnvironment;
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;

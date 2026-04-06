@@ -5,6 +5,7 @@
         SELECT
             r.room_id,
             r.site_id,
+            r.room_environment,
             r.name,
             r.description,
             r.max_traffic_per_second,
@@ -48,6 +49,7 @@
         (
             room_id,
             site_id,
+            room_environment,
             name,
             description,
             enabled,
@@ -65,6 +67,7 @@
         (
             #{roomId},
             #{userSiteId},
+            #{roomEnvironment},
             #{name},
             #{description},
             true,
@@ -86,6 +89,7 @@
         SET
         <if test="name != null and name != ''"> name = #{name}, </if>
         <if test="description != null and description != ''"> description = #{description}, </if>
+        <if test="roomEnvironment != null"> room_environment = #{roomEnvironment}, </if>
         <if test="maxTrafficPerSecond != null and maxTrafficPerSecond >= 0"> max_traffic_per_second = #{maxTrafficPerSecond}, </if>
         <if test="capacity != null and capacity >= 0"> capacity = #{capacity}, </if>
         <if test="defaultRuleType != null"> default_rule_type = #{defaultRuleType}, </if>
