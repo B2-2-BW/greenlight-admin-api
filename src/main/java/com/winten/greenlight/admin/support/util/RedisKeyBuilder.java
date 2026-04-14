@@ -20,9 +20,9 @@ public class RedisKeyBuilder {
         return prefix + ":action_group:" + actionGroupId + ":meta";
     }
 
-    public String actionGroupStatus(Long actionGroupId) {
-        return prefix + ":action_group:" + actionGroupId + ":status";
-    }
+//    public String actionGroupStatus(Long actionGroupId) {
+//        return prefix + ":action_group:" + actionGroupId + ":status";
+//    }
 
     public String action() {
         return prefix + ":action:*";
@@ -40,20 +40,20 @@ public class RedisKeyBuilder {
         return prefix + ":api:action:version";
     }
 
-    public String userApiKey() {
-        return prefix + ":admin:user_api_key";
-    }
+//    public String userApiKey() {
+//        return prefix + ":admin:user_api_key";
+//    }
 
-    public String allActions() {
-        return prefix + ":action:*";
-    }
+//    public String allActions() {
+//        return prefix + ":action:*";
+//    }
 
     public String actionEventStream() {
         return prefix + ":infra:action_event:stream";
     }
-    public String actionEventDlqStream() {
-        return prefix + ":infra:action_event:dlq";
-    }
+//    public String actionEventDlqStream() {
+//        return prefix + ":infra:action_event:dlq";
+//    }
 
     public String actionGroupWaitingQueue(Long actionGroupId) {
         return prefix + ":action_group:" + actionGroupId + ":queue:WAITING";
@@ -61,10 +61,6 @@ public class RedisKeyBuilder {
 
     public String session() {
         return prefix + ":session";
-    }
-
-    public String actionGroupAccessLog(Long actionGroupId) {
-        return prefix + ":action_group:" + actionGroupId + ":accesslog";
     }
 
     public String urlCachingKey(String url) {
@@ -75,22 +71,28 @@ public class RedisKeyBuilder {
         return prefix + ":room:{" + roomId + "}:meta";
     }
 
-    public String roomQueue(String roomId, WaitStatus waitStatus) {
-        return prefix + ":room:{" + roomId + "}:queue:" + waitStatus;
-    }
-
-    public String roomHeartbeat(String roomId, WaitStatus heartbeatType) {
-        return prefix + ":room:{" + roomId + "}:heartbeat:" + heartbeatType;
-    }
+//    public String roomQueue(String roomId, WaitStatus waitStatus) {
+//        return prefix + ":room:{" + roomId + "}:queue:" + waitStatus;
+//    }
+//
+//    public String roomHeartbeat(String roomId, WaitStatus heartbeatType) {
+//        return prefix + ":room:{" + roomId + "}:heartbeat:" + heartbeatType;
+//    }
 
     public String siteApiKey(String apiKey) {
         return prefix + ":site:key_id_mapping:" + apiKey;
     }
-    public String siteRoomList(String siteId) {
-        return prefix + ":site:" + siteId + ":room_enabled_id_list";
-    }
+
+//    public String siteRoomIdList(String siteId) {
+//        return prefix + ":site:" + siteId + ":room_id_list";
+//    }
+
     public String roomMetricLatest(String roomId) {
         return prefix + ":room:{" + roomId + "}:metric:latest";
+    }
+
+    public String roomMetaVersion() {
+        return prefix + ":room:versions:meta";
     }
 
     public String roomMetricVersion() {

@@ -1,22 +1,17 @@
 package com.winten.greenlight.admin.db.repository.redis.site;
 
-import com.winten.greenlight.admin.domain.room.Room;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
-import com.winten.greenlight.admin.support.util.AuthUtil;
 import com.winten.greenlight.admin.support.util.RedisKeyBuilder;
 import io.lettuce.core.RedisException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 
 @Slf4j
 @Repository
@@ -38,19 +33,19 @@ public class SiteCacheRepository {
         }
     }
 
-    public void updateEnabledRoomList(List<Room> rooms) {
-        var currentUser = AuthUtil.getCurrentUser();
-        String key = redisKeyBuilder.siteRoomList(currentUser.getUserSiteId());
-
-        // Enable 상태인 room만 입력
-        var roomIdList = rooms.stream()
-                .filter(Room::getEnabled)
-                .map(Room::getRoomId)
-                .toList();
-        String value = jsonMapper.writeValueAsString(roomIdList);
-
-        redisTemplate.opsForValue().set(key, value);
-    }
+//    public void updateRoomListCache(List<Room> rooms) {
+//        var currentUser = AuthUtil.getCurrentUser();
+//        String key = redisKeyBuilder.siteRoomIdList(currentUser.getUserSiteId());
+//
+//        // Enable 상태인 room만 입력
+//        var roomIdList = rooms.stream()
+//                .filter(Room::getEnabled)
+//                .map(Room::getRoomId)
+//                .toList();
+//        String value = jsonMapper.writeValueAsString(roomIdList);
+//
+//        redisTemplate.opsForValue().set(key, value);
+//    }
 
     public void updateSiteInfo(SiteInfo siteInfo) {
         String key = redisKeyBuilder.siteInfoMeta(siteInfo.getSiteId());
@@ -59,19 +54,19 @@ public class SiteCacheRepository {
         jsonRedisTemplate.opsForHash().putAll(key, siteInfoMap);
     }
 
-    public List<String> getEnabledRoomIdList(String siteId) {
-        String key = redisKeyBuilder.siteRoomList(siteId);
-        String value = redisTemplate.opsForValue().get(key);
-
-        if (value == null || value.isBlank()) {
-            return Collections.emptyList();
-        }
-
-        try {
-            return jsonMapper.readValue(value, new TypeReference<>() {});
-        } catch (Exception e) {
-            log.error("Failed to parse Room Id List", e);
-            throw CoreException.of(ErrorType.REDIS_ERROR, "Redis 조회 중 readValue 실패. " + e.getMessage());
-        }
-    }
+//    public List<String> getSiteRoomIdList(String siteId) {
+//        String key = redisKeyBuilder.siteRoomIdList(siteId);
+//        String value = redisTemplate.opsForValue().get(key);
+//
+//        if (value == null || value.isBlank()) {
+//            return Collections.emptyList();
+//        }
+//
+//        try {
+//            return jsonMapper.readValue(value, new TypeReference<>() {});
+//        } catch (Exception e) {
+//            log.error("Failed to parse Room Id List", e);
+//            throw CoreException.of(ErrorType.REDIS_ERROR, "Redis 조회 중 readValue 실패. " + e.getMessage());
+//        }
+//    }
 }

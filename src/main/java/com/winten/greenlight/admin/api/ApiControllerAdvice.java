@@ -4,6 +4,7 @@ import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorResponse;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.error.NotModifiedException;
+import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,19 @@ public class ApiControllerAdvice {
     public ResponseEntity<ErrorResponse> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
         lettuceConnectionFactory.resetConnection();
         throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도. 오류: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(RedisCommandExecutionException.class)
+    public ResponseEntity<ErrorResponse> redisCommandExecutionExceptionHandler(RedisCommandExecutionException ex) {
+        String message = ex.getMessage();
+
+        if (message != null && message.contains("CLUSTERDOWN")) {
+            // ClusterTopologyRefresh가 설정되어 있으면 자동 갱신됨
+            throw CoreException.of(ErrorType.REDIS_ERROR, "Redis Cluster Down 감지. 토폴로지 갱신 중. 오류: " + message);
+        }
+
+        // MOVED, ASK 등 다른 cluster 오류
+        throw CoreException.of(ErrorType.REDIS_ERROR, "Redis 실행 오류: " + message);
     }
 
     @ExceptionHandler(NotModifiedException.class)
