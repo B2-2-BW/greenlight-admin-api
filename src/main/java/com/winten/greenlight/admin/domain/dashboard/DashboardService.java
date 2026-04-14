@@ -20,12 +20,15 @@ public class DashboardService {
 
         var dashboardDetail = DashboardDetail.empty();
 
-        for (String roomId : roomIdList) {
-            var roomMetric = roomCacheRepository.getRoomMetric(roomId);
-            dashboardDetail.getDetail().put(roomId, roomMetric);
+        if (roomIdList != null) {
+            for (String roomId : roomIdList) {
+                var roomMetric = roomCacheRepository.getRoomMetric(roomId);
+                dashboardDetail.getDetail().put(roomId, roomMetric);
+            }
         }
         dashboardDetail.setVersion(currentVersion);
         dashboardDetail.setInterval(3);
+
         return dashboardDetail;
     }
 }
