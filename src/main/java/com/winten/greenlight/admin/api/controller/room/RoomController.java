@@ -73,7 +73,7 @@ public class RoomController {
 
     @PostMapping("/cache")
     public ResponseEntity<String> reloadRoomMetaCache() {
-        roomService.reloadRoomMetaCache();
-        return ResponseEntity.ok("room cache reload successful");
+        var reloadedRoomIdList = roomService.reloadRoomMetaCache();
+        return ResponseEntity.ok("room cache reload successful " + reloadedRoomIdList);
     }
 }

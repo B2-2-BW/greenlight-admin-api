@@ -88,7 +88,7 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaCache(result);
 
         // 활성화된 Room만 업데이트
-        updateRoomListCache();
+//        updateRoomListCache();
 
         return roomConverter.toDto(result);
     }
@@ -123,7 +123,7 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
         // 활성화된 Room만 업데이트
-        updateRoomListCache();
+//        updateRoomListCache();
 
         return updatedRoom;
     }
@@ -145,16 +145,17 @@ public class RoomService {
         roomCacheRepository.deleteRoomMetaCache(roomId);
 
         // 활성화된 Room만 업데이트
-        updateRoomListCache();
+//        updateRoomListCache();
 
         return Room.builder()
                 .roomId(roomId)
                 .build();
     }
 
-    public void reloadRoomMetaCache() {
+    public List<String> reloadRoomMetaCache() {
         // 본인 Site만 조회됨
         List<Room> roomList = this.getRoomListFiltered(new Room());
+
         for (Room room : roomList) {
             var roomDetail = this.getRoomById(room.getRoomId());
             roomCacheRepository.deleteRoomMetaCache(room.getRoomId());
@@ -162,11 +163,13 @@ public class RoomService {
         }
 
         roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
+
+        return roomList.stream().map(Room::getRoomId).toList();
     }
 
-    public void updateRoomListCache() {
-        var roomList = this.getRoomListFiltered(new Room());
-
-        roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
-    }
+//    public void updateRoomListCache() {
+//        var roomList = this.getRoomListFiltered(new Room());
+//
+//        roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
+//    }
 }
