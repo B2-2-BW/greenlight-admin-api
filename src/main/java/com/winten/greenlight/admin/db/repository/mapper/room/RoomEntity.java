@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.db.repository.mapper.room;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.winten.greenlight.admin.domain.action.DefaultRuleType;
+import com.winten.greenlight.admin.domain.room.RoomEnvironment;
 import com.winten.greenlight.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,7 @@ import java.util.List;
 public class RoomEntity extends AuditDto {
     private String roomId;
     private String siteId;
-    private String roomEnvironment;
+    private RoomEnvironment roomEnvironment;
     private String name;
     private String description;
     private Integer maxTrafficPerSecond;

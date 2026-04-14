@@ -20,12 +20,15 @@ public class RoomController {
     private final RoomConverter roomConverter;
 
     @GetMapping
-    public ResponseEntity<List<RoomResponse>> getAllRooms(
+    public ResponseEntity<List<RoomResponse>> getRoomListFiltered(
            @ParameterObject RoomSearchRequest request
     ) {
-        var result = roomService.getAllRoom(roomConverter.toDto(request));
-        var response = result.stream().map(roomConverter::toResponse).toList();
-        return ResponseEntity.ok(response);
+        var result = roomService.getRoomListFiltered(request.getVersion(), roomConverter.toDto(request));
+        var response = result.getRoomList().stream().map(roomConverter::toResponse).toList();
+        return ResponseEntity.status(HttpStatus.OK)
+                .header("room-version", result.getVersion())
+                .header("Access-Control-Expose-Headers", "room-version")
+                .body(response);
     }
 
     // GET /rooms/{roomId}

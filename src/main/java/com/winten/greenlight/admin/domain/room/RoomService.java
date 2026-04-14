@@ -4,10 +4,10 @@ import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
 import com.winten.greenlight.admin.db.repository.redis.room.RoomCacheRepository;
-import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
+import com.winten.greenlight.admin.support.error.NotModifiedException;
 import com.winten.greenlight.admin.support.util.AuthUtil;
 import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +24,23 @@ public class RoomService {
     private final RoomConverter roomConverter;
     private final RoomMapper roomMapper;
     private final RoomCacheRepository roomCacheRepository;
-    private final SiteCacheRepository siteCacheRepository;
 
     @Transactional(readOnly = true)
-    public List<Room> getAllRoom(Room roomParam) {
+    public DashboardRoomList getRoomListFiltered(String version, Room roomParam) {
+        var currentVersion = roomCacheRepository.getRoomMetaVersion();
+        if (currentVersion.equals(version)) { // 버전 변경이 없을 경우 스킵
+            throw new NotModifiedException();
+        }
+
+        var roomList = this.getRoomListFiltered(roomParam);
+        return DashboardRoomList.builder()
+                .version(currentVersion)
+                .roomList(roomList)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Room> getRoomListFiltered(Room roomParam) {
         var rooms = roomMapper.findAllRoom(roomConverter.toEntity(roomParam));
         return roomConverter.toDto(rooms);
     }
@@ -75,7 +88,7 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaCache(result);
 
         // 활성화된 Room만 업데이트
-        updateEnabledRoomListCache();
+        updateRoomListCache();
 
         return roomConverter.toDto(result);
     }
@@ -110,7 +123,7 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
         // 활성화된 Room만 업데이트
-        updateEnabledRoomListCache();
+        updateRoomListCache();
 
         return updatedRoom;
     }
@@ -132,7 +145,7 @@ public class RoomService {
         roomCacheRepository.deleteRoomMetaCache(roomId);
 
         // 활성화된 Room만 업데이트
-        updateEnabledRoomListCache();
+        updateRoomListCache();
 
         return Room.builder()
                 .roomId(roomId)
@@ -141,18 +154,19 @@ public class RoomService {
 
     public void reloadRoomMetaCache() {
         // 본인 Site만 조회됨
-        List<Room> roomList = this.getAllRoom(new Room());
+        List<Room> roomList = this.getRoomListFiltered(new Room());
         for (Room room : roomList) {
             var roomDetail = this.getRoomById(room.getRoomId());
             roomCacheRepository.deleteRoomMetaCache(room.getRoomId());
             roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(roomDetail));
         }
 
-        siteCacheRepository.updateEnabledRoomList(roomList);
+        roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
     }
 
-    public void updateEnabledRoomListCache() {
-        var roomList = this.getAllRoom(Room.builder().enabled(true).build());
-        siteCacheRepository.updateEnabledRoomList(roomList);
+    public void updateRoomListCache() {
+        var roomList = this.getRoomListFiltered(new Room());
+
+        roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
     }
 }

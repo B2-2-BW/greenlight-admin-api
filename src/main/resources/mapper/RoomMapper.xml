@@ -27,6 +27,7 @@
         <include refid="selectFromRoom"/>
         <where>
             <if test="enabled != null">and r.enabled = #{enabled}</if>
+            <if test="roomEnvironment != null">and r.room_environment = #{roomEnvironment}</if>
             <if test="userRole != null and !userRole.isSuper()">
                 AND r.site_id = #{userSiteId}
             </if>

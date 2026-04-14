@@ -23,15 +23,14 @@ public class RoomCacheRepository {
     private final RedisTemplate<String, String> redisTemplate;
     private final JsonMapper jsonMapper;
 
-
     public void updateRoomMetaCache(final RoomEntity room) {
         try {
             var filters = new SimpleFilterProvider()
                     .addFilter("roomFilter", JsonFilters.roomFilter)
                     .addFilter("roomRuleFilter", JsonFilters.roomRuleFilter);
-            String key = redisKeyBuilder.roomMeta(room.getRoomId());
-            String value = jsonMapper.writer(filters).writeValueAsString(room);
-            redisTemplate.opsForValue().set(key, value);
+            String metaKey = redisKeyBuilder.roomMeta(room.getRoomId());
+            String metaValue = jsonMapper.writer(filters).writeValueAsString(room);
+            redisTemplate.opsForValue().set(metaKey, metaValue);
         } catch (JacksonException e) {
             throw new CoreException(ErrorType.FAILED_TO_PARSE_JSON, e);
         } catch (RedisException e) {
@@ -51,9 +50,20 @@ public class RoomCacheRepository {
         return (version != null) ? version : "0";
     }
 
+    public String getRoomMetaVersion() {
+        var key = redisKeyBuilder.roomMetaVersion();
+        var version = redisTemplate.opsForValue().get(key);
+        return (version != null) ? version : "0";
+    }
+
     public RoomMetric getRoomMetric(String roomId) {
         var key = redisKeyBuilder.roomMetricLatest(roomId);
         var value = redisTemplate.opsForValue().get(key);
         return jsonMapper.readValue(value, RoomMetric.class);
+    }
+
+    public void updateRoomMetaVersionToNow() {
+        var key = redisKeyBuilder.roomMetaVersion();
+        redisTemplate.opsForValue().set(key, String.valueOf(System.currentTimeMillis()));
     }
 }
