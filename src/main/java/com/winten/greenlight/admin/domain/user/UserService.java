@@ -8,8 +8,14 @@ import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.AuthUtil;
 import com.winten.greenlight.admin.support.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +26,12 @@ public class UserService {
     private final PasswordManager passwordManager;
     private final CachedUserService cachedUserService;
     private final JwtUtil jwtUtil;
+
+    @Value("${jwt.expiration.access:1800}") // 1시간
+    private Long accessTokenExpiration;
+
+    @Value("${jwt.expiration.refresh:1209600}") // 14일
+    private Long refreshTokenExpiration;
 
     @Transactional(readOnly = true)
     public User me(CurrentUser currentUser) {
@@ -69,7 +81,9 @@ public class UserService {
 
         // 여기까지 도달했다면 정상 로그인 된 케이스
         loginAttemptTxService.updatePasswordErrorCountById(user.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
-        return jwtUtil.generateToken(user);
+
+        user.setAutoLogin(loginParam.isAutoLogin());
+        return this.generateUserToken(user);
     }
 
     public User createUser(User user, CurrentUser currentUser) {
@@ -159,5 +173,48 @@ public class UserService {
         //  관리자는 null 처리니까 force 시키고,
         //  일반사용자는 재설정 처리 하도록 만들어도 괜찮을듯
         return null;
+    }
+
+    public UserToken refresh(String refreshToken, Boolean autoLogin) {
+        if (!jwtUtil.validateToken(refreshToken)) {
+            throw new CoreException(ErrorType.UNAUTHORIZED, "Refresh Token is Invalid or expired");
+        }
+        var currentUser = jwtUtil.getCurrentUserFromToken(refreshToken);
+        User user = userMapper.findUserById(currentUser.getUserId())
+                .orElseThrow(() -> CoreException.of(ErrorType.UNAUTHORIZED, "Invalid Token ID"));
+
+        user.setAutoLogin(autoLogin);
+        return this.generateUserToken(user);
+    }
+
+    private UserToken generateUserToken(User user) {
+        // 토큰 생성 전 명시적으로 민감정보는 삭제
+        user.setPassword(null);
+        user.setPasswordHash(null);
+        user.setPhoneNumber(null);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("accountId", user.getAccountId());
+        claims.put("userSiteId", user.getSiteId());
+        claims.put("userRole", user.getUserRole());
+
+        String accessToken =  jwtUtil.generateToken(user.getUserId(), claims, accessTokenExpiration);
+        String refreshToken = jwtUtil.generateToken(user.getUserId(), claims, refreshTokenExpiration);
+
+        var refreshCookieBuilder = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .path("/")
+                .sameSite("lax");
+        if (user.getAutoLogin()) {
+            refreshCookieBuilder.maxAge(Duration.ofSeconds(refreshTokenExpiration));
+        }
+        // autoLogin false -> 세션 쿠키 (브라우저 종료 시 삭제)
+
+        return UserToken.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .refreshCookie(refreshCookieBuilder.build())
+                .tokenType("Bearer")
+                .build();
     }
 }

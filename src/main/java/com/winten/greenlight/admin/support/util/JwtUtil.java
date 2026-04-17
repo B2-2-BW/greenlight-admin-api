@@ -1,9 +1,7 @@
 package com.winten.greenlight.admin.support.util;
 
 import com.winten.greenlight.admin.domain.user.CurrentUser;
-import com.winten.greenlight.admin.domain.user.User;
 import com.winten.greenlight.admin.domain.user.UserRole;
-import com.winten.greenlight.admin.domain.user.UserToken;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -14,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -23,37 +20,24 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") // 24시간 (밀리초)
-    private Long expiration;
-
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
     // UserInfo로부터 JWT 토큰 생성
-    public UserToken generateToken(User user) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("accountId", user.getAccountId());
-        claims.put("userSiteId", user.getSiteId());
-        claims.put("userRole", user.getUserRole());
-
-        return new UserToken(createToken(claims, user.getUserId()));
-    }
-
-    // Claims와 subject로 토큰 생성
-    private String createToken(Map<String, Object> claims, String subject) {
+    public String generateToken(String subject, Map<String, Object> claims, Long expirationSeconds) {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .expiration(new Date(System.currentTimeMillis() + expirationSeconds * 1000))
                 .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
     // 토큰에서 사용자명 추출
-    public String extractUsername(String token) {
+    public String extractUserId(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
@@ -84,7 +68,7 @@ public class JwtUtil {
 
     // 토큰 유효성 검증
     public Boolean validateToken(String token, CurrentUser currentUser) {
-        final String username = extractUsername(token);
+        final String username = extractUserId(token);
         return (username.equals(currentUser.getUserId()) && !isTokenExpired(token));
     }
 

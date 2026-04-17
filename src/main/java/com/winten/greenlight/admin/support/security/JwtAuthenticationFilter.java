@@ -88,7 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            jwtUtil.extractUsername(token);
+            jwtUtil.extractUserId(token);
             return true;
         } catch (IllegalArgumentException e) {
             throw new BadCredentialsException("인증정보를 찾을 수 없습니다.");

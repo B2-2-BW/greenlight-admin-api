@@ -12,4 +12,5 @@ public class UserLoginRequest {
     @JsonAlias("userId")
     private String loginId;
     private String password;
+    private boolean autoLogin;
 }

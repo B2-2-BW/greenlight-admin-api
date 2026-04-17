@@ -3,9 +3,13 @@ package com.winten.greenlight.admin.api.controller.user;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserConverter;
 import com.winten.greenlight.admin.domain.user.UserService;
+import com.winten.greenlight.admin.support.error.CoreException;
+import com.winten.greenlight.admin.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +34,37 @@ public class UserController {
     ) {
         var loginResult = userService.login(userConverter.toDto(userRequest));
         return ResponseEntity.status(HttpStatus.OK)
+                .header(HttpHeaders.SET_COOKIE, loginResult.getRefreshCookie().toString())
                 .body(userConverter.toResponse(loginResult));
+    }
+
+    @PostMapping("refresh")
+    public ResponseEntity<UserLoginResponse> refresh(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            @RequestParam(required = false) boolean autoLogin
+    ) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new CoreException(ErrorType.UNAUTHORIZED, "Refresh Token is missing");
+        }
+
+        var refreshResult = userService.refresh(refreshToken, autoLogin);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .header(HttpHeaders.SET_COOKIE, refreshResult.getRefreshCookie().toString())
+                .body(userConverter.toResponse(refreshResult));
+    }
+
+    @PostMapping("logout")
+    public ResponseEntity<UserLogoutResponse> logout() {
+        var deleteRefreshTokenCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .sameSite("lax")
+                .path("/")
+                .maxAge(0)
+                .build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .header(HttpHeaders.SET_COOKIE, deleteRefreshTokenCookie.toString())
+                .body(new UserLogoutResponse(true));
     }
 
     // 회원가입

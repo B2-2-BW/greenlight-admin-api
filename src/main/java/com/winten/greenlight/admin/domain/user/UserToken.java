@@ -1,15 +1,18 @@
 package com.winten.greenlight.admin.domain.user;
 
-import com.winten.greenlight.admin.support.dto.AuditDto;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.springframework.http.ResponseCookie;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(callSuper = true)
-public class UserToken extends AuditDto {
+@Builder
+public class UserToken {
     private String accessToken;
+    private String refreshToken;
+    private ResponseCookie refreshCookie;
+    private String tokenType;
 }
