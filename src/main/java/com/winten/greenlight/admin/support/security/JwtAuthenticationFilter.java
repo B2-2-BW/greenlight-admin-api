@@ -91,9 +91,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             jwtUtil.extractUserId(token);
             return true;
         } catch (IllegalArgumentException e) {
-            throw new BadCredentialsException("인증정보를 찾을 수 없습니다.");
+            throw CoreException.of(ErrorType.UNAUTHORIZED, "인증정보를 찾을 수 없습니다.");
         } catch (ExpiredJwtException | MalformedJwtException e) {
-            throw new BadCredentialsException("유효하지 않은 인증정보입니다.");
+            throw CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 인증정보입니다.");
         } catch (Exception e) {
             throw new BadCredentialsException("알 수 없는 이유로 인증에 실패하였습니다.");
         }
