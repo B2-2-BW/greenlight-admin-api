@@ -31,6 +31,9 @@ public class SecurityConfig {
     @Value("${server.url}")
     private String serverUrl;
 
+    @Value("${server.web-url}")
+    private String webServerUrl;
+
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
@@ -48,7 +51,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         var configuration = new CorsConfiguration();
         // 프론트엔드 주소 명시 (Credentials가 true일 때 "*" 사용 불가)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", serverUrl));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", serverUrl, webServerUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); // 쿠키(인증 정보) 포함 허용

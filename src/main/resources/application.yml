@@ -4,6 +4,7 @@ spring.profiles.active: local
 server:
   port: 28080
   url: ${SERVER_URL}
+  web-url: ${WEB_SERVER_URL}
 
 spring:
   config:
