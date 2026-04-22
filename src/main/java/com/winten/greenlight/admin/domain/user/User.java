@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -32,4 +34,5 @@ public class User extends AuditDto {
     @JsonIgnore
     private String passwordHash;
     private UserRole userRole;
+    private Boolean autoLogin;
 }

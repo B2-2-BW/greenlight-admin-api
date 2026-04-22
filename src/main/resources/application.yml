@@ -81,7 +81,9 @@ redis:
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  expiration:
+    access: 1800 # 30분
+    refresh: 1209600 # 14일
 
 ---
 spring.config.activate.on-profile: local
