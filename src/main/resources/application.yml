@@ -86,6 +86,14 @@ jwt:
     access: 1800 # 30분
     refresh: 1209600 # 14일
 
+alertmanager:
+  token: ${ALERT_TOKEN}
+
+teams:
+  alert:
+    url: https://extapi.thehyundai.com
+    token: D27F00F3C60E6A722E3EBC60F1016CF7
+
 ---
 spring.config.activate.on-profile: local
 ---
