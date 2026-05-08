@@ -12,7 +12,7 @@ public class AlertService {
 
     public void sendAlert(AlertManagerRequest alertManagerRequest) {
 
-        var title = "[Greenlight] 테스트알람";
+        var title = "[Greenlight] 서비스 다운";
 
         var contentBuilder = new StringBuilder();
         contentBuilder.append("<b>")
