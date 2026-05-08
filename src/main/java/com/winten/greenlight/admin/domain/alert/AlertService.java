@@ -11,9 +11,22 @@ public class AlertService {
     private final TeamsAlertClient teamsAlertClient;
 
     public void sendAlert(AlertManagerRequest alertManagerRequest) {
+
+        var title = "[Greenlight] 테스트알람";
+
+        var contentBuilder = new StringBuilder();
+        contentBuilder.append("<b>")
+                .append(title)
+                .append("</b>");
+
+        for (var alert: alertManagerRequest.getAlerts()) {
+            var description = alert.getAnnotations().get("summary");
+            contentBuilder.append("<br> - ").append(description);
+        };
+
         var body = TeamsMessage.builder()
                 .referer("greenlight")
-                .content("[Greenlight] 테스트알람: " + alertManagerRequest.getAlerts())
+                .content(contentBuilder.toString())
                 .notificationType("TEAMS")
                 .build();
 

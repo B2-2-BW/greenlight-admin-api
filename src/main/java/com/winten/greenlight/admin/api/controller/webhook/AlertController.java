@@ -1,16 +1,21 @@
 package com.winten.greenlight.admin.api.controller.webhook;
 
+import com.winten.greenlight.admin.domain.alert.AlertService;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/alerts")
+@RequiredArgsConstructor
 public class AlertController {
 
     @Value("${alertmanager.token}")
     private String alertmanagerToken;
+
+    private final AlertService alertService;
 
     /**
      * AlertManager body 예시
@@ -49,9 +54,7 @@ public class AlertController {
             throw CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 인증정보입니다.");
         }
 
-        System.out.println("[AlertManager] " + message);
-
-
+        alertService.sendAlert(message);
 
         return "OK";
     }
