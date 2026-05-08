@@ -42,7 +42,7 @@ public class AlertController {
      */
     @PostMapping("/alertmanager/webhook")
     public String receiveAlertManagerAlert(
-            @RequestHeader("Authorization") String alertTokenHeader,
+            @RequestHeader("X-ALERT-TOKEN") String alertTokenHeader,
             @RequestBody AlertManagerRequest message
     ) {
         if (!alertmanagerToken.equals(alertTokenHeader)) {
@@ -51,12 +51,14 @@ public class AlertController {
 
         System.out.println("[AlertManager] " + message);
 
+
+
         return "OK";
     }
 
     @PostMapping("/general/webhook")
     public String receiveSchedulerAlert(
-            @RequestHeader("Authorization") String alertTokenHeader,
+            @RequestHeader("X-ALERT-TOKEN") String alertTokenHeader,
             @RequestBody AlertRequest message
     ) {
         if (!alertmanagerToken.equals(alertTokenHeader)) {
