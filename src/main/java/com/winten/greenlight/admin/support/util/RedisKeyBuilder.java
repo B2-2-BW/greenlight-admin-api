@@ -83,10 +83,6 @@ public class RedisKeyBuilder {
         return prefix + ":site:key_id_mapping:" + apiKey;
     }
 
-//    public String siteRoomIdList(String siteId) {
-//        return prefix + ":site:" + siteId + ":room_id_list";
-//    }
-
     public String roomMetricLatest(String roomId) {
         return prefix + ":room:{" + roomId + "}:metric:latest";
     }
@@ -101,5 +97,9 @@ public class RedisKeyBuilder {
 
     public String siteInfoMeta(String siteId) {
         return prefix + ":site:" + siteId + ":meta";
+    }
+
+    public String siteRoomId() {
+        return prefix + ":site:roomId";
     }
 }

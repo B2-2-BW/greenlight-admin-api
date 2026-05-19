@@ -4,6 +4,7 @@ import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
 import com.winten.greenlight.admin.db.repository.redis.room.RoomCacheRepository;
+import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -24,6 +25,7 @@ public class RoomService {
     private final RoomConverter roomConverter;
     private final RoomMapper roomMapper;
     private final RoomCacheRepository roomCacheRepository;
+    private final SiteCacheRepository siteCacheRepository;
 
     @Transactional(readOnly = true)
     public DashboardRoomList getRoomListFiltered(String version, Room roomParam) {
@@ -90,6 +92,8 @@ public class RoomService {
         // 활성화된 Room만 업데이트
 //        updateRoomListCache();
 
+        updateSiteEnabledRoomListCache();
+
         return roomConverter.toDto(result);
     }
 
@@ -122,8 +126,7 @@ public class RoomService {
         var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
-        // 활성화된 Room만 업데이트
-//        updateRoomListCache();
+        updateSiteEnabledRoomListCache();
 
         return updatedRoom;
     }
@@ -147,6 +150,8 @@ public class RoomService {
         // 활성화된 Room만 업데이트
 //        updateRoomListCache();
 
+        updateSiteEnabledRoomListCache(); // room list 갱신
+
         return Room.builder()
                 .roomId(roomId)
                 .build();
@@ -163,13 +168,20 @@ public class RoomService {
         }
 
         roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
+        updateSiteEnabledRoomListCache(); // room list 갱신
 
         return roomList.stream().map(Room::getRoomId).toList();
     }
 
-//    public void updateRoomListCache() {
-//        var roomList = this.getRoomListFiltered(new Room());
-//
-//        roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
-//    }
+    public void updateSiteEnabledRoomListCache() {
+        var currentUser = AuthUtil.getCurrentUser();
+        AuthUtil.ensureCanUpdate(currentUser.getUserSiteId());
+
+        var param = new Room();
+        param.setEnabled(true);
+
+        var roomList = this.getRoomListFiltered(param);
+
+        siteCacheRepository.updateRoomListCache(currentUser.getUserSiteId(), roomList);
+    }
 }
