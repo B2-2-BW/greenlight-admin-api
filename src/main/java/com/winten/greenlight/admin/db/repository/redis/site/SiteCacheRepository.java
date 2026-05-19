@@ -1,5 +1,6 @@
 package com.winten.greenlight.admin.db.repository.redis.site;
 
+import com.winten.greenlight.admin.domain.room.Room;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.HashMap;
+import java.util.List;
 
 @Slf4j
 @Repository
@@ -33,19 +35,17 @@ public class SiteCacheRepository {
         }
     }
 
-//    public void updateRoomListCache(List<Room> rooms) {
-//        var currentUser = AuthUtil.getCurrentUser();
-//        String key = redisKeyBuilder.siteRoomIdList(currentUser.getUserSiteId());
-//
-//        // Enable 상태인 room만 입력
-//        var roomIdList = rooms.stream()
-//                .filter(Room::getEnabled)
-//                .map(Room::getRoomId)
-//                .toList();
-//        String value = jsonMapper.writeValueAsString(roomIdList);
-//
-//        redisTemplate.opsForValue().set(key, value);
-//    }
+    public void updateRoomListCache(String siteId, List<Room> rooms) {
+        String key = redisKeyBuilder.siteRoomId();
+
+        // Enable 상태인 room만 입력
+        List<String> roomIdList = rooms.stream()
+                .filter(Room::getEnabled)
+                .map(Room::getRoomId)
+                .toList();
+
+        jsonRedisTemplate.opsForHash().put(key, siteId, roomIdList);
+    }
 
     public void updateSiteInfo(SiteInfo siteInfo) {
         String key = redisKeyBuilder.siteInfoMeta(siteInfo.getSiteId());
