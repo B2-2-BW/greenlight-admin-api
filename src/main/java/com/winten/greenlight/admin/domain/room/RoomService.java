@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -45,6 +47,19 @@ public class RoomService {
     public List<Room> getRoomListFiltered(Room roomParam) {
         var rooms = roomMapper.findAllRoom(roomConverter.toEntity(roomParam));
         return roomConverter.toDto(rooms);
+    }
+
+    @Transactional(readOnly = true)
+    public RoomPage getRoomPage(int requestedPage, int size, String query, RoomEnvironment roomEnvironment, Boolean enabled) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        long totalElements = roomMapper.countRooms(roomEnvironment, enabled, normalizedQuery);
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
+        int page = totalPages == 0 ? 1 : Math.min(requestedPage, totalPages);
+        long offset = (long) (page - 1) * size;
+        var content = totalElements == 0 ? List.<Room>of() : roomConverter.toDto(
+                roomMapper.findRoomsPage(roomEnvironment, enabled, normalizedQuery, size, offset)
+        );
+        return new RoomPage(content, page, size, totalElements, totalPages);
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +173,7 @@ public class RoomService {
     }
 
     public List<String> reloadRoomMetaCache() {
+        AuthUtil.ensureUserAdmin();
         // 본인 Site만 조회됨
         List<Room> roomList = this.getRoomListFiltered(new Room());
 
@@ -168,7 +184,17 @@ public class RoomService {
         }
 
         roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
-        updateSiteEnabledRoomListCache(); // room list 갱신
+
+        Map<String, List<Room>> enabledRoomsBySite = roomList.stream()
+                .filter(room -> Boolean.TRUE.equals(room.getEnabled()))
+                .collect(Collectors.groupingBy(Room::getSiteId));
+        enabledRoomsBySite.forEach(siteCacheRepository::updateRoomListCache);
+
+        var currentUser = AuthUtil.getCurrentUser();
+        if (currentUser.getUserRole() != com.winten.greenlight.admin.domain.user.UserRole.SUPER
+                && !enabledRoomsBySite.containsKey(currentUser.getUserSiteId())) {
+            siteCacheRepository.updateRoomListCache(currentUser.getUserSiteId(), List.of());
+        }
 
         return roomList.stream().map(Room::getRoomId).toList();
     }

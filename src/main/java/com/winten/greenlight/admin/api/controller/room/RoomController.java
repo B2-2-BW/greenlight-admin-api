@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("rooms")
 @RequiredArgsConstructor
+@Validated
 public class RoomController {
     private final RoomService roomService;
     private final RoomConverter roomConverter;
@@ -29,6 +31,20 @@ public class RoomController {
                 .header("room-version", result.getVersion())
                 .header("Access-Control-Expose-Headers", "room-version")
                 .body(response);
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<RoomPageResponse> getRoomPage(@ParameterObject @Valid RoomPageRequest request) {
+        var result = roomService.getRoomPage(
+                request.getPage(), request.getSize(), request.getQuery(), request.getRoomEnvironment(), request.getEnabled()
+        );
+        return ResponseEntity.ok(RoomPageResponse.builder()
+                .content(result.getContent().stream().map(roomConverter::toResponse).toList())
+                .page(result.getPage())
+                .size(result.getSize())
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .build());
     }
 
     // GET /rooms/{roomId}
