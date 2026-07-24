@@ -4,6 +4,8 @@ import com.winten.greenlight.admin.domain.user.AccountStatus;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class UserResponse {
     private Long accountId;
@@ -11,6 +13,10 @@ public class UserResponse {
     private String siteName;
     private String username;
     private String userId;
+    private String userEmail;
+    private String phoneNumber;
     private UserRole userRole;
     private AccountStatus accountStatus;
+    private Boolean passwordResetRequired;
+    private LocalDateTime createdAt;
 }

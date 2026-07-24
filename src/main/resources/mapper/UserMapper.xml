@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.winten.greenlight.admin.db.repository.mapper.user.UserMapper">
-    <select id="findUserById" parameterType="User">
+    <sql id="selectUser">
         SELECT
             u.account_id,
             u.user_id,
             u.site_id,
             (select sub.site_name from site_info sub where u.site_id = sub.site_id) as site_name,
+            u.user_email,
             u.username,
             u.user_role,
             u.account_status,
+            u.password_reset_required,
+            u.phone_number,
             u.created_by,
             u.created_at,
             u.created_ip,
@@ -17,15 +20,89 @@
             u.updated_at,
             u.updated_ip
         FROM user_account u
+    </sql>
+
+    <select id="findUserById" resultType="User">
+        <include refid="selectUser"/>
         WHERE u.user_id = #{userId}
     </select>
 
-    <select id="findUserWithCredential" parameterType="User">
+    <select id="findUserByEmail" resultType="User">
+        <include refid="selectUser"/>
+        WHERE u.user_email = #{email}
+    </select>
+
+    <select id="findAllUsers" resultType="User">
+        <include refid="selectUser"/>
+        <where>
+            <if test="siteId != null and siteId != ''">
+                u.site_id = #{siteId}
+            </if>
+        </where>
+        ORDER BY
+            CASE u.account_status
+                WHEN 'PENDING' THEN 0
+                WHEN 'ACTIVE' THEN 1
+                WHEN 'DISABLED' THEN 2
+                ELSE 3
+            END,
+            u.created_at DESC,
+            u.user_id
+    </select>
+
+    <sql id="userSearchWhere">
+        <where>
+            <if test="siteId != null and siteId != ''">
+                u.site_id = #{siteId}
+            </if>
+            <if test="query != null and query != ''">
+                <if test="siteId != null and siteId != ''">AND</if>
+                (
+                    LOWER(u.user_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(u.username) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(u.user_email) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(u.site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(COALESCE((SELECT s.site_name FROM site_info s WHERE s.site_id = u.site_id), '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="findUsersPage" resultType="User">
+        <include refid="selectUser"/>
+        <include refid="userSearchWhere"/>
+        ORDER BY
+            CASE u.account_status
+                WHEN 'PENDING' THEN 0
+                WHEN 'ACTIVE' THEN 1
+                WHEN 'DISABLED' THEN 2
+                ELSE 3
+            END,
+            u.created_at DESC,
+            u.user_id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*) FROM user_account u
+        <include refid="userSearchWhere"/>
+    </select>
+
+    <select id="countUsersByStatus" resultType="com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount">
+        SELECT u.account_status, COUNT(*) AS count FROM user_account u
+        <include refid="userSearchWhere"/>
+        GROUP BY u.account_status
+    </select>
+
+    <select id="findUserWithCredential" resultType="User">
         SELECT
             u.account_id,
             u.user_id,
             u.site_id,
+            u.username,
+            u.user_email,
             u.user_role,
+            u.account_status,
             u.password_hash,
             u.password_changed_at,
             u.password_reset_required
@@ -81,8 +158,14 @@
     <insert id="saveUser" parameterType="User">
         INSERT INTO user_account (
             user_id,
+            site_id,
+            user_email,
             username,
+            account_status,
             password_hash,
+            password_changed_at,
+            password_reset_required,
+            phone_number,
             user_role,
             created_by,
             created_ip,
@@ -91,8 +174,14 @@
         )
         VALUES (
             #{userId},
+            #{siteId},
+            #{userEmail},
             #{username},
+            #{accountStatus},
             #{passwordHash},
+            CURRENT_TIMESTAMP,
+            #{passwordResetRequired},
+            #{phoneNumber},
             #{userRole},
             #{createdBy},
             #{createdIp},
@@ -100,6 +189,75 @@
             #{updatedIp}
         )
     </insert>
+
+    <update id="updateUserStatus" parameterType="User">
+        UPDATE user_account
+        SET account_status = #{accountStatus},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="approveUser" parameterType="User">
+        UPDATE user_account
+        SET username = #{username},
+            user_email = #{userEmail},
+            site_id = #{siteId},
+            user_role = #{userRole},
+            account_status = 'ACTIVE',
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+          AND account_status = 'PENDING'
+    </update>
+
+    <update id="updateManagedUser" parameterType="User">
+        UPDATE user_account
+        SET username = #{username},
+            user_email = #{userEmail},
+            site_id = #{siteId},
+            user_role = #{userRole},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+          AND account_status IN ('ACTIVE', 'DISABLED')
+    </update>
+
+    <update id="updateUserProfile" parameterType="User">
+        UPDATE user_account
+        SET username = #{username},
+            user_email = #{userEmail},
+            phone_number = #{phoneNumber},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateUserPassword" parameterType="User">
+        UPDATE user_account
+        SET password_hash = #{passwordHash},
+            password_changed_at = CURRENT_TIMESTAMP,
+            password_reset_required = false,
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="resetUserPassword" parameterType="User">
+        UPDATE user_account
+        SET password_hash = #{passwordHash},
+            password_changed_at = CURRENT_TIMESTAMP,
+            password_reset_required = true,
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE user_id = #{userId}
+    </update>
 
     <select id="findUserAccountIdByApiKey" parameterType="String" resultType="User">
         SELECT k.account_id,

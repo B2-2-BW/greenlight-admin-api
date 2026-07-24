@@ -80,7 +80,7 @@ public class AuditInterceptor implements Interceptor {
     private void applyAudit(Object param, String userSiteId, UserRole userRole, String userId, LocalDateTime now, String ip) {
         // INSERT는 created + updated 둘 다 채우는 정책(요구사항)
         setField(param, "userSiteId", userSiteId);
-        setField(param, "userRole", userRole);
+        setFieldIfAbsent(param, "userRole", userRole);
 
         setField(param, "createdBy", userId);
         setField(param, "createdAt", now);
@@ -114,6 +114,25 @@ public class AuditInterceptor implements Interceptor {
         // 2) 엔티티면 해당 프로퍼티가 있을 때만 set
         MetaObject metaObject = SystemMetaObject.forObject(param);
         if (metaObject.hasSetter(fieldName)) {
+            metaObject.setValue(fieldName, value);
+        }
+    }
+
+    private void setFieldIfAbsent(Object param, String fieldName, Object value) {
+        if (param == null || value == null) return;
+
+        if (param instanceof MapperMethod.ParamMap<?> p) {
+            ((MapperMethod.ParamMap<Object>) p).putIfAbsent(fieldName, value);
+            return;
+        }
+        if (param instanceof Map<?, ?> m) {
+            ((Map<String, Object>) m).putIfAbsent(fieldName, value);
+            return;
+        }
+
+        MetaObject metaObject = SystemMetaObject.forObject(param);
+        if (metaObject.hasSetter(fieldName)
+                && (!metaObject.hasGetter(fieldName) || metaObject.getValue(fieldName) == null)) {
             metaObject.setValue(fieldName, value);
         }
     }

@@ -1,6 +1,8 @@
 package com.winten.greenlight.admin.support.security;
 
 import tools.jackson.databind.json.JsonMapper;
+import com.winten.greenlight.admin.domain.user.AccountStatus;
+import com.winten.greenlight.admin.domain.user.CachedUserService;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
@@ -28,6 +30,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final JsonMapper jsonMapper;
+    private final CachedUserService cachedUserService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -37,8 +40,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractTokenFromHeader(request);
             if (validateToken(token)) {
-                // UserService를 통해 token에서 사용자 정보 추출
-                CurrentUser currentUser = jwtUtil.getCurrentUserFromToken(token);
+                String userId = jwtUtil.extractUserId(token);
+                var user = cachedUserService.getUser(userId);
+                if (user.getAccountStatus() != AccountStatus.ACTIVE) {
+                    throw CoreException.of(ErrorType.UNAUTHORIZED, "사용할 수 없는 계정입니다.");
+                }
+                if (Boolean.TRUE.equals(user.getPasswordResetRequired())
+                        && !isPasswordResetFlowRequest(request)) {
+                    throw CoreException.of(
+                            ErrorType.USER_PASSWORD_RESET_REQUIRED,
+                            "비밀번호 변경 후 다른 기능을 이용할 수 있습니다."
+                    );
+                }
+
+                CurrentUser currentUser = CurrentUser.builder()
+                        .accountId(user.getAccountId())
+                        .userId(user.getUserId())
+                        .userSiteId(user.getSiteId())
+                        .userRole(user.getUserRole())
+                        .build();
 
                 // Spring Security Authentication 객체 생성
                 UsernamePasswordAuthenticationToken authentication =
@@ -50,12 +70,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (CoreException e) {
             response.setContentType("application/json;charset=UTF-8");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setStatus(e.getErrorType().getStatus().value());
             var errorResponse = new ErrorResponse(e);
             response.getWriter().write(jsonMapper.writeValueAsString(errorResponse));
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPasswordResetFlowRequest(HttpServletRequest request) {
+        String path = request.getServletPath();
+        String method = request.getMethod();
+        return ("GET".equals(method) && "/users/me".equals(path))
+                || ("PUT".equals(method) && "/users/me/password".equals(path))
+                || ("POST".equals(method) && "/users/logout".equals(path));
     }
 
     private Collection<? extends GrantedAuthority> getAuthorities(UserRole role) {

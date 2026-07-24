@@ -21,7 +21,7 @@ public class AuthUtil {
         var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
-            || currentUser.getUserSiteId().equals(siteId);
+            || (currentUser.getUserSiteId() != null && currentUser.getUserSiteId().equals(siteId));
     }
 
     // TODO 이후 삭제권한 분리가 필요할 경우를 위해 놔둠
@@ -29,13 +29,61 @@ public class AuthUtil {
         var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
-                || currentUser.getUserSiteId().equals(siteId);
+                || (currentUser.getUserSiteId() != null && currentUser.getUserSiteId().equals(siteId));
     }
 
     public static void ensureSuper() {
         var currentUser = getCurrentUser();
         if (currentUser.getUserRole() != UserRole.SUPER) {
             throw CoreException.of(ErrorType.FORBIDDEN, "해당 요청에 대한 권한이 없습니다");
+        }
+    }
+
+    public static void ensureUserAdmin() {
+        var role = getCurrentUser().getUserRole();
+        if (role != UserRole.SITE_ADMIN && role != UserRole.SUPER) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "사용자 관리 권한이 없습니다");
+        }
+    }
+
+    public static void ensureCanManageSite(String siteId) {
+        var currentUser = getCurrentUser();
+        if (currentUser.getUserRole() != UserRole.SUPER
+                && (currentUser.getUserRole() != UserRole.SITE_ADMIN
+                || currentUser.getUserSiteId() == null
+                || !currentUser.getUserSiteId().equals(siteId))) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "해당 사이트를 관리할 권한이 없습니다");
+        }
+    }
+
+    public static void ensureCanManageUser(String siteId, UserRole targetRole) {
+        var currentUser = getCurrentUser();
+        if (currentUser.getUserRole() == UserRole.SUPER) {
+            return;
+        }
+        if (currentUser.getUserRole() != UserRole.SITE_ADMIN
+                || currentUser.getUserSiteId() == null
+                || !currentUser.getUserSiteId().equals(siteId)
+                || targetRole == UserRole.SUPER) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "해당 사용자를 관리할 권한이 없습니다");
+        }
+    }
+
+    /**
+     * User detail visibility is intentionally broader than user-management authority.
+     * A site administrator may inspect every account in their own site, including a
+     * SUPER account, but must still pass {@link #ensureCanManageUser(String, UserRole)}
+     * before any mutation.
+     */
+    public static void ensureCanViewUser(String siteId) {
+        var currentUser = getCurrentUser();
+        if (currentUser.getUserRole() == UserRole.SUPER) {
+            return;
+        }
+        if (currentUser.getUserRole() != UserRole.SITE_ADMIN
+                || currentUser.getUserSiteId() == null
+                || !currentUser.getUserSiteId().equals(siteId)) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "해당 사용자를 조회할 권한이 없습니다");
         }
     }
 
