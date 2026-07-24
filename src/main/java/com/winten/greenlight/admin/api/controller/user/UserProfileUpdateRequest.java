@@ -3,25 +3,18 @@ package com.winten.greenlight.admin.api.controller.user;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class UserSigninRequest {
-    @NotBlank
-    private String userId;
-    @NotBlank
-    private String siteId;
-    @NotBlank
-    @Email
-    private String userEmail;
+public class UserProfileUpdateRequest {
     @NotBlank
     private String username;
+
     @NotBlank
-    @Size(min = 8, max = 100)
-    private String password;
+    @Email
+    @Size(max = 255)
+    private String userEmail;
+
+    @Size(max = 30)
     private String phoneNumber;
 }

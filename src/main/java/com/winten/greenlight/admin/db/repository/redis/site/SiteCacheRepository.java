@@ -35,6 +35,16 @@ public class SiteCacheRepository {
         }
     }
 
+    public void deleteSiteApiKeyCache(String siteApiKey) {
+        if (siteApiKey == null || siteApiKey.isBlank()) return;
+        try {
+            redisTemplate.delete(redisKeyBuilder.siteApiKey(siteApiKey));
+        } catch (RedisException e) {
+            log.error(e.getMessage());
+            throw new CoreException(ErrorType.REDIS_ERROR, e);
+        }
+    }
+
     public void updateRoomListCache(String siteId, List<Room> rooms) {
         String key = redisKeyBuilder.siteRoomId();
 
@@ -50,7 +60,7 @@ public class SiteCacheRepository {
     public void updateSiteInfo(SiteInfo siteInfo) {
         String key = redisKeyBuilder.siteInfoMeta(siteInfo.getSiteId());
         var siteInfoMap = new HashMap<String, Object>();
-        siteInfoMap.put("siteEnabled", siteInfo.isSiteEnabled());
+        siteInfoMap.put("siteEnabled", Boolean.TRUE.equals(siteInfo.getSiteEnabled()));
         jsonRedisTemplate.opsForHash().putAll(key, siteInfoMap);
     }
 

@@ -17,6 +17,10 @@ public class PasswordManager {
     }
 
     public boolean matches(String rawPassword, String encryptedPassword) {
+        if (rawPassword == null || encryptedPassword == null) {
+            return false;
+        }
         return passwordEncoder.matches(rawPassword, encryptedPassword);
     }
+
 }

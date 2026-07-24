@@ -5,6 +5,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
+import com.winten.greenlight.admin.domain.user.CachedUserService;
 import com.winten.greenlight.admin.support.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,7 @@ import java.util.List;
 public class SecurityConfig {
     private final CoreAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtUtil jwtUtil;
+    private final CachedUserService cachedUserService;
 
     @Value("${server.url}")
     private String serverUrl;
@@ -76,6 +78,9 @@ public class SecurityConfig {
                     .requestMatchers("/action-events/traffic/sse/stream").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
+                    .requestMatchers(HttpMethod.PUT, "/users/me").authenticated()
+                    .requestMatchers(HttpMethod.PUT, "/users/me/password").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/users/logout").authenticated()
                     .requestMatchers(HttpMethod.GET, "/**")
                         .hasAnyAuthority(Permission.PERM_READ.name())
                     .requestMatchers(HttpMethod.POST, "/**")
@@ -86,7 +91,10 @@ public class SecurityConfig {
                         .hasAnyAuthority(Permission.PERM_WRITE.name())
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
-            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, jsonMapper), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(
+                    new JwtAuthenticationFilter(jwtUtil, jsonMapper, cachedUserService),
+                    UsernamePasswordAuthenticationFilter.class
+            )
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
             ;
 

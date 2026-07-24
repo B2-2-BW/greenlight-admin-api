@@ -17,7 +17,7 @@ public enum ErrorType {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found.", LogLevel.INFO),
     USER_REGISTRATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "User Registration Failed.", LogLevel.ERROR),
     USER_ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "User account locked.", LogLevel.INFO),
-    USER_PASSWORD_RESET_REQUIRED(HttpStatus.FORBIDDEN, "User account locked.", LogLevel.INFO),
+    USER_PASSWORD_RESET_REQUIRED(HttpStatus.FORBIDDEN, "Password reset required.", LogLevel.INFO),
     USERNAME_EXISTS(HttpStatus.CONFLICT, "Username already exists." , LogLevel.INFO ),
 
     SITE_NOT_FOUND(HttpStatus.NOT_FOUND, "Site not found.", LogLevel.INFO),

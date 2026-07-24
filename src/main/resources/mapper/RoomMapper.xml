@@ -35,6 +35,35 @@
         ORDER BY room_id
     </select>
 
+    <sql id="roomPageWhere">
+        <where>
+            <if test="enabled != null">r.enabled = #{enabled}</if>
+            <if test="roomEnvironment != null">AND r.room_environment = #{roomEnvironment}</if>
+            <if test="query != null and query != ''">
+                AND (
+                    LOWER(r.room_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(r.name) LIKE CONCAT('%', LOWER(#{query}), '%')
+                    OR LOWER(COALESCE(r.description, '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+                )
+            </if>
+            <if test="userRole != null and !userRole.isSuper()">
+                AND r.site_id = #{userSiteId}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findRoomsPage" resultType="RoomEntity">
+        <include refid="selectFromRoom"/>
+        <include refid="roomPageWhere"/>
+        ORDER BY r.room_id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countRooms" resultType="long">
+        SELECT COUNT(*) FROM room r
+        <include refid="roomPageWhere"/>
+    </select>
+
     <select id="findRoomById" parameterType="RoomEntity" resultType="RoomEntity" flushCache="true" useCache="false">
         <include refid="selectFromRoom"/>
         <where>
