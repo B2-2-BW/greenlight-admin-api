@@ -35,17 +35,54 @@
         FROM site_info
     </select>
 
-    <select id="updateSiteInfoById" parameterType="SiteInfo" resultType="SiteInfo">
+    <sql id="siteSearchWhere">
+        <where>
+            <if test="siteId != null and siteId != ''">site_id = #{siteId}</if>
+            <if test="enabled != null"><if test="siteId != null and siteId != ''">AND</if> site_enabled = #{enabled}</if>
+            <if test="query != null and query != ''">
+                <if test="(siteId != null and siteId != '') or enabled != null">AND</if>
+                (LOWER(site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(site_name) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(COALESCE(site_description, '')) LIKE CONCAT('%', LOWER(#{query}), '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="findSitesPage" resultType="SiteInfo">
+        SELECT site_id, site_name, site_description, site_enabled, created_by, created_at, created_ip, updated_by, updated_at, updated_ip
+        FROM site_info
+        <include refid="siteSearchWhere"/>
+        ORDER BY site_id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSites" resultType="long">
+        SELECT COUNT(*) FROM site_info
+        <include refid="siteSearchWhere"/>
+    </select>
+
+    <select id="existsBySiteApiKey" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM site_info WHERE site_api_key = #{siteApiKey})
+    </select>
+
+    <update id="updateSiteInfoById" parameterType="SiteInfo">
         UPDATE site_info
         SET
             <if test="siteName != null and siteName != ''"> site_name = #{siteName}, </if>
-            <if test="siteDescription != null and siteDescription != ''"> site_description = #{siteDescription}, </if>
-            <if test="siteApiKey != null and siteApiKey != ''"> site_api_key = #{siteApiKey}, </if>
+            <if test="siteDescription != null"> site_description = #{siteDescription}, </if>
             <if test="siteEnabled != null"> site_enabled = #{siteEnabled}, </if>
             updated_by = #{updatedBy},
             updated_ip = #{updatedIp},
             updated_at = CURRENT_TIMESTAMP
-        WHERE site_id = #{userSiteId}
-        RETURNING *
-    </select>
+        WHERE site_id = #{siteId}
+    </update>
+
+    <update id="updateSiteApiKey" parameterType="SiteInfo">
+        UPDATE site_info
+        SET site_api_key = #{siteApiKey},
+            updated_by = #{updatedBy},
+            updated_ip = #{updatedIp},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE site_id = #{siteId}
+    </update>
 </mapper>

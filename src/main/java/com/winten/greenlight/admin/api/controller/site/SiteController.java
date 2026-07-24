@@ -5,12 +5,17 @@ import com.winten.greenlight.admin.domain.site.SiteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 @Slf4j
 @RestController
 @RequestMapping("/sites")
 @RequiredArgsConstructor
+@Validated
 public class SiteController {
     private final SiteService siteService;
     private final SiteConverter siteConverter;
@@ -21,12 +26,36 @@ public class SiteController {
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }
 
+    @GetMapping
+    public ResponseEntity<SitePageResponse> getSites(
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Boolean enabled
+    ) {
+        var result = siteService.getManageableSites(page, size, query, enabled);
+        return ResponseEntity.ok(SitePageResponse.builder()
+                .content(result.getContent().stream().map(siteConverter::toResponse).toList())
+                .page(result.getPage()).size(result.getSize())
+                .totalElements(result.getTotalElements()).totalPages(result.getTotalPages()).build());
+    }
+
+    @GetMapping("{siteId}/manage")
+    public ResponseEntity<SiteResponse> getManageableSite(@PathVariable String siteId) {
+        return ResponseEntity.ok(siteConverter.toResponse(siteService.getManageableSite(siteId)));
+    }
+
     @PutMapping("/{siteId}")
-    public ResponseEntity<SiteResponse> updateSiteInfo(@PathVariable String siteId, @RequestBody SiteInfoRequest request) {
+    public ResponseEntity<SiteResponse> updateSiteInfo(@PathVariable String siteId, @RequestBody @Valid SiteInfoRequest request) {
         var siteParam = siteConverter.toDto(request);
         siteParam.setSiteId(siteId);
         var site = siteService.updateSiteInfoById(siteParam);
         return ResponseEntity.ok(siteConverter.toResponse(site));
+    }
+
+    @PostMapping("/{siteId}/api-key/rotate")
+    public ResponseEntity<SiteApiKeyRotateResponse> rotateSiteApiKey(@PathVariable String siteId) {
+        return ResponseEntity.ok(new SiteApiKeyRotateResponse(siteService.rotateSiteApiKey(siteId)));
     }
 
     @PostMapping("/cache")
