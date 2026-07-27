@@ -55,7 +55,7 @@
     <select id="findRoomsPage" resultType="RoomEntity">
         <include refid="selectFromRoom"/>
         <include refid="roomPageWhere"/>
-        ORDER BY r.room_id
+        ORDER BY r.enabled DESC, r.room_id
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
