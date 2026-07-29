@@ -64,7 +64,7 @@ class UserServiceTest {
                 .build();
 
         when(siteMapper.findSiteById(any()))
-                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build()));
         when(userMapper.findUserById("new-user"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(request));
@@ -81,6 +81,27 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getPassword()).isNull();
         assertThat(savedUser.getValue().getPasswordHash()).isNotBlank();
         assertThat(result).isSameAs(request);
+    }
+
+    @Test
+    void signinRejectsDisabledSite() {
+        UserService service = createService(new PasswordManager());
+        User request = User.builder()
+                .userId("new-user")
+                .siteId("site-a")
+                .userEmail("new-user@example.com")
+                .username("신규 사용자")
+                .password("password123!")
+                .build();
+
+        when(siteMapper.findSiteById(any()))
+                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build()));
+
+        assertThatThrownBy(() -> service.signin(request))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.SITE_NOT_FOUND);
+        verify(userMapper, never()).saveUser(any());
     }
 
     @Test
@@ -256,7 +277,9 @@ class UserServiceTest {
         UserService service = serviceWithSuperUser();
         User target = pendingUser("target-user", "site-a");
         when(userMapper.findUserById("target-user")).thenReturn(Optional.of(target));
-        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-b").build()));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-b").siteEnabled(true).build())
+        );
         when(userMapper.findUserByEmail("approved@example.com")).thenReturn(Optional.empty());
         when(userMapper.approveUser(any())).thenReturn(1);
 
@@ -317,7 +340,9 @@ class UserServiceTest {
     void approvalRejectsDuplicateEmail() {
         UserService service = serviceWithSuperUser();
         when(userMapper.findUserById("target-user")).thenReturn(Optional.of(pendingUser("target-user", "site-a")));
-        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build())
+        );
         when(userMapper.findUserByEmail("used@example.com")).thenReturn(Optional.of(User.builder().userId("other-user").build()));
 
         assertThatThrownBy(() -> service.approveUser("target-user", "사용자", "used@example.com", "site-a", UserRole.USER))
@@ -329,7 +354,9 @@ class UserServiceTest {
         UserService service = serviceWithSuperUser();
         User target = managedUser("target-user", "site-a", UserRole.USER, AccountStatus.ACTIVE);
         when(userMapper.findUserById("target-user")).thenReturn(Optional.of(target));
-        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-b").build()));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-b").siteEnabled(true).build())
+        );
         when(userMapper.findUserByEmail("updated@example.com")).thenReturn(Optional.empty());
         when(userMapper.updateManagedUser(any())).thenReturn(1);
 
@@ -407,7 +434,9 @@ class UserServiceTest {
     void managementUpdateRejectsDuplicateEmail() {
         UserService service = serviceWithSuperUser();
         when(userMapper.findUserById("target-user")).thenReturn(Optional.of(managedUser("target-user", "site-a", UserRole.USER, AccountStatus.ACTIVE)));
-        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build())
+        );
         when(userMapper.findUserByEmail("used@example.com")).thenReturn(Optional.of(User.builder().userId("other-user").build()));
 
         assertThatThrownBy(() -> service.updateManagedUser("target-user", "사용자", "used@example.com", "site-a", UserRole.USER))

@@ -114,8 +114,7 @@ public class UserService {
     @Transactional
     public User signin(User userParam) {
         // 유효한 Site ID인지 검증
-        siteMapper.findSiteById(SiteInfo.builder().siteId(userParam.getSiteId()).build())
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + userParam.getSiteId()));
+        ensureRegistrationSiteEnabled(userParam.getSiteId());
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
@@ -415,6 +414,12 @@ public class UserService {
                         ErrorType.FORBIDDEN,
                         "비활성화된 사이트의 계정은 로그인할 수 없습니다."
                 ));
+    }
+
+    private void ensureRegistrationSiteEnabled(String siteId) {
+        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
+                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
+                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
     }
 
     private UserToken generateUserToken(User user) {
