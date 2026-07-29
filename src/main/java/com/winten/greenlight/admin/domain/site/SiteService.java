@@ -55,9 +55,34 @@ public class SiteService {
         return findSiteById(siteId);
     }
 
-    public SiteInfo updateSiteInfoById(SiteInfo siteParam) {
+    public SiteInfo updateSiteInfoById(SiteInfo siteParam, boolean queueEnabledPresent) {
+        AuthUtil.ensureSuper();
+        if (queueEnabledPresent && siteParam.getQueueEnabled() == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "queueEnabled 값은 null일 수 없습니다.");
+        }
+        if (siteParam.getSiteName() == null
+                && siteParam.getSiteDescription() == null
+                && siteParam.getSiteEnabled() == null
+                && siteParam.getQueueEnabled() == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "수정할 사이트 정보가 없습니다.");
+        }
+
+        return updateSiteInfo(siteParam);
+    }
+
+    public SiteInfo updateQueueEnabled(String siteId, Boolean queueEnabled) {
         AuthUtil.ensureUserAdmin();
-        AuthUtil.ensureCanManageSite(siteParam.getSiteId());
+        AuthUtil.ensureCanManageSite(siteId);
+        if (queueEnabled == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "queueEnabled 값은 null일 수 없습니다.");
+        }
+        return updateSiteInfo(SiteInfo.builder()
+                .siteId(siteId)
+                .queueEnabled(queueEnabled)
+                .build());
+    }
+
+    private SiteInfo updateSiteInfo(SiteInfo siteParam) {
         var currentUser = AuthUtil.getCurrentUser();
         // The regular site update flow must never alter credentials, including from an internal caller.
         siteParam.setSiteApiKey(null);

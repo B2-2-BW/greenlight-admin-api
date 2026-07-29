@@ -460,6 +460,28 @@ class UserServiceTest {
         assertThat(updated.getValue().getUserRole()).isEqualTo(UserRole.SUPER);
     }
 
+    @Test
+    void regularUserCanStillUpdateOwnProfile() {
+        UserService service = createService(new PasswordManager());
+        var currentUser = CurrentUser.builder()
+                .accountId(2L)
+                .userId("regular-user")
+                .userSiteId("site-a")
+                .userRole(UserRole.USER)
+                .build();
+        var user = managedUser("regular-user", "site-a", UserRole.USER, AccountStatus.ACTIVE);
+        when(userMapper.findUserById("regular-user")).thenReturn(Optional.of(user));
+        when(userMapper.findUserByEmail("updated@example.com")).thenReturn(Optional.empty());
+
+        service.updateMyProfile(currentUser, "수정 사용자", "updated@example.com", "010-1234-5678");
+
+        var updated = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateUserProfile(updated.capture());
+        assertThat(updated.getValue().getUsername()).isEqualTo("수정 사용자");
+        assertThat(updated.getValue().getUserEmail()).isEqualTo("updated@example.com");
+        assertThat(updated.getValue().getPhoneNumber()).isEqualTo("010-1234-5678");
+    }
+
     private UserService serviceWithSuperUser() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 CurrentUser.builder().accountId(1L).userId("super").userSiteId("site-a").userRole(UserRole.SUPER).build(), null, List.of()

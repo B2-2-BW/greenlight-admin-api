@@ -58,18 +58,97 @@ class SiteServiceTest {
     @Test
     void regularUpdateCannotChangeApiKey() {
         var service = service();
-        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
-        var request = SiteInfo.builder().siteId("site-a").siteApiKey("new-key").build();
+        authenticate("super", "site-a", UserRole.SUPER);
+        var request = SiteInfo.builder()
+                .siteId("site-a")
+                .siteName("사이트 이름")
+                .siteApiKey("new-key")
+                .build();
         var updated = SiteInfo.builder().siteId("site-a").siteApiKey("old-key").build();
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
 
-        service.updateSiteInfoById(request);
+        service.updateSiteInfoById(request, false);
 
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
         verify(siteMapper).updateSiteInfoById(captured.capture());
         assertThat(captured.getValue().getSiteApiKey()).isNull();
         verify(siteCacheRepository, never()).updateSiteApiKeyCache(any());
+    }
+
+    @Test
+    void siteAdminCanUpdateOnlyOwnSiteQueueEnabled() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .queueEnabled(false)
+                .build();
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
+
+        var result = service.updateQueueEnabled("site-a", false);
+
+        assertThat(result).isSameAs(updated);
+        var captured = ArgumentCaptor.forClass(SiteInfo.class);
+        verify(siteMapper).updateSiteInfoById(captured.capture());
+        assertThat(captured.getValue().getQueueEnabled()).isFalse();
+        assertThat(captured.getValue().getSiteEnabled()).isNull();
+        verify(siteCacheRepository).updateSiteInfo(updated);
+    }
+
+    @Test
+    void siteAdminCannotUpdateSiteManagementFieldsEvenForOwnSite() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-a")
+                .siteName("변경 이름")
+                .queueEnabled(false)
+                .build();
+
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, true))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void siteAdminCannotUpdateAnotherSiteQueueEnabled() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-b", false))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void regularUserCannotUpdateQueueEnabled() {
+        var service = service();
+        authenticate("user", "site-a", UserRole.USER);
+
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", false))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void explicitNullQueueEnabledIsRejected() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", null))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.INVALID_DATA);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
     }
 
     @Test

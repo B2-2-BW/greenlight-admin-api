@@ -12,4 +12,5 @@ public class SiteResponse {
     private String siteName;
     private String siteDescription;
     private boolean siteEnabled;
+    private boolean queueEnabled;
 }
