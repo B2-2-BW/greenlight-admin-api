@@ -61,6 +61,7 @@ public class SiteCacheRepository {
         String key = redisKeyBuilder.siteInfoMeta(siteInfo.getSiteId());
         var siteInfoMap = new HashMap<String, Object>();
         siteInfoMap.put("siteEnabled", Boolean.TRUE.equals(siteInfo.getSiteEnabled()));
+        siteInfoMap.put("queueEnabled", Boolean.TRUE.equals(siteInfo.getQueueEnabled()));
         jsonRedisTemplate.opsForHash().putAll(key, siteInfoMap);
     }
 

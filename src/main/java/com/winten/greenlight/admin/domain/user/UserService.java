@@ -86,6 +86,8 @@ public class UserService {
             throw CoreException.of(ErrorType.USER_ACCOUNT_LOCKED, detail);
         }
 
+        ensureSiteEnabled(user);
+
         // 여기까지 도달했다면 정상 로그인 된 케이스
         loginAttemptTxService.updatePasswordErrorCountById(user.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
 
@@ -112,8 +114,7 @@ public class UserService {
     @Transactional
     public User signin(User userParam) {
         // 유효한 Site ID인지 검증
-        siteMapper.findSiteById(SiteInfo.builder().siteId(userParam.getSiteId()).build())
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + userParam.getSiteId()));
+        ensureRegistrationSiteEnabled(userParam.getSiteId());
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
@@ -396,8 +397,29 @@ public class UserService {
             throw new CoreException(ErrorType.UNAUTHORIZED, "사용할 수 없는 계정입니다.");
         }
 
+        ensureSiteEnabled(user);
+
         user.setAutoLogin(autoLogin);
         return this.generateUserToken(user);
+    }
+
+    private void ensureSiteEnabled(User user) {
+        if (user.getUserRole() == UserRole.SUPER) {
+            return;
+        }
+
+        siteMapper.findSiteById(SiteInfo.builder().siteId(user.getSiteId()).build())
+                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
+                .orElseThrow(() -> CoreException.of(
+                        ErrorType.FORBIDDEN,
+                        "비활성화된 사이트의 계정은 로그인할 수 없습니다."
+                ));
+    }
+
+    private void ensureRegistrationSiteEnabled(String siteId) {
+        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
+                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
+                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
     }
 
     private UserToken generateUserToken(User user) {

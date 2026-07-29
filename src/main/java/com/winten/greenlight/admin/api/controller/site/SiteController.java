@@ -49,7 +49,9 @@ public class SiteController {
     public ResponseEntity<SiteResponse> updateSiteInfo(@PathVariable String siteId, @RequestBody @Valid SiteInfoRequest request) {
         var siteParam = siteConverter.toDto(request);
         siteParam.setSiteId(siteId);
-        var site = siteService.updateSiteInfoById(siteParam);
+        var site = request.hasSiteManagementFields()
+                ? siteService.updateSiteInfoById(siteParam, request.isQueueEnabledPresent())
+                : siteService.updateQueueEnabled(siteId, request.getQueueEnabled());
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }
 

@@ -21,7 +21,9 @@ public class AuthUtil {
         var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
-            || (currentUser.getUserSiteId() != null && currentUser.getUserSiteId().equals(siteId));
+            || (currentUser.getUserRole().canWrite()
+                && currentUser.getUserSiteId() != null
+                && currentUser.getUserSiteId().equals(siteId));
     }
 
     // TODO 이후 삭제권한 분리가 필요할 경우를 위해 놔둠
@@ -29,7 +31,9 @@ public class AuthUtil {
         var currentUser = getCurrentUser();
 
         return currentUser.getUserRole() == UserRole.SUPER
-                || (currentUser.getUserSiteId() != null && currentUser.getUserSiteId().equals(siteId));
+                || (currentUser.getUserRole().canWrite()
+                    && currentUser.getUserSiteId() != null
+                    && currentUser.getUserSiteId().equals(siteId));
     }
 
     public static void ensureSuper() {

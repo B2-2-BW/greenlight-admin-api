@@ -18,4 +18,5 @@ public class SiteInfo extends AuditDto {
     private String siteDescription;
     private String siteApiKey;
     private Boolean siteEnabled;
+    private Boolean queueEnabled;
 }

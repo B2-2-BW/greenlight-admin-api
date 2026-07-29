@@ -9,6 +9,7 @@
             site_description,
             site_api_key,
             site_enabled,
+            queue_enabled,
             created_by,
             created_at,
             created_ip,
@@ -26,6 +27,7 @@
             site_description,
             site_api_key,
             site_enabled,
+            queue_enabled,
             created_by,
             created_at,
             created_ip,
@@ -49,7 +51,7 @@
     </sql>
 
     <select id="findSitesPage" resultType="SiteInfo">
-        SELECT site_id, site_name, site_description, site_enabled, created_by, created_at, created_ip, updated_by, updated_at, updated_ip
+        SELECT site_id, site_name, site_description, site_enabled, queue_enabled, created_by, created_at, created_ip, updated_by, updated_at, updated_ip
         FROM site_info
         <include refid="siteSearchWhere"/>
         ORDER BY site_id
@@ -71,6 +73,7 @@
             <if test="siteName != null and siteName != ''"> site_name = #{siteName}, </if>
             <if test="siteDescription != null"> site_description = #{siteDescription}, </if>
             <if test="siteEnabled != null"> site_enabled = #{siteEnabled}, </if>
+            <if test="queueEnabled != null"> queue_enabled = #{queueEnabled}, </if>
             updated_by = #{updatedBy},
             updated_ip = #{updatedIp},
             updated_at = CURRENT_TIMESTAMP
