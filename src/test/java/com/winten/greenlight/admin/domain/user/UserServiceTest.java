@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +81,85 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getPassword()).isNull();
         assertThat(savedUser.getValue().getPasswordHash()).isNotBlank();
         assertThat(result).isSameAs(request);
+    }
+
+    @Test
+    void loginRejectsActiveUserWhenSiteIsDisabled() {
+        PasswordManager passwordManager = new PasswordManager();
+        UserService service = createService(passwordManager);
+        User user = activeUser("user", "site-a", UserRole.USER);
+        user.setPasswordHash(passwordManager.encode("password123!"));
+
+        when(userMapper.findUserLoginAttempt(any())).thenReturn(
+                UserLoginAttempt.builder().loginId("user").userId("user").passwordErrorCount(0).build()
+        );
+        when(userMapper.findUserWithCredential("user")).thenReturn(Optional.of(user));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build())
+        );
+
+        assertThatThrownBy(() -> service.login(
+                LoginInfo.builder().loginId("user").password("password123!").build()
+        ))
+                .isInstanceOf(CoreException.class)
+                .satisfies(error -> {
+                    CoreException coreException = (CoreException) error;
+                    assertThat(coreException.getErrorType()).isEqualTo(ErrorType.FORBIDDEN);
+                    assertThat(coreException.getDetail()).isEqualTo("비활성화된 사이트의 계정은 로그인할 수 없습니다.");
+                });
+    }
+
+    @Test
+    void refreshRejectsActiveUserWhenSiteIsDisabled() {
+        UserService service = createService(new PasswordManager());
+        User user = activeUser("user", "site-a", UserRole.USER);
+        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
+        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
+                CurrentUser.builder().userId("user").userRole(UserRole.USER).userSiteId("site-a").build()
+        );
+        when(userMapper.findUserById("user")).thenReturn(Optional.of(user));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build())
+        );
+
+        assertThatThrownBy(() -> service.refresh("refresh-token", false))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+    }
+
+    @Test
+    void superUserCanLoginWhenSiteIsDisabled() {
+        PasswordManager passwordManager = new PasswordManager();
+        UserService service = createService(passwordManager);
+        User user = activeUser("super", "site-a", UserRole.SUPER);
+        user.setPasswordHash(passwordManager.encode("password123!"));
+
+        when(userMapper.findUserLoginAttempt(any())).thenReturn(
+                UserLoginAttempt.builder().loginId("super").userId("super").passwordErrorCount(0).build()
+        );
+        when(userMapper.findUserWithCredential("super")).thenReturn(Optional.of(user));
+        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
+
+        assertThat(service.login(
+                LoginInfo.builder().loginId("super").password("password123!").build()
+        ).getAccessToken()).isEqualTo("token");
+        verify(siteMapper, never()).findSiteById(any());
+    }
+
+    @Test
+    void superUserCanRefreshWhenSiteIsDisabled() {
+        UserService service = createService(new PasswordManager());
+        User user = activeUser("super", "site-a", UserRole.SUPER);
+        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
+        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
+                CurrentUser.builder().userId("super").userRole(UserRole.SUPER).userSiteId("site-a").build()
+        );
+        when(userMapper.findUserById("super")).thenReturn(Optional.of(user));
+        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
+
+        assertThat(service.refresh("refresh-token", false).getAccessToken()).isEqualTo("token");
+        verify(siteMapper, never()).findSiteById(any());
     }
 
     @Test
@@ -355,14 +435,28 @@ class UserServiceTest {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 CurrentUser.builder().accountId(1L).userId("super").userSiteId("site-a").userRole(UserRole.SUPER).build(), null, List.of()
         ));
-        return new UserService(userMapper, loginAttemptTxService, siteMapper, new PasswordManager(), cachedUserService, jwtUtil);
+        return createService(new PasswordManager());
     }
 
     private UserService serviceWithSiteAdmin() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 CurrentUser.builder().accountId(1L).userId("site-admin").userSiteId("site-a").userRole(UserRole.SITE_ADMIN).build(), null, List.of()
         ));
-        return new UserService(userMapper, loginAttemptTxService, siteMapper, new PasswordManager(), cachedUserService, jwtUtil);
+        return createService(new PasswordManager());
+    }
+
+    private UserService createService(PasswordManager passwordManager) {
+        return new UserService(userMapper, loginAttemptTxService, siteMapper, passwordManager, cachedUserService, jwtUtil);
+    }
+
+    private User activeUser(String userId, String siteId, UserRole userRole) {
+        return User.builder()
+                .accountId(2L)
+                .userId(userId)
+                .siteId(siteId)
+                .userRole(userRole)
+                .accountStatus(AccountStatus.ACTIVE)
+                .build();
     }
 
     private User pendingUser(String userId, String siteId) {
