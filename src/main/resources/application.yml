@@ -96,10 +96,21 @@ teams:
 
 ---
 spring.config.activate.on-profile: local
+
+scheduler:
+  url: http://localhost:27070
+
 ---
 spring.config.activate.on-profile: dev
+
+scheduler:
+  url: http://greenlight-scheduler-dev:27070 # docker url
+
 ---
 spring.config.activate.on-profile: live
+
+scheduler:
+  url: http://greenlight-scheduler-live:27070 # docker url
 
 logging:
   level:
