@@ -26,7 +26,7 @@ public class AuditLogController {
     @GetMapping
     public ResponseEntity<AuditLogPage> getAuditLogs(
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String siteId,
             @RequestParam(required = false) String createdBy,
             @RequestParam(required = false) String targetType,

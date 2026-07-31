@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +21,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AuditService {
+    static final Duration MAX_RANGE = Duration.ofDays(7);
+
     private final AuditLogMapper auditLogMapper;
     private final JsonMapper jsonMapper;
 
@@ -68,9 +71,7 @@ public class AuditService {
             LocalDateTime to
     ) {
         AuthUtil.ensureUserAdmin();
-        if (from != null && to != null && from.isAfter(to)) {
-            throw CoreException.of(ErrorType.INVALID_DATA, "조회 시작 시각은 종료 시각보다 늦을 수 없습니다.");
-        }
+        validateRange(from, to);
         var currentUser = AuthUtil.getCurrentUser();
         String targetSiteId = currentUser.getUserRole().isSuper()
                 ? normalize(requestedSiteId)
@@ -93,6 +94,15 @@ public class AuditService {
                         normalizedAction, from, to, size, (long) (page - 1) * size
                 );
         return new AuditLogPage(content, page, size, totalElements, totalPages);
+    }
+
+    static void validateRange(LocalDateTime from, LocalDateTime to) {
+        if (from == null || to == null || !from.isBefore(to)) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "조회 시작 시각은 종료 시각보다 앞서야 합니다.");
+        }
+        if (Duration.between(from, to).compareTo(MAX_RANGE) > 0) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "감사로그 조회 기간은 최대 7일입니다.");
+        }
     }
 
     private Map<String, Object> createDelta(

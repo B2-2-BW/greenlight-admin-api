@@ -17,6 +17,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -84,22 +85,51 @@ class AuditServiceTest {
     void siteAdminQueryIsForcedToOwnSite() {
         authenticate("admin-a", "site-a", UserRole.SITE_ADMIN);
         var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
-        when(auditLogMapper.count("site-a", null, null, null, null, null, null)).thenReturn(0L);
+        var from = LocalDateTime.of(2026, 7, 1, 0, 0);
+        var to = from.plusDays(1);
+        when(auditLogMapper.count("site-a", null, null, null, null, from, to)).thenReturn(0L);
 
-        service.getAuditLogs(1, 20, "site-b", null, null, null, null, null, null);
+        service.getAuditLogs(1, 10, "site-b", null, null, null, null, from, to);
 
-        verify(auditLogMapper).count("site-a", null, null, null, null, null, null);
+        verify(auditLogMapper).count("site-a", null, null, null, null, from, to);
     }
 
     @Test
     void crudActionFilterIsForwardedAsExactDatabaseValue() {
         authenticate("super", "site-a", UserRole.SUPER);
         var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
-        when(auditLogMapper.count(null, null, null, null, "UPDATE", null, null)).thenReturn(0L);
+        var from = LocalDateTime.of(2026, 7, 1, 0, 0);
+        var to = from.plusDays(1);
+        when(auditLogMapper.count(null, null, null, null, "UPDATE", from, to)).thenReturn(0L);
 
-        service.getAuditLogs(1, 20, null, null, null, null, AuditAction.UPDATE, null, null);
+        service.getAuditLogs(1, 10, null, null, null, null, AuditAction.UPDATE, from, to);
 
-        verify(auditLogMapper).count(null, null, null, null, "UPDATE", null, null);
+        verify(auditLogMapper).count(null, null, null, null, "UPDATE", from, to);
+    }
+
+    @Test
+    void rejectsRangeLongerThanSevenDays() {
+        authenticate("super", "site-a", UserRole.SUPER);
+        var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
+        var from = LocalDateTime.of(2026, 7, 1, 0, 0);
+
+        assertThatThrownBy(() -> service.getAuditLogs(
+                1, 10, null, null, null, null, null, from, from.plusDays(7).plusMinutes(1)
+        ))
+                .isInstanceOf(com.winten.greenlight.admin.support.error.CoreException.class);
+    }
+
+    @Test
+    void acceptsRangeOfExactlySevenDays() {
+        authenticate("super", "site-a", UserRole.SUPER);
+        var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
+        var from = LocalDateTime.of(2026, 7, 1, 0, 0);
+        var to = from.plusDays(7);
+        when(auditLogMapper.count(null, null, null, null, null, from, to)).thenReturn(0L);
+
+        service.getAuditLogs(1, 10, null, null, null, null, null, from, to);
+
+        verify(auditLogMapper).count(null, null, null, null, null, from, to);
     }
 
     @Test
