@@ -5,6 +5,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 public class RequestScopeUtil {
+    public static final String REQUEST_ID_ATTRIBUTE = RequestScopeUtil.class.getName() + ".requestId";
+    public static final String SOURCE_PATH_ATTRIBUTE = RequestScopeUtil.class.getName() + ".sourcePath";
 
     public static String getRequestIp() {
         ServletRequestAttributes attrs =
@@ -33,5 +35,23 @@ public class RequestScopeUtil {
         }
 
         return ip;
+    }
+
+    public static String getRequestId() {
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) return null;
+        Object requestId = attrs.getRequest().getAttribute(REQUEST_ID_ATTRIBUTE);
+        return requestId instanceof String value ? value : null;
+    }
+
+    public static String getSourcePath() {
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) return null;
+        HttpServletRequest request = attrs.getRequest();
+        Object sourcePath = request.getAttribute(SOURCE_PATH_ATTRIBUTE);
+        if (sourcePath instanceof String value) return value;
+        return request.getRequestURI();
     }
 }

@@ -56,6 +56,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of("http://localhost:5173", serverUrl, webServerUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("X-Request-ID", "room-version"));
         configuration.setAllowCredentials(true); // 쿠키(인증 정보) 포함 허용
 
         var source = new UrlBasedCorsConfigurationSource();
