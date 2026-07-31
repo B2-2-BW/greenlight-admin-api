@@ -16,6 +16,9 @@ public interface SiteMapper {
     long countSites(@Param("siteId") String siteId, @Param("query") String query, @Param("enabled") Boolean enabled);
     int updateSiteInfoById(SiteInfo siteInfo);
     int updateSiteApiKey(SiteInfo siteInfo);
+    int insertSite(SiteInfo siteInfo);
+    int softDeleteSite(SiteInfo siteInfo);
+    boolean existsBySiteIdIncludingDeleted(@Param("siteId") String siteId);
     boolean existsBySiteApiKey(@Param("siteApiKey") String siteApiKey);
     List<SiteInfo> findAllSite();
 }

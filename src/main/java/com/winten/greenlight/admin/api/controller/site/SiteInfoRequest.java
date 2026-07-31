@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.api.controller.site;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -18,6 +19,9 @@ public class SiteInfoRequest {
     private String siteDescription;
     private Boolean siteEnabled;
     private Boolean queueEnabled;
+    @NotBlank
+    @Size(max = 1000)
+    private String reason;
 
     @JsonIgnore
     @Getter(AccessLevel.NONE)

@@ -15,9 +15,13 @@
             created_ip,
             updated_by,
             updated_at,
-            updated_ip
+            updated_ip,
+            deleted_by,
+            deleted_at,
+            deleted_ip
         FROM site_info
         WHERE site_id = #{siteId}
+          AND deleted_at IS NULL
     </select>
 
     <select id="findAllSite">
@@ -33,17 +37,21 @@
             created_ip,
             updated_by,
             updated_at,
-            updated_ip
+            updated_ip,
+            deleted_by,
+            deleted_at,
+            deleted_ip
         FROM site_info
+        WHERE deleted_at IS NULL
     </select>
 
     <sql id="siteSearchWhere">
         <where>
-            <if test="siteId != null and siteId != ''">site_id = #{siteId}</if>
-            <if test="enabled != null"><if test="siteId != null and siteId != ''">AND</if> site_enabled = #{enabled}</if>
+            deleted_at IS NULL
+            <if test="siteId != null and siteId != ''">AND site_id = #{siteId}</if>
+            <if test="enabled != null">AND site_enabled = #{enabled}</if>
             <if test="query != null and query != ''">
-                <if test="(siteId != null and siteId != '') or enabled != null">AND</if>
-                (LOWER(site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                AND (LOWER(site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
                 OR LOWER(site_name) LIKE CONCAT('%', LOWER(#{query}), '%')
                 OR LOWER(COALESCE(site_description, '')) LIKE CONCAT('%', LOWER(#{query}), '%'))
             </if>
@@ -67,6 +75,10 @@
         SELECT EXISTS(SELECT 1 FROM site_info WHERE site_api_key = #{siteApiKey})
     </select>
 
+    <select id="existsBySiteIdIncludingDeleted" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM site_info WHERE site_id = #{siteId})
+    </select>
+
     <update id="updateSiteInfoById" parameterType="SiteInfo">
         UPDATE site_info
         SET
@@ -78,6 +90,7 @@
             updated_ip = #{updatedIp},
             updated_at = CURRENT_TIMESTAMP
         WHERE site_id = #{siteId}
+          AND deleted_at IS NULL
     </update>
 
     <update id="updateSiteApiKey" parameterType="SiteInfo">
@@ -87,5 +100,46 @@
             updated_ip = #{updatedIp},
             updated_at = CURRENT_TIMESTAMP
         WHERE site_id = #{siteId}
+          AND deleted_at IS NULL
+    </update>
+
+    <insert id="insertSite" parameterType="SiteInfo">
+        INSERT INTO site_info (
+            site_id,
+            site_name,
+            site_description,
+            site_api_key,
+            site_enabled,
+            queue_enabled,
+            created_by,
+            created_ip,
+            updated_by,
+            updated_ip
+        ) VALUES (
+            #{siteId},
+            #{siteName},
+            #{siteDescription},
+            #{siteApiKey},
+            #{siteEnabled},
+            #{queueEnabled},
+            #{createdBy},
+            #{createdIp},
+            #{updatedBy},
+            #{updatedIp}
+        )
+    </insert>
+
+    <update id="softDeleteSite" parameterType="SiteInfo">
+        UPDATE site_info
+        SET site_enabled = false,
+            queue_enabled = false,
+            deleted_by = #{updatedBy},
+            deleted_at = CURRENT_TIMESTAMP,
+            deleted_ip = #{updatedIp},
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE site_id = #{siteId}
+          AND deleted_at IS NULL
     </update>
 </mapper>
