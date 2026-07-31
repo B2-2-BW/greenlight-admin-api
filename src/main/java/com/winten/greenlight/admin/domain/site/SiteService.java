@@ -1,8 +1,6 @@
 package com.winten.greenlight.admin.domain.site;
 
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
-import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
-import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
@@ -24,8 +22,6 @@ public class SiteService {
     private final SiteCacheRepository siteCacheRepository;
     private final SiteApiKeyGenerator siteApiKeyGenerator;
     private final AuditService auditService;
-    private final RoomMapper roomMapper;
-    private final UserMapper userMapper;
 
     private static final List<String> AUDITED_SITE_FIELDS = List.of(
             "siteName", "siteDescription", "siteEnabled", "queueEnabled"
@@ -116,9 +112,6 @@ public class SiteService {
         if (siteMapper.softDeleteSite(SiteInfo.builder().siteId(siteId).build()) != 1) {
             throw CoreException.of(ErrorType.SITE_NOT_FOUND, "사이트 ID를 찾을 수 없습니다. " + siteId);
         }
-        roomMapper.disableRoomsBySiteId(siteId);
-        userMapper.disableUsersBySiteId(siteId);
-
         Map<String, Object> before = new LinkedHashMap<>();
         before.put("siteEnabled", previousSite.getSiteEnabled());
         before.put("queueEnabled", previousSite.getQueueEnabled());

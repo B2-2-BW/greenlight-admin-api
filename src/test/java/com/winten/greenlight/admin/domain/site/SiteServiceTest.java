@@ -309,7 +309,7 @@ class SiteServiceTest {
     }
 
     @Test
-    void softDeleteDisablesDatabaseStateBeforeClearingCaches() {
+    void softDeleteKeepsRoomAndUserStateBeforeClearingCaches() {
         var service = service();
         authenticate("super", "root", UserRole.SUPER);
         var previous = SiteInfo.builder()
@@ -323,10 +323,8 @@ class SiteServiceTest {
 
         service.deleteSite("old1", "계약 종료");
 
-        InOrder order = inOrder(siteMapper, roomMapper, userMapper, auditService, siteCacheRepository);
+        InOrder order = inOrder(siteMapper, auditService, siteCacheRepository);
         order.verify(siteMapper).softDeleteSite(any());
-        order.verify(roomMapper).disableRoomsBySiteId("old1");
-        order.verify(userMapper).disableUsersBySiteId("old1");
         order.verify(auditService).recordChanges(
                 eq("old1"), eq("SITE"), eq("old1"), eq(AuditAction.DELETE), eq("계약 종료"),
                 anyMap(), anyMap(), eq(List.of("siteEnabled", "queueEnabled", "deleted"))
@@ -334,11 +332,12 @@ class SiteServiceTest {
         order.verify(siteCacheRepository).deleteSiteApiKeyCache("old-api-key");
         order.verify(siteCacheRepository).updateSiteInfo(any());
         order.verify(siteCacheRepository).updateRoomListCache("old1", List.of());
+        verifyNoInteractions(roomMapper, userMapper);
     }
 
     private SiteService service() {
         return new SiteService(
-                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService, roomMapper, userMapper
+                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService
         );
     }
 
