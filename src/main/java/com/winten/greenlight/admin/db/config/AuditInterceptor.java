@@ -17,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -56,6 +57,9 @@ public class AuditInterceptor implements Interceptor {
 
         if (cmd == SqlCommandType.SELECT) {
             applyReadScope(param, userSiteId, userRole);
+            if (isSelectMappedWrite(ms, param)) {
+                applyAudit(param, userSiteId, userRole, userId, now, ip);
+            }
         } else if (cmd != SqlCommandType.UNKNOWN && cmd != SqlCommandType.FLUSH) {
             applyAudit(param, userSiteId, userRole, userId, now, ip);
         } else {
@@ -75,6 +79,14 @@ public class AuditInterceptor implements Interceptor {
     @Override
     public void setProperties(Properties properties) {
         // no-op
+    }
+
+    private boolean isSelectMappedWrite(MappedStatement mappedStatement, Object param) {
+        String sql = mappedStatement.getBoundSql(param).getSql().stripLeading().toUpperCase(Locale.ROOT);
+        return sql.startsWith("INSERT ")
+                || sql.startsWith("UPDATE ")
+                || sql.startsWith("DELETE ")
+                || sql.startsWith("MERGE ");
     }
 
     private void applyReadScope(Object param, String userSiteId, UserRole userRole) {
