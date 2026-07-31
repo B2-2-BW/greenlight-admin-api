@@ -41,6 +41,9 @@ public class UserService {
             "#475569"
     );
     private static final Pattern PROFILE_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
+    private static final List<String> MANAGED_USER_AUDIT_FIELDS = List.of(
+            "username", "userEmail", "siteId", "userRole"
+    );
 
     private final UserMapper userMapper;
     private final LoginAttemptTxService loginAttemptTxService;
@@ -500,6 +503,7 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
+        Map<String, Object> before = approvalAuditedValues(user);
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE && user.getAccountStatus() != AccountStatus.DISABLED) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 완료 또는 비활성화된 계정만 수정할 수 있습니다.");
@@ -541,7 +545,18 @@ public class UserService {
         if (userMapper.updateManagedUser(user) != 1) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 완료 또는 비활성화된 계정만 수정할 수 있습니다.");
         }
-        return findUserById(userId);
+        User updatedUser = findUserById(userId);
+        auditService.recordChanges(
+                updatedUser.getSiteId(),
+                "USER",
+                updatedUser.getUserId(),
+                AuditAction.UPDATE,
+                null,
+                before,
+                approvalAuditedValues(updatedUser),
+                MANAGED_USER_AUDIT_FIELDS
+        );
+        return updatedUser;
     }
 
     @Transactional
@@ -557,7 +572,18 @@ public class UserService {
         userMapper.resetUserPassword(user);
         loginAttemptTxService.updatePasswordErrorCountById(userId, 0);
 
-        return findUserById(userId);
+        User updatedUser = findUserById(userId);
+        auditService.recordChanges(
+                updatedUser.getSiteId(),
+                "USER",
+                updatedUser.getUserId(),
+                AuditAction.UPDATE,
+                null,
+                Map.of("passwordReset", false),
+                Map.of("passwordReset", true),
+                List.of("passwordReset")
+        );
+        return updatedUser;
     }
 
     @Transactional

@@ -2,9 +2,11 @@ package com.winten.greenlight.admin.domain.room;
 
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
+import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.redis.room.RoomCacheRepository;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
+import com.winten.greenlight.admin.domain.action.DefaultRuleType;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
@@ -88,9 +90,10 @@ class RoomServiceTest {
         RoomCacheRepository roomCacheRepository = mock(RoomCacheRepository.class);
         SiteCacheRepository siteCacheRepository = mock(SiteCacheRepository.class);
         SiteMapper siteMapper = mock(SiteMapper.class);
+        AuditService auditService = mock(AuditService.class);
         RoomService service = new RoomService(
                 roomConverter, roomMapper, roomCacheRepository, siteCacheRepository,
-                siteMapper, mock(AuditService.class)
+                siteMapper, auditService
         );
         var request = Room.builder().enabled(false).build();
         var entity = RoomEntity.builder().enabled(false).build();
@@ -119,11 +122,15 @@ class RoomServiceTest {
         assertThat(entity.getEnabled()).isFalse();
         verify(roomMapper).findEnabledRoomsBySiteId("site-b");
         verify(siteCacheRepository).updateRoomListCache("site-b", List.of());
+        verify(auditService).recordChanges(
+                eq("site-b"), eq("ROOM"), eq("room-disabled"), eq(AuditAction.CREATE), eq(null),
+                anyMap(), anyMap(), anyList()
+        );
     }
 
     @Test
-    void updateRoomRecordsWhitelistedAuditDeltaWithReason() {
-        authenticate(UserRole.SITE_ADMIN, "site-a");
+    void superUpdateRecordsAuditAgainstTheTargetRoomsSite() {
+        authenticate(UserRole.SUPER, "super-site");
         RoomConverter roomConverter = mock(RoomConverter.class);
         RoomMapper roomMapper = mock(RoomMapper.class);
         RoomCacheRepository roomCacheRepository = mock(RoomCacheRepository.class);
@@ -137,9 +144,17 @@ class RoomServiceTest {
         var previousEntity = RoomEntity.builder().roomId("room-a").siteId("site-a").name("이전").build();
         var updatedEntity = RoomEntity.builder().roomId("room-a").siteId("site-a").name("변경").build();
         var updateEntity = RoomEntity.builder().roomId("room-a").name("변경").build();
+        var requestedRule = RoomRule.builder().value("vip").build();
+        var requestedRuleEntity = RoomRuleEntity.builder().value("vip").build();
         var previous = Room.builder().roomId("room-a").siteId("site-a").name("이전").roomRules(List.of()).build();
         var updated = Room.builder().roomId("room-a").siteId("site-a").name("변경").roomRules(List.of()).build();
-        var update = Room.builder().roomId("room-a").name("변경").updateRule(false).build();
+        var update = Room.builder()
+                .roomId("room-a")
+                .name("변경")
+                .defaultRuleType(DefaultRuleType.INCLUDE)
+                .roomRules(List.of(requestedRule))
+                .updateRule(true)
+                .build();
         when(roomMapper.findRoomById(any())).thenReturn(
                 java.util.Optional.of(previousEntity),
                 java.util.Optional.of(updatedEntity)
@@ -148,6 +163,7 @@ class RoomServiceTest {
         when(roomConverter.toDto(previousEntity)).thenReturn(previous);
         when(roomConverter.toDto(updatedEntity)).thenReturn(updated);
         when(roomConverter.toEntity(update)).thenReturn(updateEntity);
+        when(roomConverter.toEntity(requestedRule)).thenReturn(requestedRuleEntity);
         when(roomConverter.toEntity(updated)).thenReturn(updatedEntity);
         when(roomMapper.findEnabledRoomsBySiteId("site-a")).thenReturn(List.of());
         when(roomConverter.toDto(anyList())).thenReturn(List.of());
@@ -161,6 +177,49 @@ class RoomServiceTest {
                 eq("site-a"), eq("ROOM"), eq("room-a"), eq(AuditAction.UPDATE), eq("처리량 조정"),
                 anyMap(), anyMap(), anyList()
         );
+        assertThat(requestedRule.getSiteId()).isEqualTo("site-a");
+        verify(roomMapper).saveRoomRule(requestedRuleEntity);
+    }
+
+    @Test
+    void deleteRoomRecordsAuditAgainstTheDeletedRoomsSite() {
+        authenticate(UserRole.SUPER, "super-site");
+        RoomConverter roomConverter = mock(RoomConverter.class);
+        RoomMapper roomMapper = mock(RoomMapper.class);
+        RoomCacheRepository roomCacheRepository = mock(RoomCacheRepository.class);
+        SiteCacheRepository siteCacheRepository = mock(SiteCacheRepository.class);
+        SiteMapper siteMapper = mock(SiteMapper.class);
+        AuditService auditService = mock(AuditService.class);
+        RoomService service = new RoomService(
+                roomConverter, roomMapper, roomCacheRepository, siteCacheRepository,
+                siteMapper, auditService
+        );
+        var entity = RoomEntity.builder().roomId("room-a").siteId("site-a").enabled(false).build();
+        var room = Room.builder()
+                .roomId("room-a")
+                .siteId("site-a")
+                .enabled(false)
+                .roomRules(List.of())
+                .build();
+        when(roomMapper.findRoomById(any())).thenReturn(java.util.Optional.of(entity));
+        when(roomMapper.findAllRoomRuleByRoomId(any())).thenReturn(List.of());
+        when(roomConverter.toDto(entity)).thenReturn(room);
+        when(siteMapper.findSiteById(any())).thenReturn(java.util.Optional.of(
+                SiteInfo.builder().siteId("site-a").siteEnabled(true).build()
+        ));
+        when(roomMapper.findEnabledRoomsBySiteId("site-a")).thenReturn(List.of());
+        when(roomConverter.toDto(List.<RoomEntity>of())).thenReturn(List.of());
+
+        Room result = service.deleteRoom("room-a");
+
+        assertThat(result.getRoomId()).isEqualTo("room-a");
+        verify(roomMapper).deleteRoomById(any());
+        verify(auditService).recordChanges(
+                eq("site-a"), eq("ROOM"), eq("room-a"), eq(AuditAction.DELETE), eq(null),
+                anyMap(), anyMap(), anyList()
+        );
+        verify(roomCacheRepository).deleteRoomMetaCache("room-a");
+        verify(siteCacheRepository).updateRoomListCache("site-a", List.of());
     }
 
     @Test

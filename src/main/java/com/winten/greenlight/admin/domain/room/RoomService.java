@@ -102,7 +102,8 @@ public class RoomService {
 
     @Transactional
     public Room createRoom(Room room) {
-        ensureSiteIsActive(AuthUtil.getCurrentUser().getUserSiteId());
+        String targetSiteId = AuthUtil.getCurrentUser().getUserSiteId();
+        ensureSiteIsActive(targetSiteId);
         var roomParam = roomConverter.toEntity(room);
         var newRoomId = TSID.fast().toString();
         roomParam.setRoomId(newRoomId);
@@ -114,6 +115,7 @@ public class RoomService {
             // RoomRule 저장
             for (RoomRule roomRule : room.getRoomRules()) {
                 roomRule.setRoomId(newRoomId);
+                roomRule.setSiteId(targetSiteId);
                 roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
             }
         }
@@ -121,6 +123,18 @@ public class RoomService {
         // 저장된 roomRule 조회
         var roomRules = roomMapper.findAllRoomRuleByRoomId(RoomRuleEntity.builder().roomId(newRoomId).build());
         result.setRoomRules(roomRules);
+
+        Room createdRoom = roomConverter.toDto(result);
+        auditService.recordChanges(
+                result.getSiteId(),
+                "ROOM",
+                result.getRoomId(),
+                AuditAction.CREATE,
+                null,
+                emptyAuditedValues(),
+                auditedValues(createdRoom),
+                AUDITED_ROOM_FIELDS
+        );
 
         // Redis put
         roomCacheRepository.updateRoomMetaCache(result);
@@ -130,7 +144,7 @@ public class RoomService {
 
         updateSiteEnabledRoomListCache(result.getSiteId());
 
-        return roomConverter.toDto(result);
+        return createdRoom;
     }
 
     @Transactional
@@ -152,18 +166,13 @@ public class RoomService {
                 // Rule 일괄 insert
                 for (RoomRule roomRule : room.getRoomRules()) {
                     roomRule.setRoomId(room.getRoomId());
+                    roomRule.setSiteId(currentRoom.getSiteId());
                     roomMapper.saveRoomRule(roomConverter.toEntity(roomRule));
                 }
             }
         }
 
         var updatedRoom = this.getRoomById(room.getRoomId());
-
-        // Redis put
-        var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
-        roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
-
-        updateSiteEnabledRoomListCache(currentRoom.getSiteId());
 
         auditService.recordChanges(
                 currentRoom.getSiteId(),
@@ -175,6 +184,12 @@ public class RoomService {
                 auditedValues(updatedRoom),
                 AUDITED_ROOM_FIELDS
         );
+
+        // Redis put
+        var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
+        roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
+
+        updateSiteEnabledRoomListCache(currentRoom.getSiteId());
 
         return updatedRoom;
     }
@@ -192,6 +207,17 @@ public class RoomService {
         }
 
         roomMapper.deleteRoomById(RoomEntity.builder().roomId(roomId).build());
+
+        auditService.recordChanges(
+                currentRoom.getSiteId(),
+                "ROOM",
+                currentRoom.getRoomId(),
+                AuditAction.DELETE,
+                null,
+                auditedValues(currentRoom),
+                emptyAuditedValues(),
+                AUDITED_ROOM_FIELDS
+        );
 
         // Redis delete
         roomCacheRepository.deleteRoomMetaCache(roomId);
@@ -263,6 +289,12 @@ public class RoomService {
             value.put("description", rule.getDescription());
             return value;
         }).toList();
+    }
+
+    private Map<String, Object> emptyAuditedValues() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        AUDITED_ROOM_FIELDS.forEach(field -> values.put(field, null));
+        return values;
     }
 
     private void ensureSiteIsActive(String siteId) {

@@ -201,7 +201,7 @@
         (
             #{roomId},
             COALESCE((SELECT max(rule_seq) FROM room_rule WHERE room_id = #{roomId}), 0) + 1,
-            #{userSiteId},
+            #{siteId},
             #{value},
             #{matchOperator},
             #{description},

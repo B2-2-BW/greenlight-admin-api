@@ -27,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -469,6 +470,16 @@ class UserServiceTest {
         verify(userMapper).resetUserPassword(updatedUser.capture());
         assertThat(passwordManager.matches("AdminEntered123!", updatedUser.getValue().getPasswordHash())).isTrue();
         verify(loginAttemptTxService).updatePasswordErrorCountById("target-user", 0);
+        verify(auditService).recordChanges(
+                "site-a",
+                "USER",
+                "target-user",
+                AuditAction.UPDATE,
+                null,
+                Map.of("passwordReset", false),
+                Map.of("passwordReset", true),
+                List.of("passwordReset")
+        );
     }
 
     @Test
@@ -614,6 +625,16 @@ class UserServiceTest {
         assertThat(updated.getValue().getSiteId()).isEqualTo("site-b");
         assertThat(updated.getValue().getUserRole()).isEqualTo(UserRole.SITE_ADMIN);
         assertThat(result.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+        verify(auditService).recordChanges(
+                org.mockito.ArgumentMatchers.eq("site-b"),
+                org.mockito.ArgumentMatchers.eq("USER"),
+                org.mockito.ArgumentMatchers.eq("target-user"),
+                org.mockito.ArgumentMatchers.eq(AuditAction.UPDATE),
+                org.mockito.ArgumentMatchers.isNull(),
+                anyMap(),
+                anyMap(),
+                org.mockito.ArgumentMatchers.eq(List.of("username", "userEmail", "siteId", "userRole"))
+        );
     }
 
     @Test
