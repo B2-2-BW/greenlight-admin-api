@@ -21,6 +21,7 @@ public enum ErrorType {
     USERNAME_EXISTS(HttpStatus.CONFLICT, "Username already exists." , LogLevel.INFO ),
 
     SITE_NOT_FOUND(HttpStatus.NOT_FOUND, "Site not found.", LogLevel.INFO),
+    SITE_EXISTS(HttpStatus.CONFLICT, "Site already exists.", LogLevel.INFO),
 
     ACTION_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Action group not found." , LogLevel.INFO),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Room not found." , LogLevel.INFO),

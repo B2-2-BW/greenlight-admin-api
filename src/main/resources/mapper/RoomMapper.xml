@@ -35,6 +35,13 @@
         ORDER BY room_id
     </select>
 
+    <select id="findEnabledRoomsBySiteId" resultType="RoomEntity">
+        <include refid="selectFromRoom"/>
+        WHERE r.site_id = #{siteId}
+          AND r.enabled = true
+        ORDER BY r.room_id
+    </select>
+
     <sql id="roomPageWhere">
         <where>
             <if test="enabled != null">r.enabled = #{enabled}</if>
@@ -100,7 +107,7 @@
             #{roomEnvironment},
             #{name},
             #{description},
-            true,
+            #{enabled},
             #{maxTrafficPerSecond},
             #{capacity},
             #{defaultRuleType},
@@ -144,6 +151,16 @@
         </if>
     </delete>
 
+    <update id="disableRoomsBySiteId">
+        UPDATE room
+        SET enabled = false,
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE site_id = #{siteId}
+          AND enabled = true
+    </update>
+
     <select id="findAllRoomRuleByRoomId" parameterType="RoomRuleEntity" resultType="RoomRuleEntity">
         SELECT
             rule.room_id,
@@ -184,7 +201,7 @@
         (
             #{roomId},
             COALESCE((SELECT max(rule_seq) FROM room_rule WHERE room_id = #{roomId}), 0) + 1,
-            #{userSiteId},
+            #{siteId},
             #{value},
             #{matchOperator},
             #{description},

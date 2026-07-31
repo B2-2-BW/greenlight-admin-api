@@ -9,6 +9,8 @@
             (select sub.site_name from site_info sub where u.site_id = sub.site_id) as site_name,
             u.user_email,
             u.username,
+            u.profile_color,
+            u.profile_initials,
             u.user_role,
             u.account_status,
             u.password_reset_required,
@@ -50,27 +52,35 @@
             u.user_id
     </select>
 
-    <sql id="userSearchWhere">
-        <where>
-            <if test="siteId != null and siteId != ''">
-                u.site_id = #{siteId}
-            </if>
-            <if test="query != null and query != ''">
-                <if test="siteId != null and siteId != ''">AND</if>
-                (
-                    LOWER(u.user_id) LIKE CONCAT('%', LOWER(#{query}), '%')
-                    OR LOWER(u.username) LIKE CONCAT('%', LOWER(#{query}), '%')
-                    OR LOWER(u.user_email) LIKE CONCAT('%', LOWER(#{query}), '%')
-                    OR LOWER(u.site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
-                    OR LOWER(COALESCE((SELECT s.site_name FROM site_info s WHERE s.site_id = u.site_id), '')) LIKE CONCAT('%', LOWER(#{query}), '%')
-                )
-            </if>
-        </where>
+    <sql id="userBaseFilterConditions">
+        <if test="siteId != null and siteId != ''">
+            AND u.site_id = #{siteId}
+        </if>
+        <if test="role != null">
+            AND u.user_role = #{role}
+        </if>
+        <if test="query != null and query != ''">
+            AND (
+                LOWER(u.user_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(u.username) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(u.user_email) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(u.site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR LOWER(COALESCE((SELECT s.site_name FROM site_info s WHERE s.site_id = u.site_id), '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+            )
+        </if>
+    </sql>
+
+    <sql id="userPageFilterConditions">
+        <include refid="userBaseFilterConditions"/>
+        <if test="status != null">
+            AND u.account_status = #{status}
+        </if>
     </sql>
 
     <select id="findUsersPage" resultType="User">
         <include refid="selectUser"/>
-        <include refid="userSearchWhere"/>
+        WHERE 1 = 1
+        <include refid="userPageFilterConditions"/>
         ORDER BY
             CASE u.account_status
                 WHEN 'PENDING' THEN 0
@@ -85,12 +95,14 @@
 
     <select id="countUsers" resultType="long">
         SELECT COUNT(*) FROM user_account u
-        <include refid="userSearchWhere"/>
+        WHERE 1 = 1
+        <include refid="userPageFilterConditions"/>
     </select>
 
     <select id="countUsersByStatus" resultType="com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount">
         SELECT u.account_status, COUNT(*) AS count FROM user_account u
-        <include refid="userSearchWhere"/>
+        WHERE 1 = 1
+        <include refid="userBaseFilterConditions"/>
         GROUP BY u.account_status
     </select>
 
@@ -100,6 +112,8 @@
             u.user_id,
             u.site_id,
             u.username,
+            u.profile_color,
+            u.profile_initials,
             u.user_email,
             u.user_role,
             u.account_status,
@@ -161,6 +175,8 @@
             site_id,
             user_email,
             username,
+            profile_color,
+            profile_initials,
             account_status,
             password_hash,
             password_changed_at,
@@ -177,6 +193,8 @@
             #{siteId},
             #{userEmail},
             #{username},
+            #{profileColor},
+            #{profileInitials},
             #{accountStatus},
             #{passwordHash},
             CURRENT_TIMESTAMP,
@@ -231,6 +249,8 @@
         SET username = #{username},
             user_email = #{userEmail},
             phone_number = #{phoneNumber},
+            profile_color = #{profileColor},
+            profile_initials = #{profileInitials},
             updated_by = #{updatedBy},
             updated_at = CURRENT_TIMESTAMP,
             updated_ip = #{updatedIp}
@@ -257,6 +277,17 @@
             updated_at = CURRENT_TIMESTAMP,
             updated_ip = #{updatedIp}
         WHERE user_id = #{userId}
+    </update>
+
+    <update id="disableUsersBySiteId">
+        UPDATE user_account
+        SET account_status = 'DISABLED',
+            updated_by = #{updatedBy},
+            updated_at = CURRENT_TIMESTAMP,
+            updated_ip = #{updatedIp}
+        WHERE site_id = #{siteId}
+          AND user_role &lt;&gt; 'SUPER'
+          AND account_status &lt;&gt; 'DISABLED'
     </update>
 
     <select id="findUserAccountIdByApiKey" parameterType="String" resultType="User">

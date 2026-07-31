@@ -3,6 +3,9 @@ package com.winten.greenlight.admin.domain.user;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount;
+import com.winten.greenlight.admin.api.controller.user.UserBulkAction;
+import com.winten.greenlight.admin.domain.audit.AuditAction;
+import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -15,20 +18,40 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final List<String> PROFILE_COLOR_PRESETS = List.of(
+            "#2563EB",
+            "#7C3AED",
+            "#DB2777",
+            "#DC2626",
+            "#EA580C",
+            "#16A34A",
+            "#0891B2",
+            "#475569"
+    );
+    private static final Pattern PROFILE_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
+    private static final List<String> MANAGED_USER_AUDIT_FIELDS = List.of(
+            "username", "userEmail", "siteId", "userRole"
+    );
+
     private final UserMapper userMapper;
     private final LoginAttemptTxService loginAttemptTxService;
     private final SiteMapper siteMapper;
     private final PasswordManager passwordManager;
     private final CachedUserService cachedUserService;
     private final JwtUtil jwtUtil;
+    private final AuditService auditService;
 
     @Value("${jwt.expiration.access:1800}") // 1시간
     private Long accessTokenExpiration;
@@ -101,6 +124,7 @@ public class UserService {
         user.setPassword(null);
         user.setCreatedBy(currentUser.getUserId());
         user.setUpdatedBy(currentUser.getUserId());
+        applyDefaultProfileAppearance(user);
         userMapper.saveUser(user);
         return cachedUserService.getUser(user.getUserId());
     }
@@ -153,6 +177,7 @@ public class UserService {
         if (user.getAccountStatus() == null) { // Status 지정이 없으면 PENDING 상태로 생성
             user.setAccountStatus(AccountStatus.PENDING);
         }
+        applyDefaultProfileAppearance(user);
         userMapper.saveUser(user);
     }
 
@@ -168,22 +193,130 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserPage getManageableUsers(int requestedPage, int size, String query) {
+    public UserPage getManageableUsers(
+            int requestedPage,
+            int size,
+            String query,
+            AccountStatus status,
+            UserRole role,
+            String requestedSiteId
+    ) {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
-        String siteId = currentUser.getUserRole() == UserRole.SUPER ? null : currentUser.getUserSiteId();
+        String siteId = currentUser.getUserRole() == UserRole.SUPER
+                ? normalize(requestedSiteId)
+                : currentUser.getUserSiteId();
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        long totalElements = userMapper.countUsers(siteId, normalizedQuery);
+        long totalElements = userMapper.countUsers(siteId, normalizedQuery, status, role);
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
         int page = totalPages == 0 ? 1 : Math.min(requestedPage, totalPages);
         long offset = (long) (page - 1) * size;
         var statusCounts = new EnumMap<AccountStatus, Long>(AccountStatus.class);
-        for (UserStatusCount count : userMapper.countUsersByStatus(siteId, normalizedQuery)) {
+        for (UserStatusCount count : userMapper.countUsersByStatus(siteId, normalizedQuery, role)) {
             statusCounts.put(count.getAccountStatus(), count.getCount());
         }
         var content = totalElements == 0 ? List.<User>of()
-                : userMapper.findUsersPage(siteId, normalizedQuery, size, offset);
+                : userMapper.findUsersPage(siteId, normalizedQuery, status, role, size, offset);
         return new UserPage(content, page, size, totalElements, totalPages, statusCounts);
+    }
+
+    @Transactional
+    public int bulkAction(List<String> userIds, UserBulkAction action, String reason) {
+        AuthUtil.ensureUserAdmin();
+        for (String userId : userIds) {
+            var beforeUser = getManageableUser(userId);
+            AccountStatus beforeStatus = beforeUser.getAccountStatus();
+            User updatedUser;
+
+            switch (action) {
+                case APPROVE -> {
+                    if (beforeStatus != AccountStatus.PENDING) {
+                        throw CoreException.of(ErrorType.INVALID_DATA, "승인 대기 중인 계정만 승인할 수 있습니다.");
+                    }
+                    updatedUser = approveUser(
+                            userId,
+                            beforeUser.getUsername(),
+                            beforeUser.getUserEmail(),
+                            beforeUser.getSiteId(),
+                            beforeUser.getUserRole()
+                    );
+                }
+                case REJECT -> {
+                    if (beforeStatus != AccountStatus.PENDING) {
+                        throw CoreException.of(ErrorType.INVALID_DATA, "승인 대기 중인 계정만 반려할 수 있습니다.");
+                    }
+                    updatedUser = updateUserStatus(userId, AccountStatus.REJECTED);
+                }
+                case DISABLE -> {
+                    ensureNotSuperUserForDisable(beforeUser);
+                    if (beforeStatus != AccountStatus.ACTIVE) {
+                        throw CoreException.of(ErrorType.INVALID_DATA, "활성 계정만 비활성화할 수 있습니다.");
+                    }
+                    updatedUser = updateUserStatus(userId, AccountStatus.DISABLED);
+                }
+                default -> throw CoreException.of(ErrorType.INVALID_DATA, "지원하지 않는 일괄 작업입니다.");
+            }
+
+            auditService.recordChanges(
+                    updatedUser.getSiteId(),
+                    "USER",
+                    updatedUser.getUserId(),
+                    AuditAction.UPDATE,
+                    reason,
+                    Map.of("accountStatus", beforeStatus.name()),
+                    Map.of("accountStatus", updatedUser.getAccountStatus().name()),
+                    List.of("accountStatus")
+            );
+        }
+        return userIds.size();
+    }
+
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private void applyDefaultProfileAppearance(User user) {
+        if (user.getProfileColor() == null || user.getProfileColor().isBlank()) {
+            user.setProfileColor(PROFILE_COLOR_PRESETS.get(
+                    ThreadLocalRandom.current().nextInt(PROFILE_COLOR_PRESETS.size())
+            ));
+        } else {
+            user.setProfileColor(normalizeProfileColor(user.getProfileColor()));
+        }
+        if (user.getProfileInitials() == null || user.getProfileInitials().isBlank()) {
+            user.setProfileInitials(firstCharacter(
+                    user.getUsername() == null || user.getUsername().isBlank()
+                            ? user.getUserId()
+                            : user.getUsername()
+            ));
+        } else {
+            user.setProfileInitials(normalizeProfileInitials(user.getProfileInitials()));
+        }
+    }
+
+    private String normalizeProfileColor(String profileColor) {
+        String normalized = profileColor == null ? "" : profileColor.trim().toUpperCase(Locale.ROOT);
+        if (!PROFILE_COLOR_PATTERN.matcher(normalized).matches()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "프로필 색상 형식이 올바르지 않습니다.");
+        }
+        return normalized;
+    }
+
+    private String normalizeProfileInitials(String profileInitials) {
+        String normalized = profileInitials == null ? "" : profileInitials.trim();
+        int length = normalized.codePointCount(0, normalized.length());
+        if (length < 1 || length > 2) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "프로필 이니셜은 1~2글자로 입력해 주세요.");
+        }
+        return normalized;
+    }
+
+    private String firstCharacter(String value) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isEmpty()) {
+            return "?";
+        }
+        return normalized.substring(0, normalized.offsetByCodePoints(0, 1));
     }
 
     @Transactional(readOnly = true)
@@ -191,6 +324,13 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var user = this.findUserById(userId);
         AuthUtil.ensureCanManageUser(user.getSiteId(), user.getUserRole());
+        if (user.getUserRole() != UserRole.SUPER) {
+            siteMapper.findSiteById(SiteInfo.builder().siteId(user.getSiteId()).build())
+                    .orElseThrow(() -> CoreException.of(
+                            ErrorType.SITE_NOT_FOUND,
+                            "폐기된 사이트의 사용자는 변경할 수 없습니다."
+                    ));
+        }
         return user;
     }
 
@@ -206,6 +346,30 @@ public class UserService {
     public User updateUserStatus(String userId, AccountStatus accountStatus) {
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
+        return updateUserStatus(user, currentUser, accountStatus);
+    }
+
+    @Transactional
+    public User updateUserStatus(String userId, AccountStatus accountStatus, String reason) {
+        var currentUser = AuthUtil.getCurrentUser();
+        var user = getManageableUser(userId);
+        AccountStatus beforeStatus = user.getAccountStatus();
+        var updatedUser = updateUserStatus(user, currentUser, accountStatus);
+        auditService.recordChanges(
+                updatedUser.getSiteId(),
+                "USER",
+                updatedUser.getUserId(),
+                AuditAction.UPDATE,
+                reason,
+                Map.of("accountStatus", beforeStatus.name()),
+                Map.of("accountStatus", updatedUser.getAccountStatus().name()),
+                List.of("accountStatus")
+        );
+        return updatedUser;
+    }
+
+    private User updateUserStatus(User user, CurrentUser currentUser, AccountStatus accountStatus) {
+        String userId = user.getUserId();
 
         if ((user.getAccountStatus() == AccountStatus.PENDING || user.getAccountStatus() == AccountStatus.REJECTED)
                 && accountStatus == AccountStatus.ACTIVE) {
@@ -215,6 +379,9 @@ public class UserService {
         if (currentUser.getUserId().equals(userId)
                 && accountStatus != AccountStatus.ACTIVE) {
             throw CoreException.of(ErrorType.INVALID_DATA, "본인 계정은 비활성화하거나 반려할 수 없습니다.");
+        }
+        if (accountStatus == AccountStatus.DISABLED) {
+            ensureNotSuperUserForDisable(user);
         }
 
         user.setAccountStatus(accountStatus);
@@ -234,6 +401,45 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
+        return approveUser(user, currentUser, username, userEmail, siteId, userRole);
+    }
+
+    @Transactional
+    public User approveUser(
+            String userId,
+            String username,
+            String userEmail,
+            String siteId,
+            UserRole userRole,
+            String reason
+    ) {
+        AuthUtil.ensureUserAdmin();
+        var currentUser = AuthUtil.getCurrentUser();
+        var user = getManageableUser(userId);
+        Map<String, Object> before = approvalAuditedValues(user);
+        var approvedUser = approveUser(user, currentUser, username, userEmail, siteId, userRole);
+        auditService.recordChanges(
+                approvedUser.getSiteId(),
+                "USER",
+                approvedUser.getUserId(),
+                AuditAction.UPDATE,
+                reason,
+                before,
+                approvalAuditedValues(approvedUser),
+                List.of("accountStatus", "username", "userEmail", "siteId", "userRole")
+        );
+        return approvedUser;
+    }
+
+    private User approveUser(
+            User user,
+            CurrentUser currentUser,
+            String username,
+            String userEmail,
+            String siteId,
+            UserRole userRole
+    ) {
+        String userId = user.getUserId();
 
         if (user.getAccountStatus() != AccountStatus.PENDING) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 대기 중인 계정만 승인할 수 있습니다.");
@@ -270,6 +476,22 @@ public class UserService {
         return findUserById(userId);
     }
 
+    private void ensureNotSuperUserForDisable(User user) {
+        if (user.getUserRole() == UserRole.SUPER) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "SUPER 계정은 비활성화할 수 없습니다.");
+        }
+    }
+
+    private Map<String, Object> approvalAuditedValues(User user) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("accountStatus", user.getAccountStatus() == null ? null : user.getAccountStatus().name());
+        values.put("username", user.getUsername());
+        values.put("userEmail", user.getUserEmail());
+        values.put("siteId", user.getSiteId());
+        values.put("userRole", user.getUserRole() == null ? null : user.getUserRole().name());
+        return values;
+    }
+
     @Transactional
     public User updateManagedUser(
             String userId,
@@ -281,6 +503,7 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
+        Map<String, Object> before = approvalAuditedValues(user);
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE && user.getAccountStatus() != AccountStatus.DISABLED) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 완료 또는 비활성화된 계정만 수정할 수 있습니다.");
@@ -322,7 +545,18 @@ public class UserService {
         if (userMapper.updateManagedUser(user) != 1) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 완료 또는 비활성화된 계정만 수정할 수 있습니다.");
         }
-        return findUserById(userId);
+        User updatedUser = findUserById(userId);
+        auditService.recordChanges(
+                updatedUser.getSiteId(),
+                "USER",
+                updatedUser.getUserId(),
+                AuditAction.UPDATE,
+                null,
+                before,
+                approvalAuditedValues(updatedUser),
+                MANAGED_USER_AUDIT_FIELDS
+        );
+        return updatedUser;
     }
 
     @Transactional
@@ -338,7 +572,18 @@ public class UserService {
         userMapper.resetUserPassword(user);
         loginAttemptTxService.updatePasswordErrorCountById(userId, 0);
 
-        return findUserById(userId);
+        User updatedUser = findUserById(userId);
+        auditService.recordChanges(
+                updatedUser.getSiteId(),
+                "USER",
+                updatedUser.getUserId(),
+                AuditAction.UPDATE,
+                null,
+                Map.of("passwordReset", false),
+                Map.of("passwordReset", true),
+                List.of("passwordReset")
+        );
+        return updatedUser;
     }
 
     @Transactional
@@ -346,7 +591,9 @@ public class UserService {
             CurrentUser currentUser,
             String username,
             String userEmail,
-            String phoneNumber
+            String phoneNumber,
+            String profileColor,
+            String profileInitials
     ) {
         var user = findUserById(currentUser.getUserId());
         userMapper.findUserByEmail(userEmail)
@@ -358,6 +605,8 @@ public class UserService {
         user.setUsername(username);
         user.setUserEmail(userEmail);
         user.setPhoneNumber(phoneNumber == null || phoneNumber.isBlank() ? null : phoneNumber);
+        user.setProfileColor(normalizeProfileColor(profileColor));
+        user.setProfileInitials(normalizeProfileInitials(profileInitials));
         user.setUpdatedBy(currentUser.getUserId());
         userMapper.updateUserProfile(user);
         return findUserById(currentUser.getUserId());

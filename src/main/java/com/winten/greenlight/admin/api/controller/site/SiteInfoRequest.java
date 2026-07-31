@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.api.controller.site;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -18,6 +19,9 @@ public class SiteInfoRequest {
     private String siteDescription;
     private Boolean siteEnabled;
     private Boolean queueEnabled;
+    @NotBlank
+    @Size(max = 1000)
+    private String reason;
 
     @JsonIgnore
     @Getter(AccessLevel.NONE)
@@ -27,6 +31,10 @@ public class SiteInfoRequest {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private boolean queueEnabledPresent;
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private boolean siteEnabledPresent;
 
     @JsonSetter("siteName")
     public void setSiteName(String siteName) {
@@ -44,6 +52,7 @@ public class SiteInfoRequest {
     public void setSiteEnabled(Boolean siteEnabled) {
         this.siteEnabled = siteEnabled;
         this.siteManagementFieldsPresent = true;
+        this.siteEnabledPresent = true;
     }
 
     @JsonSetter("queueEnabled")
@@ -60,5 +69,10 @@ public class SiteInfoRequest {
     @JsonIgnore
     public boolean isQueueEnabledPresent() {
         return queueEnabledPresent;
+    }
+
+    @JsonIgnore
+    public boolean isSiteEnabledPresent() {
+        return siteEnabledPresent;
     }
 }

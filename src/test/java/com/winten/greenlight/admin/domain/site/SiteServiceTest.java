@@ -1,8 +1,12 @@
 package com.winten.greenlight.admin.domain.site;
 
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
+import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
+import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.api.controller.site.SiteResponse;
+import com.winten.greenlight.admin.domain.audit.AuditAction;
+import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
@@ -11,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +33,9 @@ import static org.mockito.Mockito.*;
 class SiteServiceTest {
     @Mock private SiteMapper siteMapper;
     @Mock private SiteCacheRepository siteCacheRepository;
+    @Mock private AuditService auditService;
+    @Mock private RoomMapper roomMapper;
+    @Mock private UserMapper userMapper;
     private final SiteApiKeyGenerator siteApiKeyGenerator = new SiteApiKeyGenerator();
 
     @AfterEach void clearSecurityContext() { SecurityContextHolder.clearContext(); }
@@ -68,7 +76,7 @@ class SiteServiceTest {
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
 
-        service.updateSiteInfoById(request, false);
+        service.updateSiteInfoById(request, false, false, "사이트 정보 변경");
 
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
         verify(siteMapper).updateSiteInfoById(captured.capture());
@@ -88,7 +96,7 @@ class SiteServiceTest {
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
 
-        var result = service.updateQueueEnabled("site-a", false);
+        var result = service.updateQueueEnabled("site-a", false, "운영 중지");
 
         assertThat(result).isSameAs(updated);
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
@@ -99,16 +107,51 @@ class SiteServiceTest {
     }
 
     @Test
-    void siteAdminCannotUpdateSiteManagementFieldsEvenForOwnSite() {
+    void siteAdminCanUpdateOwnSiteNameAndDescription() {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
         var request = SiteInfo.builder()
                 .siteId("site-a")
+                .siteName("  변경 이름  ")
+                .siteDescription("  변경 설명  ")
+                .build();
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteName("이전 이름")
+                .siteDescription("이전 설명")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
                 .siteName("변경 이름")
-                .queueEnabled(false)
+                .siteDescription("변경 설명")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        var result = service.updateSiteInfoById(request, false, false, "변경");
+
+        assertThat(result).isSameAs(updated);
+        var captured = ArgumentCaptor.forClass(SiteInfo.class);
+        verify(siteMapper).updateSiteInfoById(captured.capture());
+        assertThat(captured.getValue().getSiteName()).isEqualTo("변경 이름");
+        assertThat(captured.getValue().getSiteDescription()).isEqualTo("변경 설명");
+        assertThat(captured.getValue().getSiteEnabled()).isNull();
+    }
+
+    @Test
+    void siteAdminCannotUpdateSiteEnabled() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(false)
                 .build();
 
-        assertThatThrownBy(() -> service.updateSiteInfoById(request, true))
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, true, false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -116,11 +159,56 @@ class SiteServiceTest {
     }
 
     @Test
+    void siteAdminCannotUpdateAnotherSiteInfo() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-b")
+                .siteName("변경 이름")
+                .build();
+
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, false, false, "변경"))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void disablingSitePreservesRoomAndUserStates() {
+        var service = service();
+        authenticate("super", "root", UserRole.SUPER);
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(false)
+                .queueEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        var result = service.updateSiteInfoById(
+                SiteInfo.builder().siteId("site-a").siteEnabled(false).build(),
+                true,
+                false,
+                "운영 중지"
+        );
+
+        assertThat(result.getSiteEnabled()).isFalse();
+        assertThat(result.getQueueEnabled()).isTrue();
+        verifyNoInteractions(roomMapper, userMapper);
+    }
+
+    @Test
     void siteAdminCannotUpdateAnotherSiteQueueEnabled() {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
 
-        assertThatThrownBy(() -> service.updateQueueEnabled("site-b", false))
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-b", false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -132,7 +220,7 @@ class SiteServiceTest {
         var service = service();
         authenticate("user", "site-a", UserRole.USER);
 
-        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", false))
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -144,7 +232,7 @@ class SiteServiceTest {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
 
-        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", null))
+        assertThatThrownBy(() -> service.updateQueueEnabled("site-a", null, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.INVALID_DATA);
@@ -160,7 +248,7 @@ class SiteServiceTest {
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(oldSite), Optional.of(updatedSite));
         when(siteMapper.updateSiteApiKey(any())).thenReturn(1);
 
-        var key = service.rotateSiteApiKey("site-b");
+        var key = service.rotateSiteApiKey("site-b", "정기 교체");
 
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
         verify(siteMapper).updateSiteApiKey(captured.capture());
@@ -176,7 +264,7 @@ class SiteServiceTest {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
 
-        assertThatThrownBy(() -> service.rotateSiteApiKey("site-a"))
+        assertThatThrownBy(() -> service.rotateSiteApiKey("site-a", "정기 교체"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -200,8 +288,57 @@ class SiteServiceTest {
                 .doesNotContain("siteApiKey", "apiKey");
     }
 
+    @Test
+    void superCreatesSiteAndInitializesCachesWithoutAuditingApiKey() {
+        var service = service();
+        authenticate("super", "root", UserRole.SUPER);
+        when(siteMapper.insertSite(any())).thenReturn(1);
+
+        SiteInfo created = service.createSite("new1", "신규 사이트", "설명", "신규 계약");
+
+        assertThat(created.getSiteEnabled()).isTrue();
+        assertThat(created.getQueueEnabled()).isFalse();
+        assertThat(created.getSiteApiKey()).matches("gl_[A-Za-z0-9_-]{43}");
+        verify(siteCacheRepository).updateSiteApiKeyCache(created);
+        verify(siteCacheRepository).updateSiteInfo(created);
+        verify(siteCacheRepository).updateRoomListCache("new1", List.of());
+        verify(auditService).recordChanges(
+                eq("new1"), eq("SITE"), eq("new1"), eq(AuditAction.CREATE), eq("신규 계약"),
+                anyMap(), anyMap(), eq(List.of("siteName", "siteDescription", "siteEnabled", "queueEnabled"))
+        );
+    }
+
+    @Test
+    void softDeleteKeepsRoomAndUserStateBeforeClearingCaches() {
+        var service = service();
+        authenticate("super", "root", UserRole.SUPER);
+        var previous = SiteInfo.builder()
+                .siteId("old1")
+                .siteApiKey("old-api-key")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous));
+        when(siteMapper.softDeleteSite(any())).thenReturn(1);
+
+        service.deleteSite("old1", "계약 종료");
+
+        InOrder order = inOrder(siteMapper, auditService, siteCacheRepository);
+        order.verify(siteMapper).softDeleteSite(any());
+        order.verify(auditService).recordChanges(
+                eq("old1"), eq("SITE"), eq("old1"), eq(AuditAction.DELETE), eq("계약 종료"),
+                anyMap(), anyMap(), eq(List.of("siteEnabled", "queueEnabled", "deleted"))
+        );
+        order.verify(siteCacheRepository).deleteSiteApiKeyCache("old-api-key");
+        order.verify(siteCacheRepository).updateSiteInfo(any());
+        order.verify(siteCacheRepository).updateRoomListCache("old1", List.of());
+        verifyNoInteractions(roomMapper, userMapper);
+    }
+
     private SiteService service() {
-        return new SiteService(siteMapper, siteCacheRepository, siteApiKeyGenerator);
+        return new SiteService(
+                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService
+        );
     }
 
     private void authenticate(String userId, String siteId, UserRole role) {

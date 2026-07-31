@@ -12,6 +12,8 @@ public class UserResponse {
     private String siteId;
     private String siteName;
     private String username;
+    private String profileColor;
+    private String profileInitials;
     private String userId;
     private String userEmail;
     private String phoneNumber;

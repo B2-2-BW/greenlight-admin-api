@@ -7,6 +7,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,4 +21,7 @@ public class SiteInfo extends AuditDto {
     private String siteApiKey;
     private Boolean siteEnabled;
     private Boolean queueEnabled;
+    private String deletedBy;
+    private LocalDateTime deletedAt;
+    private String deletedIp;
 }

@@ -17,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -54,9 +55,12 @@ public class AuditInterceptor implements Interceptor {
         LocalDateTime now = LocalDateTime.now();
         String ip = RequestScopeUtil.getRequestIp();
 
-        // SELECT, INSERT, UPDATE, DELETE 일 때 넣기
-        if (cmd != SqlCommandType.UNKNOWN && cmd != SqlCommandType.FLUSH) {
-            // INSERT/UPSERT를 "INSERT로 들어오는 케이스"로 처리
+        if (cmd == SqlCommandType.SELECT) {
+            applyReadScope(param, userSiteId, userRole);
+            if (isSelectMappedWrite(ms, param)) {
+                applyAudit(param, userSiteId, userRole, userId, now, ip);
+            }
+        } else if (cmd != SqlCommandType.UNKNOWN && cmd != SqlCommandType.FLUSH) {
             applyAudit(param, userSiteId, userRole, userId, now, ip);
         } else {
             // DELETE 등은 정책에 따라 처리(여기선 userSiteId만 주입)
@@ -75,6 +79,19 @@ public class AuditInterceptor implements Interceptor {
     @Override
     public void setProperties(Properties properties) {
         // no-op
+    }
+
+    private boolean isSelectMappedWrite(MappedStatement mappedStatement, Object param) {
+        String sql = mappedStatement.getBoundSql(param).getSql().stripLeading().toUpperCase(Locale.ROOT);
+        return sql.startsWith("INSERT ")
+                || sql.startsWith("UPDATE ")
+                || sql.startsWith("DELETE ")
+                || sql.startsWith("MERGE ");
+    }
+
+    private void applyReadScope(Object param, String userSiteId, UserRole userRole) {
+        setField(param, "userSiteId", userSiteId);
+        setFieldIfAbsent(param, "userRole", userRole);
     }
 
     private void applyAudit(Object param, String userSiteId, UserRole userRole, String userId, LocalDateTime now, String ip) {
