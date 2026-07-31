@@ -1,13 +1,17 @@
 package com.winten.greenlight.admin.domain.user;
 
+import com.winten.greenlight.admin.api.controller.user.UserBulkAction;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount;
+import com.winten.greenlight.admin.domain.audit.AuditAction;
+import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.JwtUtil;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,12 +21,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +44,14 @@ class UserServiceTest {
     private CachedUserService cachedUserService;
     @Mock
     private JwtUtil jwtUtil;
+    @Mock
+    private AuditService auditService;
+
+    @BeforeEach
+    void allowExistingSiteByDefault() {
+        lenient().when(siteMapper.findSiteById(any()))
+                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+    }
 
     @AfterEach
     void clearSecurityContext() {
@@ -53,7 +67,8 @@ class UserServiceTest {
                 siteMapper,
                 passwordManager,
                 cachedUserService,
-                jwtUtil
+                jwtUtil,
+                auditService
         );
         User request = User.builder()
                 .userId("new-user")
@@ -80,6 +95,8 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getPasswordResetRequired()).isFalse();
         assertThat(savedUser.getValue().getPassword()).isNull();
         assertThat(savedUser.getValue().getPasswordHash()).isNotBlank();
+        assertThat(savedUser.getValue().getProfileColor()).matches("^#[0-9A-F]{6}$");
+        assertThat(savedUser.getValue().getProfileInitials()).isEqualTo("신");
         assertThat(result).isSameAs(request);
     }
 
@@ -191,7 +208,8 @@ class UserServiceTest {
                 siteMapper,
                 new PasswordManager(),
                 cachedUserService,
-                jwtUtil
+                jwtUtil,
+                auditService
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L)
@@ -212,7 +230,8 @@ class UserServiceTest {
     @Test
     void manageableUserPageUsesSiteScopeAndCapsOutOfRangePage() {
         UserService service = new UserService(
-                userMapper, loginAttemptTxService, siteMapper, new PasswordManager(), cachedUserService, jwtUtil
+                userMapper, loginAttemptTxService, siteMapper, new PasswordManager(), cachedUserService, jwtUtil,
+                auditService
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L).userId("site-admin").userSiteId("site-a").userRole(UserRole.SITE_ADMIN).build();
@@ -222,17 +241,196 @@ class UserServiceTest {
         UserStatusCount activeCount = new UserStatusCount();
         activeCount.setAccountStatus(AccountStatus.ACTIVE);
         activeCount.setCount(21);
-        when(userMapper.countUsers("site-a", "kim")).thenReturn(21L);
-        when(userMapper.countUsersByStatus("site-a", "kim")).thenReturn(List.of(activeCount));
-        when(userMapper.findUsersPage("site-a", "kim", 10, 20)).thenReturn(List.of());
+        when(userMapper.countUsers("site-a", "kim", null, null)).thenReturn(21L);
+        when(userMapper.countUsersByStatus("site-a", "kim", null)).thenReturn(List.of(activeCount));
+        when(userMapper.findUsersPage("site-a", "kim", null, null, 10, 20)).thenReturn(List.of());
 
-        UserPage result = service.getManageableUsers(99, 10, " kim ");
+        UserPage result = service.getManageableUsers(99, 10, " kim ", null, null, null);
 
         assertThat(result.getPage()).isEqualTo(3);
         assertThat(result.getTotalPages()).isEqualTo(3);
         assertThat(result.getTotalElements()).isEqualTo(21);
         assertThat(result.getStatusCounts()).containsEntry(AccountStatus.ACTIVE, 21L);
-        verify(userMapper).findUsersPage("site-a", "kim", 10, 20);
+        verify(userMapper).findUsersPage("site-a", "kim", null, null, 10, 20);
+    }
+
+    @Test
+    void superFiltersUsersByRequestedSiteStatusAndRoleButCountsIgnoreStatus() {
+        UserService service = serviceWithSuperUser();
+        when(userMapper.countUsers("site-b", null, AccountStatus.PENDING, UserRole.USER)).thenReturn(1L);
+        when(userMapper.countUsersByStatus("site-b", null, UserRole.USER)).thenReturn(List.of());
+        when(userMapper.findUsersPage(
+                "site-b", null, AccountStatus.PENDING, UserRole.USER, 10, 0
+        )).thenReturn(List.of());
+
+        service.getManageableUsers(
+                1, 10, null, AccountStatus.PENDING, UserRole.USER, " site-b "
+        );
+
+        verify(userMapper).countUsers("site-b", null, AccountStatus.PENDING, UserRole.USER);
+        verify(userMapper).countUsersByStatus("site-b", null, UserRole.USER);
+    }
+
+    @Test
+    void siteAdminIgnoresRequestedSiteFilterAndUsesOwnSite() {
+        UserService service = serviceWithSiteAdmin();
+        when(userMapper.countUsers("site-a", null, null, null)).thenReturn(0L);
+        when(userMapper.countUsersByStatus("site-a", null, null)).thenReturn(List.of());
+
+        service.getManageableUsers(1, 10, null, null, null, "site-b");
+
+        verify(userMapper).countUsers("site-a", null, null, null);
+        verify(userMapper).countUsersByStatus("site-a", null, null);
+    }
+
+    @Test
+    void bulkRejectReusesSingleStatusValidationAndRecordsAudit() {
+        UserService service = serviceWithSuperUser();
+        User pending = pendingUser("pending-user", "site-a");
+        pending.setUsername("대기 사용자");
+        pending.setUserEmail("pending@example.com");
+        when(userMapper.findUserById("pending-user")).thenReturn(Optional.of(pending));
+
+        int updatedCount = service.bulkAction(
+                List.of("pending-user"), UserBulkAction.REJECT, "가입 정보 불충분"
+        );
+
+        assertThat(updatedCount).isEqualTo(1);
+        assertThat(pending.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
+        verify(userMapper).updateUserStatus(pending);
+        verify(auditService).recordChanges(
+                "site-a",
+                "USER",
+                "pending-user",
+                AuditAction.UPDATE,
+                "가입 정보 불충분",
+                Map.of("accountStatus", "PENDING"),
+                Map.of("accountStatus", "REJECTED"),
+                List.of("accountStatus")
+        );
+    }
+
+    @Test
+    void bulkApproveUsesPendingUsersExistingProfile() {
+        UserService service = serviceWithSuperUser();
+        User pending = pendingUser("pending-user", "site-a");
+        pending.setUsername("대기 사용자");
+        pending.setUserEmail("pending@example.com");
+        when(userMapper.findUserById("pending-user")).thenReturn(Optional.of(pending));
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+        when(userMapper.findUserByEmail("pending@example.com")).thenReturn(Optional.empty());
+        when(userMapper.approveUser(any())).thenReturn(1);
+
+        service.bulkAction(List.of("pending-user"), UserBulkAction.APPROVE, "가입 승인");
+
+        ArgumentCaptor<User> approved = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).approveUser(approved.capture());
+        assertThat(approved.getValue().getUsername()).isEqualTo("대기 사용자");
+        assertThat(approved.getValue().getUserEmail()).isEqualTo("pending@example.com");
+        assertThat(approved.getValue().getSiteId()).isEqualTo("site-a");
+        assertThat(approved.getValue().getUserRole()).isEqualTo(UserRole.USER);
+        verify(auditService).recordChanges(
+                "site-a",
+                "USER",
+                "pending-user",
+                AuditAction.UPDATE,
+                "가입 승인",
+                Map.of("accountStatus", "PENDING"),
+                Map.of("accountStatus", "ACTIVE"),
+                List.of("accountStatus")
+        );
+    }
+
+    @Test
+    void bulkDisableRejectsNonActiveUserBeforeMutation() {
+        UserService service = serviceWithSuperUser();
+        User pending = pendingUser("pending-user", "site-a");
+        when(userMapper.findUserById("pending-user")).thenReturn(Optional.of(pending));
+
+        assertThatThrownBy(() -> service.bulkAction(
+                List.of("pending-user"), UserBulkAction.DISABLE, "비활성화"
+        )).isInstanceOf(CoreException.class);
+
+        verify(userMapper, never()).updateUserStatus(any());
+        verify(auditService, never()).recordChanges(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    void bulkDisableRejectsSuperUserBeforeMutation() {
+        UserService service = serviceWithSuperUser();
+        User target = activeUser("other-super", "site-a", UserRole.SUPER);
+        when(userMapper.findUserById("other-super")).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.bulkAction(
+                List.of("other-super"), UserBulkAction.DISABLE, "권한 정리"
+        ))
+                .isInstanceOf(CoreException.class)
+                .satisfies(error ->
+                        assertThat(((CoreException) error).getDetail())
+                                .isEqualTo("SUPER 계정은 비활성화할 수 없습니다."));
+
+        verify(userMapper, never()).updateUserStatus(any());
+        verify(auditService, never()).recordChanges(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    void directStatusUpdateCannotDisableSuperUser() {
+        UserService service = serviceWithSuperUser();
+        User target = activeUser("other-super", "site-a", UserRole.SUPER);
+        when(userMapper.findUserById("other-super")).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.updateUserStatus("other-super", AccountStatus.DISABLED))
+                .isInstanceOf(CoreException.class)
+                .satisfies(error ->
+                        assertThat(((CoreException) error).getDetail())
+                                .isEqualTo("SUPER 계정은 비활성화할 수 없습니다."));
+
+        verify(userMapper, never()).updateUserStatus(any());
+    }
+
+    @Test
+    void directStatusUpdateRecordsReasonAndStatusDiff() {
+        UserService service = serviceWithSuperUser();
+        User target = managedUser("rejected-user", "site-a", UserRole.USER, AccountStatus.REJECTED);
+        when(userMapper.findUserById("rejected-user")).thenReturn(Optional.of(target));
+
+        service.updateUserStatus("rejected-user", AccountStatus.PENDING, "가입 정보 재검토");
+
+        verify(userMapper).updateUserStatus(target);
+        verify(auditService).recordChanges(
+                "site-a",
+                "USER",
+                "rejected-user",
+                AuditAction.UPDATE,
+                "가입 정보 재검토",
+                Map.of("accountStatus", "REJECTED"),
+                Map.of("accountStatus", "PENDING"),
+                List.of("accountStatus")
+        );
+    }
+
+    @Test
+    void bulkActionRejectsUserFromDeletedSite() {
+        UserService service = serviceWithSuperUser();
+        User active = activeUser("deleted-site-user", "site-deleted", UserRole.USER);
+        when(userMapper.findUserById("deleted-site-user")).thenReturn(Optional.of(active));
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.bulkAction(
+                List.of("deleted-site-user"), UserBulkAction.DISABLE, "퇴사"
+        ))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.SITE_NOT_FOUND);
+
+        verify(userMapper, never()).updateUserStatus(any());
+        verify(auditService, never()).recordChanges(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
     }
 
     @Test
@@ -244,7 +442,8 @@ class UserServiceTest {
                 siteMapper,
                 passwordManager,
                 cachedUserService,
-                jwtUtil
+                jwtUtil,
+                auditService
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L)
@@ -292,6 +491,52 @@ class UserServiceTest {
         assertThat(approved.getValue().getSiteId()).isEqualTo("site-b");
         assertThat(approved.getValue().getUserRole()).isEqualTo(UserRole.SITE_ADMIN);
         assertThat(result.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+    }
+
+    @Test
+    void detailedApprovalRecordsReasonAndReviewedFieldChangesOnce() {
+        UserService service = serviceWithSuperUser();
+        User target = pendingUser("target-user", "site-a");
+        target.setUsername("가입 사용자");
+        target.setUserEmail("pending@example.com");
+        when(userMapper.findUserById("target-user")).thenReturn(Optional.of(target));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-b").siteEnabled(true).build())
+        );
+        when(userMapper.findUserByEmail("approved@example.com")).thenReturn(Optional.empty());
+        when(userMapper.approveUser(any())).thenReturn(1);
+
+        service.approveUser(
+                "target-user",
+                "승인 사용자",
+                "approved@example.com",
+                "site-b",
+                UserRole.SITE_ADMIN,
+                "담당자 검토 완료"
+        );
+
+        verify(auditService).recordChanges(
+                "site-b",
+                "USER",
+                "target-user",
+                AuditAction.UPDATE,
+                "담당자 검토 완료",
+                Map.of(
+                        "accountStatus", "PENDING",
+                        "username", "가입 사용자",
+                        "userEmail", "pending@example.com",
+                        "siteId", "site-a",
+                        "userRole", "USER"
+                ),
+                Map.of(
+                        "accountStatus", "ACTIVE",
+                        "username", "승인 사용자",
+                        "userEmail", "approved@example.com",
+                        "siteId", "site-b",
+                        "userRole", "SITE_ADMIN"
+                ),
+                List.of("accountStatus", "username", "userEmail", "siteId", "userRole")
+        );
     }
 
     @Test
@@ -473,13 +718,22 @@ class UserServiceTest {
         when(userMapper.findUserById("regular-user")).thenReturn(Optional.of(user));
         when(userMapper.findUserByEmail("updated@example.com")).thenReturn(Optional.empty());
 
-        service.updateMyProfile(currentUser, "수정 사용자", "updated@example.com", "010-1234-5678");
+        service.updateMyProfile(
+                currentUser,
+                "수정 사용자",
+                "updated@example.com",
+                "010-1234-5678",
+                "#7c3aed",
+                "수정"
+        );
 
         var updated = ArgumentCaptor.forClass(User.class);
         verify(userMapper).updateUserProfile(updated.capture());
         assertThat(updated.getValue().getUsername()).isEqualTo("수정 사용자");
         assertThat(updated.getValue().getUserEmail()).isEqualTo("updated@example.com");
         assertThat(updated.getValue().getPhoneNumber()).isEqualTo("010-1234-5678");
+        assertThat(updated.getValue().getProfileColor()).isEqualTo("#7C3AED");
+        assertThat(updated.getValue().getProfileInitials()).isEqualTo("수정");
     }
 
     private UserService serviceWithSuperUser() {
@@ -497,7 +751,9 @@ class UserServiceTest {
     }
 
     private UserService createService(PasswordManager passwordManager) {
-        return new UserService(userMapper, loginAttemptTxService, siteMapper, passwordManager, cachedUserService, jwtUtil);
+        return new UserService(
+                userMapper, loginAttemptTxService, siteMapper, passwordManager, cachedUserService, jwtUtil, auditService
+        );
     }
 
     private User activeUser(String userId, String siteId, UserRole userRole) {

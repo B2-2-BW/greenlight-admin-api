@@ -1,7 +1,9 @@
 package com.winten.greenlight.admin.api.controller.user;
 
 import com.winten.greenlight.admin.domain.user.CurrentUser;
+import com.winten.greenlight.admin.domain.user.AccountStatus;
 import com.winten.greenlight.admin.domain.user.UserConverter;
+import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.domain.user.UserService;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -39,9 +41,12 @@ public class UserController {
     public ResponseEntity<UserPageResponse> getUsers(
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
-            @RequestParam(required = false) String query
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) AccountStatus status,
+            @RequestParam(required = false) UserRole role,
+            @RequestParam(required = false) String siteId
     ) {
-        var result = userService.getManageableUsers(page, size, query);
+        var result = userService.getManageableUsers(page, size, query, status, role, siteId);
         var users = result.getContent().stream()
                 .map(userConverter::toResponse)
                 .toList();
@@ -53,6 +58,18 @@ public class UserController {
                 .totalPages(result.getTotalPages())
                 .statusCounts(result.getStatusCounts())
                 .build());
+    }
+
+    @PostMapping("/bulk-actions")
+    public ResponseEntity<UserBulkActionResponse> bulkAction(
+            @RequestBody @Valid UserBulkActionRequest request
+    ) {
+        int updatedCount = userService.bulkAction(
+                request.getUserIds(),
+                request.getAction(),
+                request.getReason()
+        );
+        return ResponseEntity.ok(new UserBulkActionResponse(updatedCount));
     }
 
     @GetMapping("/{userId}")
@@ -116,7 +133,11 @@ public class UserController {
             @PathVariable String userId,
             @RequestBody @Valid final UserUpdateRequest userRequest
     ) {
-        var user = userService.updateUserStatus(userId, userRequest.getAccountStatus());
+        var user = userService.updateUserStatus(
+                userId,
+                userRequest.getAccountStatus(),
+                userRequest.getReason()
+        );
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(userConverter.toResponse(user));
@@ -132,7 +153,8 @@ public class UserController {
                 request.getUsername(),
                 request.getUserEmail(),
                 request.getSiteId(),
-                request.getUserRole()
+                request.getUserRole(),
+                request.getReason()
         );
         return ResponseEntity.ok(userConverter.toResponse(user));
     }
@@ -183,7 +205,9 @@ public class UserController {
                 currentUser,
                 request.getUsername(),
                 request.getUserEmail(),
-                request.getPhoneNumber()
+                request.getPhoneNumber(),
+                request.getProfileColor(),
+                request.getProfileInitials()
         );
         return ResponseEntity.ok(userConverter.toResponse(user));
     }

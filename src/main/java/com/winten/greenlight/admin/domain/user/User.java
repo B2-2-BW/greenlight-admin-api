@@ -23,6 +23,8 @@ public class User extends AuditDto {
     private String siteId;
     private String siteName;
     private String username;
+    private String profileColor;
+    private String profileInitials;
     private String userEmail;
     private Boolean passwordResetRequired;
     private AccountStatus accountStatus;
