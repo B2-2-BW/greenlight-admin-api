@@ -76,7 +76,7 @@ class SiteServiceTest {
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
 
-        service.updateSiteInfoById(request, false, "사이트 정보 변경");
+        service.updateSiteInfoById(request, false, false, "사이트 정보 변경");
 
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
         verify(siteMapper).updateSiteInfoById(captured.capture());
@@ -107,20 +107,100 @@ class SiteServiceTest {
     }
 
     @Test
-    void siteAdminCannotUpdateSiteManagementFieldsEvenForOwnSite() {
+    void siteAdminCanUpdateOwnSiteNameAndDescription() {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
         var request = SiteInfo.builder()
                 .siteId("site-a")
+                .siteName("  변경 이름  ")
+                .siteDescription("  변경 설명  ")
+                .build();
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteName("이전 이름")
+                .siteDescription("이전 설명")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
                 .siteName("변경 이름")
-                .queueEnabled(false)
+                .siteDescription("변경 설명")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        var result = service.updateSiteInfoById(request, false, false, "변경");
+
+        assertThat(result).isSameAs(updated);
+        var captured = ArgumentCaptor.forClass(SiteInfo.class);
+        verify(siteMapper).updateSiteInfoById(captured.capture());
+        assertThat(captured.getValue().getSiteName()).isEqualTo("변경 이름");
+        assertThat(captured.getValue().getSiteDescription()).isEqualTo("변경 설명");
+        assertThat(captured.getValue().getSiteEnabled()).isNull();
+    }
+
+    @Test
+    void siteAdminCannotUpdateSiteEnabled() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(false)
                 .build();
 
-        assertThatThrownBy(() -> service.updateSiteInfoById(request, true, "변경"))
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, true, false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
         verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void siteAdminCannotUpdateAnotherSiteInfo() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-b")
+                .siteName("변경 이름")
+                .build();
+
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, false, false, "변경"))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository);
+    }
+
+    @Test
+    void disablingSitePreservesRoomAndUserStates() {
+        var service = service();
+        authenticate("super", "root", UserRole.SUPER);
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(false)
+                .queueEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        var result = service.updateSiteInfoById(
+                SiteInfo.builder().siteId("site-a").siteEnabled(false).build(),
+                true,
+                false,
+                "운영 중지"
+        );
+
+        assertThat(result.getSiteEnabled()).isFalse();
+        assertThat(result.getQueueEnabled()).isTrue();
+        verifyNoInteractions(roomMapper, userMapper);
     }
 
     @Test

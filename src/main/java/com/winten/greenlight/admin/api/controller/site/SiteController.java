@@ -69,7 +69,12 @@ public class SiteController {
         var siteParam = siteConverter.toDto(request);
         siteParam.setSiteId(siteId);
         var site = request.hasSiteManagementFields()
-                ? siteService.updateSiteInfoById(siteParam, request.isQueueEnabledPresent(), request.getReason())
+                ? siteService.updateSiteInfoById(
+                        siteParam,
+                        request.isSiteEnabledPresent(),
+                        request.isQueueEnabledPresent(),
+                        request.getReason()
+                )
                 : siteService.updateQueueEnabled(siteId, request.getQueueEnabled(), request.getReason());
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }

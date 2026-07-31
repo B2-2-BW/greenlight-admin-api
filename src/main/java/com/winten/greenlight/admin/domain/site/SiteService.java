@@ -149,8 +149,20 @@ public class SiteService {
     }
 
     @Transactional
-    public SiteInfo updateSiteInfoById(SiteInfo siteParam, boolean queueEnabledPresent, String reason) {
-        AuthUtil.ensureSuper();
+    public SiteInfo updateSiteInfoById(
+            SiteInfo siteParam,
+            boolean siteEnabledPresent,
+            boolean queueEnabledPresent,
+            String reason
+    ) {
+        AuthUtil.ensureUserAdmin();
+        AuthUtil.ensureCanManageSite(siteParam.getSiteId());
+        if (siteEnabledPresent || siteParam.getSiteEnabled() != null) {
+            AuthUtil.ensureSuper();
+        }
+        if (siteEnabledPresent && siteParam.getSiteEnabled() == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "siteEnabled 값은 null일 수 없습니다.");
+        }
         if (queueEnabledPresent && siteParam.getQueueEnabled() == null) {
             throw CoreException.of(ErrorType.INVALID_DATA, "queueEnabled 값은 null일 수 없습니다.");
         }
@@ -159,6 +171,16 @@ public class SiteService {
                 && siteParam.getSiteEnabled() == null
                 && siteParam.getQueueEnabled() == null) {
             throw CoreException.of(ErrorType.INVALID_DATA, "수정할 사이트 정보가 없습니다.");
+        }
+        if (siteParam.getSiteName() != null) {
+            String siteName = siteParam.getSiteName().trim();
+            if (siteName.isEmpty()) {
+                throw CoreException.of(ErrorType.INVALID_DATA, "사이트명을 입력해 주세요.");
+            }
+            siteParam.setSiteName(siteName);
+        }
+        if (siteParam.getSiteDescription() != null) {
+            siteParam.setSiteDescription(siteParam.getSiteDescription().trim());
         }
 
         return updateSiteInfo(siteParam, reason);

@@ -31,6 +31,10 @@ public class SiteInfoRequest {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private boolean queueEnabledPresent;
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private boolean siteEnabledPresent;
 
     @JsonSetter("siteName")
     public void setSiteName(String siteName) {
@@ -48,6 +52,7 @@ public class SiteInfoRequest {
     public void setSiteEnabled(Boolean siteEnabled) {
         this.siteEnabled = siteEnabled;
         this.siteManagementFieldsPresent = true;
+        this.siteEnabledPresent = true;
     }
 
     @JsonSetter("queueEnabled")
@@ -64,5 +69,10 @@ public class SiteInfoRequest {
     @JsonIgnore
     public boolean isQueueEnabledPresent() {
         return queueEnabledPresent;
+    }
+
+    @JsonIgnore
+    public boolean isSiteEnabledPresent() {
+        return siteEnabledPresent;
     }
 }
