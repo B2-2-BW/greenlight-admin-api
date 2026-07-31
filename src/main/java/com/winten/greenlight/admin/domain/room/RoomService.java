@@ -3,9 +3,13 @@ package com.winten.greenlight.admin.domain.room;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomEntity;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.room.RoomRuleEntity;
+import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.redis.room.RoomCacheRepository;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.action.DefaultRuleType;
+import com.winten.greenlight.admin.domain.audit.AuditAction;
+import com.winten.greenlight.admin.domain.audit.AuditService;
+import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.error.NotModifiedException;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -28,6 +33,21 @@ public class RoomService {
     private final RoomMapper roomMapper;
     private final RoomCacheRepository roomCacheRepository;
     private final SiteCacheRepository siteCacheRepository;
+    private final SiteMapper siteMapper;
+    private final AuditService auditService;
+
+    private static final List<String> AUDITED_ROOM_FIELDS = List.of(
+            "name",
+            "description",
+            "maxTrafficPerSecond",
+            "capacity",
+            "enabled",
+            "defaultRuleType",
+            "defaultDestinationUrl",
+            "roomEnvironment",
+            "adImageUrl",
+            "roomRules"
+    );
 
     @Transactional(readOnly = true)
     public DashboardRoomList getRoomListFiltered(String version, Room roomParam) {
@@ -82,6 +102,7 @@ public class RoomService {
 
     @Transactional
     public Room createRoom(Room room) {
+        ensureSiteIsActive(AuthUtil.getCurrentUser().getUserSiteId());
         var roomParam = roomConverter.toEntity(room);
         var newRoomId = TSID.fast().toString();
         roomParam.setRoomId(newRoomId);
@@ -107,17 +128,18 @@ public class RoomService {
         // 활성화된 Room만 업데이트
 //        updateRoomListCache();
 
-        updateSiteEnabledRoomListCache();
+        updateSiteEnabledRoomListCache(result.getSiteId());
 
         return roomConverter.toDto(result);
     }
 
     @Transactional
-    public Room updateRoom(Room room) {
+    public Room updateRoom(Room room, String reason) {
         var currentRoom = this.getRoomById(room.getRoomId()); // action group 존재여부 확인
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
         AuthUtil.ensureCanUpdate(currentRoom.getSiteId());
+        ensureSiteIsActive(currentRoom.getSiteId());
 
         roomMapper.updateRoomById(roomConverter.toEntity(room));
 
@@ -141,7 +163,18 @@ public class RoomService {
         var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
-        updateSiteEnabledRoomListCache();
+        updateSiteEnabledRoomListCache(currentRoom.getSiteId());
+
+        auditService.recordChanges(
+                currentRoom.getSiteId(),
+                "ROOM",
+                currentRoom.getRoomId(),
+                AuditAction.UPDATE,
+                reason,
+                auditedValues(currentRoom),
+                auditedValues(updatedRoom),
+                AUDITED_ROOM_FIELDS
+        );
 
         return updatedRoom;
     }
@@ -152,6 +185,7 @@ public class RoomService {
 
         // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
         AuthUtil.ensureCanDelete(currentRoom.getSiteId());
+        ensureSiteIsActive(currentRoom.getSiteId());
 
         if (currentRoom.getEnabled()) {
             throw CoreException.of(ErrorType.ENABLED_ROOM_CANNOT_BE_DELETED, "활성화 상태의 대기열은 삭제할 수 없습니다.");
@@ -165,7 +199,7 @@ public class RoomService {
         // 활성화된 Room만 업데이트
 //        updateRoomListCache();
 
-        updateSiteEnabledRoomListCache(); // room list 갱신
+        updateSiteEnabledRoomListCache(currentRoom.getSiteId()); // room list 갱신
 
         return Room.builder()
                 .roomId(roomId)
@@ -186,28 +220,54 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaVersionToNow(); // 버전 최신화
 
         Map<String, List<Room>> enabledRoomsBySite = roomList.stream()
-                .filter(room -> Boolean.TRUE.equals(room.getEnabled()))
-                .collect(Collectors.groupingBy(Room::getSiteId));
-        enabledRoomsBySite.forEach(siteCacheRepository::updateRoomListCache);
-
+                .collect(Collectors.groupingBy(
+                        Room::getSiteId,
+                        Collectors.filtering(room -> Boolean.TRUE.equals(room.getEnabled()), Collectors.toList())
+                ));
         var currentUser = AuthUtil.getCurrentUser();
-        if (currentUser.getUserRole() != com.winten.greenlight.admin.domain.user.UserRole.SUPER
-                && !enabledRoomsBySite.containsKey(currentUser.getUserSiteId())) {
-            siteCacheRepository.updateRoomListCache(currentUser.getUserSiteId(), List.of());
-        }
+        var targetSiteIds = currentUser.getUserRole() == com.winten.greenlight.admin.domain.user.UserRole.SUPER
+                ? siteMapper.findAllSite().stream().map(site -> site.getSiteId()).toList()
+                : List.of(currentUser.getUserSiteId());
+        targetSiteIds.forEach(siteId ->
+                siteCacheRepository.updateRoomListCache(siteId, enabledRoomsBySite.getOrDefault(siteId, List.of())));
 
         return roomList.stream().map(Room::getRoomId).toList();
     }
 
-    public void updateSiteEnabledRoomListCache() {
-        var currentUser = AuthUtil.getCurrentUser();
-        AuthUtil.ensureCanUpdate(currentUser.getUserSiteId());
+    private void updateSiteEnabledRoomListCache(String siteId) {
+        var roomList = roomConverter.toDto(roomMapper.findEnabledRoomsBySiteId(siteId));
+        siteCacheRepository.updateRoomListCache(siteId, roomList);
+    }
 
-        var param = new Room();
-        param.setEnabled(true);
+    private Map<String, Object> auditedValues(Room room) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("name", room.getName());
+        values.put("description", room.getDescription());
+        values.put("maxTrafficPerSecond", room.getMaxTrafficPerSecond());
+        values.put("capacity", room.getCapacity());
+        values.put("enabled", room.getEnabled());
+        values.put("defaultRuleType", room.getDefaultRuleType());
+        values.put("defaultDestinationUrl", room.getDefaultDestinationUrl());
+        values.put("roomEnvironment", room.getRoomEnvironment());
+        values.put("adImageUrl", room.getAdImageUrl());
+        values.put("roomRules", sanitizedRules(room.getRoomRules()));
+        return values;
+    }
 
-        var roomList = this.getRoomListFiltered(param);
+    private List<Map<String, Object>> sanitizedRules(List<RoomRule> roomRules) {
+        if (roomRules == null) return List.of();
+        return roomRules.stream().map(rule -> {
+            Map<String, Object> value = new LinkedHashMap<>();
+            value.put("value", rule.getValue());
+            value.put("matchOperator", rule.getMatchOperator());
+            value.put("description", rule.getDescription());
+            return value;
+        }).toList();
+    }
 
-        siteCacheRepository.updateRoomListCache(currentUser.getUserSiteId(), roomList);
+    private void ensureSiteIsActive(String siteId) {
+        if (siteId == null || siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build()).isEmpty()) {
+            throw CoreException.of(ErrorType.SITE_NOT_FOUND, "사용할 수 없는 사이트입니다. " + siteId);
+        }
     }
 }

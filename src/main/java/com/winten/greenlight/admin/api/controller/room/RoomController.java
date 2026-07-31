@@ -69,12 +69,12 @@ public class RoomController {
     @PutMapping("/{roomId}")
     public ResponseEntity<RoomResponse> updateRoom(
             @PathVariable final String roomId,
-            @RequestBody final RoomUpdateRequest request
+            @RequestBody @Valid final RoomUpdateRequest request
     ) {
         Room room = roomConverter.toDto(request);
         room.setRoomId(roomId);
         // TODO 업데이트 이후
-        var result = roomService.updateRoom(room);
+        var result = roomService.updateRoom(room, request.getReason());
         return ResponseEntity.ok(roomConverter.toResponse(result));
     }
 

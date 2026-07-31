@@ -5,6 +5,7 @@ import com.winten.greenlight.admin.domain.room.RoomEnvironment;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -23,4 +24,6 @@ public class RoomUpdateRequest {
     private boolean updateRule;
     private String adImageUrl;
     private List<RoomRuleCreateRequest> roomRules;
+    @Size(max = 1000)
+    private String reason;
 }
