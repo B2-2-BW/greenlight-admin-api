@@ -256,20 +256,20 @@ class UserServiceTest {
     }
 
     @Test
-    void superFiltersUsersByRequestedSiteStatusAndRoleButCountsIgnoreStatus() {
+    void superUsesCurrentUserSiteAndIgnoresLegacyRequestedSiteFilter() {
         UserService service = serviceWithSuperUser();
-        when(userMapper.countUsers("site-b", null, AccountStatus.PENDING, UserRole.USER)).thenReturn(1L);
-        when(userMapper.countUsersByStatus("site-b", null, UserRole.USER)).thenReturn(List.of());
+        when(userMapper.countUsers("site-a", null, AccountStatus.PENDING, UserRole.USER)).thenReturn(1L);
+        when(userMapper.countUsersByStatus("site-a", null, UserRole.USER)).thenReturn(List.of());
         when(userMapper.findUsersPage(
-                "site-b", null, AccountStatus.PENDING, UserRole.USER, 10, 0
+                "site-a", null, AccountStatus.PENDING, UserRole.USER, 10, 0
         )).thenReturn(List.of());
 
         service.getManageableUsers(
                 1, 10, null, AccountStatus.PENDING, UserRole.USER, " site-b "
         );
 
-        verify(userMapper).countUsers("site-b", null, AccountStatus.PENDING, UserRole.USER);
-        verify(userMapper).countUsersByStatus("site-b", null, UserRole.USER);
+        verify(userMapper).countUsers("site-a", null, AccountStatus.PENDING, UserRole.USER);
+        verify(userMapper).countUsersByStatus("site-a", null, UserRole.USER);
     }
 
     @Test

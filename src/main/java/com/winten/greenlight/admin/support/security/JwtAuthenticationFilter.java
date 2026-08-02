@@ -53,10 +53,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                 }
 
+                String userSiteId = user.getSiteId();
+                String requestedSiteId = request.getHeader("X-ADMIN-SITE-ID");
+                if (user.getUserRole() == UserRole.SUPER
+                        && requestedSiteId != null
+                        && !requestedSiteId.isBlank()) {
+                    userSiteId = requestedSiteId.trim();
+                }
+
                 CurrentUser currentUser = CurrentUser.builder()
                         .accountId(user.getAccountId())
                         .userId(user.getUserId())
-                        .userSiteId(user.getSiteId())
+                        .userSiteId(userSiteId)
                         .userRole(user.getUserRole())
                         .build();
 

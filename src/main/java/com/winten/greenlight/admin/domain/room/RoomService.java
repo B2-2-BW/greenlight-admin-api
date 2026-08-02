@@ -251,11 +251,8 @@ public class RoomService {
                         Collectors.filtering(room -> Boolean.TRUE.equals(room.getEnabled()), Collectors.toList())
                 ));
         var currentUser = AuthUtil.getCurrentUser();
-        var targetSiteIds = currentUser.getUserRole() == com.winten.greenlight.admin.domain.user.UserRole.SUPER
-                ? siteMapper.findAllSite().stream().map(site -> site.getSiteId()).toList()
-                : List.of(currentUser.getUserSiteId());
-        targetSiteIds.forEach(siteId ->
-                siteCacheRepository.updateRoomListCache(siteId, enabledRoomsBySite.getOrDefault(siteId, List.of())));
+        String siteId = currentUser.getUserSiteId();
+        siteCacheRepository.updateRoomListCache(siteId, enabledRoomsBySite.getOrDefault(siteId, List.of()));
 
         return roomList.stream().map(Room::getRoomId).toList();
     }

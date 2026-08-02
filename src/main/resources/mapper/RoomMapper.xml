@@ -28,9 +28,7 @@
         <where>
             <if test="enabled != null">and r.enabled = #{enabled}</if>
             <if test="roomEnvironment != null">and r.room_environment = #{roomEnvironment}</if>
-            <if test="userRole != null and !userRole.isSuper()">
-                AND r.site_id = #{userSiteId}
-            </if>
+            AND r.site_id = #{userSiteId}
         </where>
         ORDER BY room_id
     </select>
@@ -53,9 +51,7 @@
                     OR LOWER(COALESCE(r.description, '')) LIKE CONCAT('%', LOWER(#{query}), '%')
                 )
             </if>
-            <if test="userRole != null and !userRole.isSuper()">
-                AND r.site_id = #{userSiteId}
-            </if>
+            AND r.site_id = #{userSiteId}
         </where>
     </sql>
 
@@ -75,9 +71,7 @@
         <include refid="selectFromRoom"/>
         <where>
             r.room_id = #{roomId}
-            <if test="userRole != null and !userRole.isSuper()">
-                AND r.site_id = #{userSiteId}
-            </if>
+            AND r.site_id = #{userSiteId}
         </where>
     </select>
 
@@ -137,18 +131,14 @@
         updated_at = CURRENT_TIMESTAMP,
         updated_ip = #{updatedIp}
         WHERE room_id = #{roomId}
-        <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{userSiteId}
-        </if>
+        AND site_id = #{userSiteId}
         RETURNING *
     </select>
 
     <delete id="deleteRoomById" parameterType="RoomEntity">
         DELETE FROM room
         WHERE room_id = #{roomId}
-        <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{userSiteId}
-        </if>
+        AND site_id = #{userSiteId}
     </delete>
 
     <update id="disableRoomsBySiteId">
@@ -178,9 +168,7 @@
         JOIN room rm ON rule.room_id = rm.room_id
         WHERE rule.room_id = #{roomId}
         AND rm.default_rule_type != 'ALL'
-        <if test="userRole != null and !userRole.isSuper()">
-            AND rm.site_id = #{userSiteId}
-        </if>
+        AND rm.site_id = #{userSiteId}
     </select>
 
     <select id="saveRoomRule" parameterType="RoomRuleEntity" resultType="RoomRuleEntity">
@@ -201,7 +189,7 @@
         (
             #{roomId},
             COALESCE((SELECT max(rule_seq) FROM room_rule WHERE room_id = #{roomId}), 0) + 1,
-            #{siteId},
+            #{userSiteId},
             #{value},
             #{matchOperator},
             #{description},
@@ -216,8 +204,6 @@
     <delete id="deleteAllRoomRuleByRoomId" parameterType="RoomRuleEntity">
         DELETE FROM room_rule
         WHERE room_id = #{roomId}
-        <if test="userRole != null and !userRole.isSuper()">
-            AND site_id = #{userSiteId}
-        </if>
+        AND site_id = #{userSiteId}
     </delete>
 </mapper>

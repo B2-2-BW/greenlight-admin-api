@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.support.security;
 
 import com.winten.greenlight.admin.domain.user.AccountStatus;
 import com.winten.greenlight.admin.domain.user.CachedUserService;
+import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.User;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.util.JwtUtil;
@@ -57,6 +58,39 @@ class JwtAuthenticationFilterTest {
         assertThat(chain.getRequest()).isSameAs(request);
     }
 
+    @Test
+    void superUsesRequestedSiteFromHeader() throws Exception {
+        prepareUser(UserRole.SUPER, "account-site");
+        var request = authenticatedRequest("GET", "/rooms");
+        request.addHeader("X-ADMIN-SITE-ID", " selected-site ");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(currentUser().getUserSiteId()).isEqualTo("selected-site");
+    }
+
+    @Test
+    void superFallsBackToAccountSiteWhenHeaderIsBlank() throws Exception {
+        prepareUser(UserRole.SUPER, "account-site");
+        var request = authenticatedRequest("GET", "/rooms");
+        request.addHeader("X-ADMIN-SITE-ID", "  ");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(currentUser().getUserSiteId()).isEqualTo("account-site");
+    }
+
+    @Test
+    void nonSuperIgnoresRequestedSiteHeader() throws Exception {
+        prepareUser(UserRole.SITE_ADMIN, "account-site");
+        var request = authenticatedRequest("GET", "/rooms");
+        request.addHeader("X-ADMIN-SITE-ID", "other-site");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(currentUser().getUserSiteId()).isEqualTo("account-site");
+    }
+
     private void prepareResetRequiredUser() {
         when(jwtUtil.extractUserId("access-token")).thenReturn("user-a");
         when(cachedUserService.getUser("user-a")).thenReturn(User.builder()
@@ -67,6 +101,22 @@ class JwtAuthenticationFilterTest {
                 .accountStatus(AccountStatus.ACTIVE)
                 .passwordResetRequired(true)
                 .build());
+    }
+
+    private void prepareUser(UserRole role, String siteId) {
+        when(jwtUtil.extractUserId("access-token")).thenReturn("user-a");
+        when(cachedUserService.getUser("user-a")).thenReturn(User.builder()
+                .accountId(1L)
+                .userId("user-a")
+                .siteId(siteId)
+                .userRole(role)
+                .accountStatus(AccountStatus.ACTIVE)
+                .passwordResetRequired(false)
+                .build());
+    }
+
+    private CurrentUser currentUser() {
+        return (CurrentUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
     private MockHttpServletRequest authenticatedRequest(String method, String path) {

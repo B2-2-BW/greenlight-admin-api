@@ -267,7 +267,7 @@ class RoomServiceTest {
     }
 
     @Test
-    void superReloadClearsRoomListCacheForSitesWithoutAnyRooms() {
+    void superReloadClearsOnlySelectedSitesRoomListCacheWhenItHasNoRooms() {
         authenticate(UserRole.SUPER, "super-site");
         RoomConverter roomConverter = mock(RoomConverter.class);
         RoomMapper roomMapper = mock(RoomMapper.class);
@@ -280,15 +280,10 @@ class RoomServiceTest {
         when(roomConverter.toEntity(any(Room.class))).thenReturn(RoomEntity.builder().build());
         when(roomMapper.findAllRoom(any(RoomEntity.class))).thenReturn(List.of());
         when(roomConverter.toDto(List.<RoomEntity>of())).thenReturn(List.of());
-        when(siteMapper.findAllSite()).thenReturn(List.of(
-                SiteInfo.builder().siteId("site-a").build(),
-                SiteInfo.builder().siteId("site-b").build()
-        ));
-
         assertThat(service.reloadRoomMetaCache()).isEmpty();
 
-        verify(siteCacheRepository).updateRoomListCache("site-a", List.of());
-        verify(siteCacheRepository).updateRoomListCache("site-b", List.of());
+        verify(siteCacheRepository).updateRoomListCache("super-site", List.of());
+        verify(siteMapper, never()).findAllSite();
     }
 
     @Test

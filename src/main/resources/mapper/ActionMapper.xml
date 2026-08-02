@@ -29,20 +29,14 @@
 
     <select id="findAllAction" parameterType="String" resultType="Action">
         <include refid="selectFromAction"/>
-        <where>
-            <if test="userRole != null and !userRole.isSuper()">
-                a.site_id = #{userSiteId}
-            </if>
-        </where>
+        WHERE a.site_id = #{userSiteId}
     </select>
 
     <select id="findAllEnabledAction" parameterType="String" resultType="Action">
         <include refid="selectFromAction"/>
         <where>
             ag.enabled = true
-            <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{userSiteId}
-            </if>
+            AND a.site_id = #{userSiteId}
         </where>
     </select>
 
@@ -50,9 +44,7 @@
         <include refid="selectFromAction"/>
         <where>
             a.action_group_id = #{actionGroupId}
-            <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{userSiteId}
-            </if>
+            AND a.site_id = #{userSiteId}
         </where>
     </select>
 
@@ -60,9 +52,7 @@
         <include refid="selectFromAction"/>
         <where>
             a.id = #{id}
-            <if test="userRole != null and !userRole.isSuper()">
-                AND a.site_id = #{userSiteId}
-            </if>
+            AND a.site_id = #{userSiteId}
         </where>
     </select>
 
@@ -119,18 +109,14 @@
             updated_ip = #{updatedIp},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
-        <if test="userRole != null and !userRole.isSuper()">
-            AND a.site_id = #{userSiteId}
-        </if>
+        AND site_id = #{userSiteId}
         RETURNING *
     </select>
 
     <delete id="deleteActionById" parameterType="Action">
         DELETE FROM action
         WHERE id = #{id}
-        <if test="userRole != null and !userRole.isSuper()">
-            AND a.site_id = #{userSiteId}
-        </if>
+        AND site_id = #{userSiteId}
     </delete>
 
 </mapper>
