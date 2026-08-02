@@ -19,9 +19,7 @@
         JOIN action a ON a.id = ar.action_id
         WHERE ar.action_id = #{actionId}
         AND a.default_rule_type != 'ALL'
-        <if test="userRole != null and !userRole.isSuper()">
-            AND a.site_id = #{userSiteId}
-        </if>
+        AND a.site_id = #{userSiteId}
     </select>
 
     <select id="saveActionRule" parameterType="ActionRule" resultType="ActionRule">

@@ -73,9 +73,7 @@ public class AuditService {
         AuthUtil.ensureUserAdmin();
         validateRange(from, to);
         var currentUser = AuthUtil.getCurrentUser();
-        String targetSiteId = currentUser.getUserRole().isSuper()
-                ? normalize(requestedSiteId)
-                : currentUser.getUserSiteId();
+        String targetSiteId = currentUser.getUserSiteId();
         String normalizedCreatedBy = normalize(createdBy);
         String normalizedTargetType = normalize(targetType);
         String normalizedTargetId = normalize(targetId);

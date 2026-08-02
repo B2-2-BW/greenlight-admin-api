@@ -100,11 +100,11 @@ class AuditServiceTest {
         var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
         var from = LocalDateTime.of(2026, 7, 1, 0, 0);
         var to = from.plusDays(1);
-        when(auditLogMapper.count(null, null, null, null, "UPDATE", from, to)).thenReturn(0L);
+        when(auditLogMapper.count("site-a", null, null, null, "UPDATE", from, to)).thenReturn(0L);
 
         service.getAuditLogs(1, 10, null, null, null, null, AuditAction.UPDATE, from, to);
 
-        verify(auditLogMapper).count(null, null, null, null, "UPDATE", from, to);
+        verify(auditLogMapper).count("site-a", null, null, null, "UPDATE", from, to);
     }
 
     @Test
@@ -125,11 +125,11 @@ class AuditServiceTest {
         var service = new AuditService(auditLogMapper, JsonMapper.builder().build());
         var from = LocalDateTime.of(2026, 7, 1, 0, 0);
         var to = from.plusDays(7);
-        when(auditLogMapper.count(null, null, null, null, null, from, to)).thenReturn(0L);
+        when(auditLogMapper.count("site-a", null, null, null, null, from, to)).thenReturn(0L);
 
         service.getAuditLogs(1, 10, null, null, null, null, null, from, to);
 
-        verify(auditLogMapper).count(null, null, null, null, null, from, to);
+        verify(auditLogMapper).count("site-a", null, null, null, null, from, to);
     }
 
     @Test

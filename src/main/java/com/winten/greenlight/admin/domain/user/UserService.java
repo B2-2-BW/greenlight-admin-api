@@ -186,9 +186,7 @@ public class UserService {
     public List<User> getManageableUsers() {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
-        String siteId = currentUser.getUserRole() == UserRole.SUPER
-                ? null
-                : currentUser.getUserSiteId();
+        String siteId = currentUser.getUserSiteId();
         return userMapper.findAllUsers(siteId);
     }
 
@@ -203,9 +201,7 @@ public class UserService {
     ) {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
-        String siteId = currentUser.getUserRole() == UserRole.SUPER
-                ? normalize(requestedSiteId)
-                : currentUser.getUserSiteId();
+        String siteId = currentUser.getUserSiteId();
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         long totalElements = userMapper.countUsers(siteId, normalizedQuery, status, role);
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
