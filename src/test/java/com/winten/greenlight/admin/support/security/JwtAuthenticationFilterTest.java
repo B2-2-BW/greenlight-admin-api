@@ -46,16 +46,31 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void resetRequiredUserCanChangeOwnPassword() throws Exception {
+    void resetRequiredUserCannotChangePasswordViaAuthenticatedApi() throws Exception {
         prepareResetRequiredUser();
+        when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
         var request = authenticatedRequest("PUT", "/users/me/password");
         var response = new MockHttpServletResponse();
         var chain = new MockFilterChain();
 
         filter.doFilter(request, response, chain);
 
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(chain.getRequest()).isSameAs(request);
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
+    void resetRequiredUserCannotAccessMe() throws Exception {
+        prepareResetRequiredUser();
+        when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
+        var request = authenticatedRequest("GET", "/users/me");
+        var response = new MockHttpServletResponse();
+        var chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(chain.getRequest()).isNull();
     }
 
     @Test

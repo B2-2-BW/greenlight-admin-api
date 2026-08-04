@@ -42,7 +42,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS)
                 .requestMatchers(CorsUtils::isPreFlightRequest)
                 .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*")
-                .requestMatchers(HttpMethod.POST, "/users/login", "/users/signin", "/users/refresh", "/alerts/**")
+                .requestMatchers(
+                        HttpMethod.POST,
+                        "/users/login",
+                        "/users/signin",
+                        "/users/refresh",
+                        "/users/password/change-required",
+                        "/alerts/**"
+                )
                 .requestMatchers("/error")
                 .requestMatchers("/swagger-ui/**")
                 .requestMatchers("/api-docs/**")
@@ -74,7 +81,14 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS).permitAll()
                     .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                     .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/users/login", "/users/signin", "/users/refresh", "/alerts/**").permitAll()
+                    .requestMatchers(
+                            HttpMethod.POST,
+                            "/users/login",
+                            "/users/signin",
+                            "/users/refresh",
+                            "/users/password/change-required",
+                            "/alerts/**"
+                    ).permitAll()
                     .requestMatchers("/error").permitAll()
                     .requestMatchers("/action-events/traffic/sse/stream").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
