@@ -88,6 +88,30 @@ public class UserController {
                 .body(userConverter.toResponse(loginResult));
     }
 
+    /**
+     * 관리자 비밀번호 초기화 후, 로그인 전에 새 비밀번호로 변경한다.
+     * 인증 토큰을 발급하지 않으며, 기존 refresh 쿠키가 있으면 삭제한다.
+     */
+    @PostMapping("password/change-required")
+    public ResponseEntity<Void> changePasswordWhenResetRequired(
+            @RequestBody @Valid final UserPasswordChangeRequiredRequest request
+    ) {
+        userService.changePasswordWhenResetRequired(
+                request.getLoginId(),
+                request.getCurrentPassword(),
+                request.getNewPassword()
+        );
+        var deleteRefreshTokenCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .sameSite("lax")
+                .path("/")
+                .maxAge(0)
+                .build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteRefreshTokenCookie.toString())
+                .build();
+    }
+
     @PostMapping("refresh")
     public ResponseEntity<UserLoginResponse> refresh(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,

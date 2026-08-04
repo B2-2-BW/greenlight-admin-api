@@ -45,11 +45,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (user.getAccountStatus() != AccountStatus.ACTIVE) {
                     throw CoreException.of(ErrorType.UNAUTHORIZED, "사용할 수 없는 계정입니다.");
                 }
-                if (Boolean.TRUE.equals(user.getPasswordResetRequired())
-                        && !isPasswordResetFlowRequest(request)) {
+                // 초기화 필요 계정은 인증 세션을 허용하지 않는다. (로그인 전 public 변경 API 사용)
+                if (Boolean.TRUE.equals(user.getPasswordResetRequired())) {
                     throw CoreException.of(
                             ErrorType.USER_PASSWORD_RESET_REQUIRED,
-                            "비밀번호 변경 후 다른 기능을 이용할 수 있습니다."
+                            "비밀번호 변경 후 로그인할 수 있습니다."
                     );
                 }
 
@@ -84,14 +84,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         filterChain.doFilter(request, response);
-    }
-
-    private boolean isPasswordResetFlowRequest(HttpServletRequest request) {
-        String path = request.getServletPath();
-        String method = request.getMethod();
-        return ("GET".equals(method) && "/users/me".equals(path))
-                || ("PUT".equals(method) && "/users/me/password".equals(path))
-                || ("POST".equals(method) && "/users/logout".equals(path));
     }
 
     private Collection<? extends GrantedAuthority> getAuthorities(UserRole role) {

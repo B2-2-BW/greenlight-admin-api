@@ -27,7 +27,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -184,6 +186,100 @@ class UserServiceTest {
                 LoginInfo.builder().loginId("super").password("password123!").build()
         ).getAccessToken()).isEqualTo("token");
         verify(siteMapper, never()).findSiteById(any());
+    }
+
+    @Test
+    void loginRejectsWhenPasswordResetRequiredWithoutIssuingToken() {
+        PasswordManager passwordManager = new PasswordManager();
+        UserService service = createService(passwordManager);
+        User user = activeUser("user", "site-a", UserRole.USER);
+        user.setPasswordHash(passwordManager.encode("TempPass123!"));
+        user.setPasswordResetRequired(true);
+
+        when(userMapper.findUserLoginAttempt(any())).thenReturn(
+                UserLoginAttempt.builder().loginId("user").userId("user").passwordErrorCount(0).build()
+        );
+        when(userMapper.findUserWithCredential("user")).thenReturn(Optional.of(user));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build())
+        );
+
+        assertThatThrownBy(() -> service.login(
+                LoginInfo.builder().loginId("user").password("TempPass123!").build()
+        ))
+                .isInstanceOf(CoreException.class)
+                .satisfies(error -> {
+                    CoreException coreException = (CoreException) error;
+                    assertThat(coreException.getErrorType()).isEqualTo(ErrorType.USER_PASSWORD_RESET_REQUIRED);
+                });
+        verify(jwtUtil, never()).generateToken(any(), any(), any());
+        verify(loginAttemptTxService, never()).updatePasswordErrorCountById(anyString(), anyInt());
+    }
+
+    @Test
+    void refreshRejectsWhenPasswordResetRequired() {
+        UserService service = createService(new PasswordManager());
+        User user = activeUser("user", "site-a", UserRole.USER);
+        user.setPasswordResetRequired(true);
+        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
+        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
+                CurrentUser.builder().userId("user").userRole(UserRole.USER).userSiteId("site-a").build()
+        );
+        when(userMapper.findUserById("user")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.refresh("refresh-token", false))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.USER_PASSWORD_RESET_REQUIRED);
+        verify(jwtUtil, never()).generateToken(any(), any(), any());
+    }
+
+    @Test
+    void changePasswordWhenResetRequiredUpdatesPasswordWithoutToken() {
+        PasswordManager passwordManager = new PasswordManager();
+        UserService service = createService(passwordManager);
+        User user = activeUser("user", "site-a", UserRole.USER);
+        user.setPasswordHash(passwordManager.encode("TempPass123!"));
+        user.setPasswordResetRequired(true);
+
+        when(userMapper.findUserLoginAttempt(any())).thenReturn(
+                UserLoginAttempt.builder().loginId("user").userId("user").passwordErrorCount(0).build()
+        );
+        when(userMapper.findUserWithCredential("user")).thenReturn(Optional.of(user));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build())
+        );
+
+        service.changePasswordWhenResetRequired("user", "TempPass123!", "NewPass123!");
+
+        ArgumentCaptor<User> updated = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateUserPassword(updated.capture());
+        assertThat(passwordManager.matches("NewPass123!", updated.getValue().getPasswordHash())).isTrue();
+        verify(loginAttemptTxService).updatePasswordErrorCountById("user", 0);
+        verify(jwtUtil, never()).generateToken(any(), any(), any());
+    }
+
+    @Test
+    void changePasswordWhenResetRequiredRejectsWhenNotRequired() {
+        PasswordManager passwordManager = new PasswordManager();
+        UserService service = createService(passwordManager);
+        User user = activeUser("user", "site-a", UserRole.USER);
+        user.setPasswordHash(passwordManager.encode("TempPass123!"));
+        user.setPasswordResetRequired(false);
+
+        when(userMapper.findUserLoginAttempt(any())).thenReturn(
+                UserLoginAttempt.builder().loginId("user").userId("user").passwordErrorCount(0).build()
+        );
+        when(userMapper.findUserWithCredential("user")).thenReturn(Optional.of(user));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build())
+        );
+
+        assertThatThrownBy(() -> service.changePasswordWhenResetRequired("user", "TempPass123!", "NewPass123!"))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.INVALID_DATA);
+        verify(userMapper, never()).updateUserPassword(any());
     }
 
     @Test

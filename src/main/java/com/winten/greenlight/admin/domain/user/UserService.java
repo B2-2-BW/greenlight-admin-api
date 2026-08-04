@@ -111,6 +111,14 @@ public class UserService {
 
         ensureSiteEnabled(user);
 
+        // 관리자 비밀번호 초기화 직후: 토큰을 발급하지 않고 비밀번호 변경을 강제한다.
+        if (Boolean.TRUE.equals(user.getPasswordResetRequired())) {
+            throw CoreException.of(
+                    ErrorType.USER_PASSWORD_RESET_REQUIRED,
+                    "비밀번호 변경 후 로그인할 수 있습니다."
+            );
+        }
+
         // 여기까지 도달했다면 정상 로그인 된 케이스
         loginAttemptTxService.updatePasswordErrorCountById(user.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
 
@@ -631,6 +639,58 @@ public class UserService {
         return findUserById(currentUser.getUserId());
     }
 
+    /**
+     * 로그인 전(비인증) 강제 비밀번호 변경.
+     * password_reset_required 계정만 허용하며, 토큰은 발급하지 않는다.
+     */
+    @Transactional
+    public void changePasswordWhenResetRequired(String loginId, String currentPassword, String newPassword) {
+        var userLoginAttempt = userMapper.findUserLoginAttempt(
+                UserLoginAttempt.builder().loginId(loginId).build()
+        );
+        User user = userMapper.findUserWithCredential(loginId).orElse(new User());
+
+        if (userLoginAttempt == null) {
+            userLoginAttempt = UserLoginAttempt.builder()
+                    .loginId(loginId)
+                    .userId(user.getUserId())
+                    .passwordErrorCount(0)
+                    .build();
+            loginAttemptTxService.saveNewLoginAttempt(userLoginAttempt);
+        }
+
+        if (userLoginAttempt.getPasswordErrorCount() >= 5) {
+            throw CoreException.of(
+                    ErrorType.USER_ACCOUNT_LOCKED,
+                    "비밀번호 입력 오류가 5회 누적되어 계정 이용이 제한되었습니다. '비밀번호 재설정'을 진행해 주세요."
+            );
+        }
+
+        if (!passwordManager.matches(currentPassword, user.getPasswordHash())) {
+            loginAttemptTxService.updatePasswordErrorCountById(loginId, userLoginAttempt.getPasswordErrorCount() + 1);
+            throw CoreException.of(ErrorType.UNAUTHORIZED, "ID 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        if (user.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw CoreException.of(ErrorType.USER_ACCOUNT_LOCKED, "사용할 수 없는 계정입니다.");
+        }
+
+        ensureSiteEnabled(user);
+
+        if (!Boolean.TRUE.equals(user.getPasswordResetRequired())) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "비밀번호 초기화가 필요하지 않은 계정입니다.");
+        }
+
+        if (passwordManager.matches(newPassword, user.getPasswordHash())) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "현재 비밀번호와 다른 비밀번호를 입력해 주세요.");
+        }
+
+        user.setPasswordHash(passwordManager.encode(newPassword));
+        user.setUpdatedBy(user.getUserId());
+        userMapper.updateUserPassword(user);
+        loginAttemptTxService.updatePasswordErrorCountById(loginId, 0);
+    }
+
     public UserToken refresh(String refreshToken, Boolean autoLogin) {
         if (!jwtUtil.validateToken(refreshToken)) {
             throw new CoreException(ErrorType.UNAUTHORIZED, "Refresh Token is Invalid or expired");
@@ -640,6 +700,14 @@ public class UserService {
                 .orElseThrow(() -> CoreException.of(ErrorType.UNAUTHORIZED, "Invalid Token ID"));
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new CoreException(ErrorType.UNAUTHORIZED, "사용할 수 없는 계정입니다.");
+        }
+
+        // 초기화 필요 계정은 세션 복원을 허용하지 않는다.
+        if (Boolean.TRUE.equals(user.getPasswordResetRequired())) {
+            throw CoreException.of(
+                    ErrorType.USER_PASSWORD_RESET_REQUIRED,
+                    "비밀번호 변경 후 로그인할 수 있습니다."
+            );
         }
 
         ensureSiteEnabled(user);
