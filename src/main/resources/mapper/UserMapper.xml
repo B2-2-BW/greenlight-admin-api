@@ -34,11 +34,28 @@
         WHERE u.user_email = #{email}
     </select>
 
+    <sql id="userHasSiteAccess">
+        (
+            EXISTS (
+                SELECT 1 FROM user_site_access usa
+                WHERE usa.account_id = u.account_id
+                  AND usa.site_id = #{siteId}
+            )
+            OR (
+                NOT EXISTS (
+                    SELECT 1 FROM user_site_access usa
+                    WHERE usa.account_id = u.account_id
+                )
+                AND u.site_id = #{siteId}
+            )
+        )
+    </sql>
+
     <select id="findAllUsers" resultType="User">
         <include refid="selectUser"/>
         <where>
             <if test="siteId != null and siteId != ''">
-                u.site_id = #{siteId}
+                <include refid="userHasSiteAccess"/>
             </if>
         </where>
         ORDER BY
@@ -54,7 +71,7 @@
 
     <sql id="userBaseFilterConditions">
         <if test="siteId != null and siteId != ''">
-            AND u.site_id = #{siteId}
+            AND <include refid="userHasSiteAccess"/>
         </if>
         <if test="role != null">
             AND u.user_role = #{role}
@@ -66,6 +83,16 @@
                 OR LOWER(u.user_email) LIKE CONCAT('%', LOWER(#{query}), '%')
                 OR LOWER(u.site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
                 OR LOWER(COALESCE((SELECT s.site_name FROM site_info s WHERE s.site_id = u.site_id), '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+                OR EXISTS (
+                    SELECT 1
+                    FROM user_site_access usa
+                    JOIN site_info s ON s.site_id = usa.site_id
+                    WHERE usa.account_id = u.account_id
+                      AND (
+                          LOWER(usa.site_id) LIKE CONCAT('%', LOWER(#{query}), '%')
+                          OR LOWER(COALESCE(s.site_name, '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+                      )
+                )
             )
         </if>
     </sql>
@@ -169,7 +196,7 @@
        )
     </insert>
 
-    <insert id="saveUser" parameterType="User">
+    <insert id="saveUser" parameterType="User" useGeneratedKeys="true" keyProperty="accountId" keyColumn="account_id">
         INSERT INTO user_account (
             user_id,
             site_id,
@@ -288,6 +315,100 @@
         WHERE site_id = #{siteId}
           AND user_role &lt;&gt; 'SUPER'
           AND account_status &lt;&gt; 'DISABLED'
+    </update>
+
+    <select id="findSiteIdsByAccountId" resultType="string">
+        SELECT site_id
+        FROM user_site_access
+        WHERE account_id = #{accountId}
+        ORDER BY site_id
+    </select>
+
+    <sql id="selectAccessibleSites">
+        SELECT
+            usa.account_id,
+            s.site_id,
+            s.site_name,
+            s.site_enabled
+        FROM user_site_access usa
+        JOIN site_info s ON s.site_id = usa.site_id AND s.deleted_at IS NULL
+    </sql>
+
+    <select id="findAccessibleSites" resultType="com.winten.greenlight.admin.domain.user.UserSite">
+        <include refid="selectAccessibleSites"/>
+        WHERE usa.account_id = #{accountId}
+        ORDER BY s.site_id
+    </select>
+
+    <select id="findAccessibleSitesByAccountIds" resultType="com.winten.greenlight.admin.domain.user.UserSite">
+        <include refid="selectAccessibleSites"/>
+        WHERE usa.account_id IN
+        <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">
+            #{accountId}
+        </foreach>
+        ORDER BY usa.account_id, s.site_id
+    </select>
+
+    <insert id="insertSiteAccess">
+        INSERT INTO user_site_access (
+            account_id,
+            site_id,
+            created_by,
+            created_ip
+        )
+        VALUES (
+            #{accountId},
+            #{siteId},
+            COALESCE(#{createdBy}, 'SYSTEM'),
+            COALESCE(#{createdIp}, '0.0.0.0')
+        )
+        ON CONFLICT (account_id, site_id) DO NOTHING
+    </insert>
+
+    <insert id="insertSiteAccessBatch">
+        INSERT INTO user_site_access (
+            account_id,
+            site_id,
+            created_by,
+            created_ip
+        )
+        VALUES
+        <foreach collection="siteIds" item="siteId" separator=",">
+            (
+                #{accountId},
+                #{siteId},
+                COALESCE(#{createdBy}, 'SYSTEM'),
+                COALESCE(#{createdIp}, '0.0.0.0')
+            )
+        </foreach>
+        ON CONFLICT (account_id, site_id) DO NOTHING
+    </insert>
+
+    <delete id="deleteSiteAccessByAccountId">
+        DELETE FROM user_site_access
+        WHERE account_id = #{accountId}
+    </delete>
+
+    <delete id="deleteSiteAccessBySiteId">
+        DELETE FROM user_site_access
+        WHERE site_id = #{siteId}
+    </delete>
+
+    <update id="reassignHomeSiteIfMissing">
+        UPDATE user_account u
+        SET site_id = (
+                SELECT usa.site_id
+                FROM user_site_access usa
+                WHERE usa.account_id = u.account_id
+                ORDER BY usa.site_id
+                LIMIT 1
+            ),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE u.site_id = #{siteId}
+          AND EXISTS (
+              SELECT 1 FROM user_site_access usa
+              WHERE usa.account_id = u.account_id
+          )
     </update>
 
     <select id="findUserAccountIdByApiKey" parameterType="String" resultType="User">

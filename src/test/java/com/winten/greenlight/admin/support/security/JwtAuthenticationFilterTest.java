@@ -14,6 +14,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -96,14 +98,30 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void nonSuperIgnoresRequestedSiteHeader() throws Exception {
-        prepareUser(UserRole.SITE_ADMIN, "account-site");
+    void nonSuperRejectsRequestedSiteOutsideGrant() throws Exception {
+        prepareUser(UserRole.SITE_ADMIN, "account-site", List.of("account-site"));
+        when(jsonMapper.writeValueAsString(any())).thenReturn("{}");
+        var request = authenticatedRequest("GET", "/rooms");
+        request.addHeader("X-ADMIN-SITE-ID", "other-site");
+        var response = new MockHttpServletResponse();
+        var chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(chain.getRequest()).isNull();
+    }
+
+    @Test
+    void nonSuperUsesRequestedSiteWhenGranted() throws Exception {
+        prepareUser(UserRole.SITE_ADMIN, "account-site", List.of("account-site", "other-site"));
         var request = authenticatedRequest("GET", "/rooms");
         request.addHeader("X-ADMIN-SITE-ID", "other-site");
 
         filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
 
-        assertThat(currentUser().getUserSiteId()).isEqualTo("account-site");
+        assertThat(currentUser().getUserSiteId()).isEqualTo("other-site");
+        assertThat(currentUser().resolveAccessibleSiteIds()).containsExactly("account-site", "other-site");
     }
 
     private void prepareResetRequiredUser() {
@@ -119,11 +137,16 @@ class JwtAuthenticationFilterTest {
     }
 
     private void prepareUser(UserRole role, String siteId) {
+        prepareUser(role, siteId, List.of(siteId));
+    }
+
+    private void prepareUser(UserRole role, String siteId, List<String> siteIds) {
         when(jwtUtil.extractUserId("access-token")).thenReturn("user-a");
         when(cachedUserService.getUser("user-a")).thenReturn(User.builder()
                 .accountId(1L)
                 .userId("user-a")
                 .siteId(siteId)
+                .siteIds(siteIds)
                 .userRole(role)
                 .accountStatus(AccountStatus.ACTIVE)
                 .passwordResetRequired(false)

@@ -56,7 +56,7 @@ class UserControllerTest {
         var request = new UserApprovalRequest();
         request.setUsername("승인 사용자");
         request.setUserEmail("approved@example.com");
-        request.setSiteId("site-a");
+        request.setSiteIds(List.of("site-a"));
         request.setUserRole(UserRole.USER);
         request.setReason("가입 정보 확인");
         var approvedUser = User.builder().userId("user-1").build();
@@ -64,7 +64,7 @@ class UserControllerTest {
                 "user-1",
                 request.getUsername(),
                 request.getUserEmail(),
-                request.getSiteId(),
+                request.getSiteIds(),
                 request.getUserRole(),
                 request.getReason()
         )).thenReturn(approvedUser);
@@ -75,7 +75,7 @@ class UserControllerTest {
                 "user-1",
                 request.getUsername(),
                 request.getUserEmail(),
-                request.getSiteId(),
+                request.getSiteIds(),
                 request.getUserRole(),
                 request.getReason()
         );

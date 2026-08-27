@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -22,6 +23,8 @@ public class User extends AuditDto {
     private String userId;
     private String siteId;
     private String siteName;
+    private List<String> siteIds;
+    private List<UserSite> sites;
     private String username;
     private String profileColor;
     private String profileInitials;
@@ -37,4 +40,18 @@ public class User extends AuditDto {
     private String passwordHash;
     private UserRole userRole;
     private Boolean autoLogin;
+
+    public List<String> resolveSiteIds() {
+        if (siteIds != null && !siteIds.isEmpty()) {
+            return siteIds;
+        }
+        if (siteId == null || siteId.isBlank()) {
+            return List.of();
+        }
+        return List.of(siteId);
+    }
+
+    public boolean hasSiteAccess(String targetSiteId) {
+        return targetSiteId != null && resolveSiteIds().contains(targetSiteId);
+    }
 }

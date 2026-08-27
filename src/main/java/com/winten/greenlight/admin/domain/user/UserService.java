@@ -18,14 +18,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +47,7 @@ public class UserService {
     );
     private static final Pattern PROFILE_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
     private static final List<String> MANAGED_USER_AUDIT_FIELDS = List.of(
-            "username", "userEmail", "siteId", "userRole"
+            "username", "userEmail", "siteIds", "userRole"
     );
 
     private final UserMapper userMapper;
@@ -134,13 +139,16 @@ public class UserService {
         user.setUpdatedBy(currentUser.getUserId());
         applyDefaultProfileAppearance(user);
         userMapper.saveUser(user);
+        persistHomeSiteAccess(user);
         return cachedUserService.getUser(user.getUserId());
     }
 
     // 조회 시 unique 제한 이슈로 전체 테이블 조회 필요함 (site_id 제한 금지)
     private User findUserById(String userId) {
-        return userMapper.findUserById(userId).
+        User user = userMapper.findUserById(userId).
                 orElseThrow(() -> CoreException.of(ErrorType.USER_NOT_FOUND, "사용자를 찾을 수 없습니다"));
+        attachAccessibleSites(user);
+        return user;
     }
     // 회원가입
     @Transactional
@@ -187,6 +195,7 @@ public class UserService {
         }
         applyDefaultProfileAppearance(user);
         userMapper.saveUser(user);
+        persistHomeSiteAccess(user);
     }
 
 
@@ -195,7 +204,9 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
         String siteId = currentUser.getUserSiteId();
-        return userMapper.findAllUsers(siteId);
+        List<User> users = userMapper.findAllUsers(siteId);
+        attachAccessibleSites(users);
+        return users;
     }
 
     @Transactional(readOnly = true)
@@ -221,6 +232,7 @@ public class UserService {
         }
         var content = totalElements == 0 ? List.<User>of()
                 : userMapper.findUsersPage(siteId, normalizedQuery, status, role, size, offset);
+        attachAccessibleSites(content);
         return new UserPage(content, page, size, totalElements, totalPages, statusCounts);
     }
 
@@ -241,7 +253,7 @@ public class UserService {
                             userId,
                             beforeUser.getUsername(),
                             beforeUser.getUserEmail(),
-                            beforeUser.getSiteId(),
+                            beforeUser.resolveSiteIds(),
                             beforeUser.getUserRole()
                     );
                 }
@@ -327,13 +339,12 @@ public class UserService {
     public User getManageableUser(String userId) {
         AuthUtil.ensureUserAdmin();
         var user = this.findUserById(userId);
-        AuthUtil.ensureCanManageUser(user.getSiteId(), user.getUserRole());
-        if (user.getUserRole() != UserRole.SUPER) {
-            siteMapper.findSiteById(SiteInfo.builder().siteId(user.getSiteId()).build())
-                    .orElseThrow(() -> CoreException.of(
-                            ErrorType.SITE_NOT_FOUND,
-                            "폐기된 사이트의 사용자는 변경할 수 없습니다."
-                    ));
+        AuthUtil.ensureCanManageUser(user);
+        if (user.getUserRole() != UserRole.SUPER && !hasAnyExistingSite(user)) {
+            throw CoreException.of(
+                    ErrorType.SITE_NOT_FOUND,
+                    "폐기된 사이트의 사용자는 변경할 수 없습니다."
+            );
         }
         return user;
     }
@@ -342,7 +353,7 @@ public class UserService {
     public User getViewableUser(String userId) {
         AuthUtil.ensureUserAdmin();
         var user = this.findUserById(userId);
-        AuthUtil.ensureCanViewUser(user.getSiteId());
+        AuthUtil.ensureCanViewUser(user);
         return user;
     }
 
@@ -399,13 +410,13 @@ public class UserService {
             String userId,
             String username,
             String userEmail,
-            String siteId,
+            List<String> siteIds,
             UserRole userRole
     ) {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
-        return approveUser(user, currentUser, username, userEmail, siteId, userRole);
+        return approveUser(user, currentUser, username, userEmail, siteIds, userRole);
     }
 
     @Transactional
@@ -413,7 +424,7 @@ public class UserService {
             String userId,
             String username,
             String userEmail,
-            String siteId,
+            List<String> siteIds,
             UserRole userRole,
             String reason
     ) {
@@ -421,7 +432,7 @@ public class UserService {
         var currentUser = AuthUtil.getCurrentUser();
         var user = getManageableUser(userId);
         Map<String, Object> before = approvalAuditedValues(user);
-        var approvedUser = approveUser(user, currentUser, username, userEmail, siteId, userRole);
+        var approvedUser = approveUser(user, currentUser, username, userEmail, siteIds, userRole);
         auditService.recordChanges(
                 approvedUser.getSiteId(),
                 "USER",
@@ -430,7 +441,7 @@ public class UserService {
                 reason,
                 before,
                 approvalAuditedValues(approvedUser),
-                List.of("accountStatus", "username", "userEmail", "siteId", "userRole")
+                List.of("accountStatus", "username", "userEmail", "siteIds", "userRole")
         );
         return approvedUser;
     }
@@ -440,7 +451,7 @@ public class UserService {
             CurrentUser currentUser,
             String username,
             String userEmail,
-            String siteId,
+            List<String> siteIds,
             UserRole userRole
     ) {
         String userId = user.getUserId();
@@ -451,17 +462,13 @@ public class UserService {
         if (userRole == UserRole.GUEST) {
             throw CoreException.of(ErrorType.INVALID_DATA, "GUEST 권한은 승인할 수 없습니다.");
         }
-        if (currentUser.getUserRole() == UserRole.SITE_ADMIN) {
-            if (!currentUser.getUserSiteId().equals(siteId)) {
-                throw CoreException.of(ErrorType.FORBIDDEN, "자신의 사이트 계정만 승인할 수 있습니다.");
-            }
-            if (userRole != UserRole.USER && userRole != UserRole.SITE_ADMIN) {
-                throw CoreException.of(ErrorType.FORBIDDEN, "슈퍼유저 권한은 부여할 수 없습니다.");
-            }
+        if (currentUser.getUserRole() == UserRole.SITE_ADMIN
+                && userRole != UserRole.USER && userRole != UserRole.SITE_ADMIN) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "슈퍼유저 권한은 부여할 수 없습니다.");
         }
 
-        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
+        List<String> mergedSiteIds = mergeGrantedSiteIds(currentUser, user, siteIds);
+        String homeSiteId = resolveHomeSiteId(user, mergedSiteIds);
         userMapper.findUserByEmail(userEmail)
                 .filter(existing -> !existing.getUserId().equals(userId))
                 .ifPresent(existing -> {
@@ -470,12 +477,13 @@ public class UserService {
 
         user.setUsername(username);
         user.setUserEmail(userEmail);
-        user.setSiteId(siteId);
+        user.setSiteId(homeSiteId);
         user.setUserRole(userRole);
         user.setUpdatedBy(currentUser.getUserId());
         if (userMapper.approveUser(user) != 1) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 대기 중인 계정만 승인할 수 있습니다.");
         }
+        replaceSiteAccess(user.getAccountId(), mergedSiteIds);
         user.setAccountStatus(AccountStatus.ACTIVE);
         return findUserById(userId);
     }
@@ -491,7 +499,7 @@ public class UserService {
         values.put("accountStatus", user.getAccountStatus() == null ? null : user.getAccountStatus().name());
         values.put("username", user.getUsername());
         values.put("userEmail", user.getUserEmail());
-        values.put("siteId", user.getSiteId());
+        values.put("siteIds", user.resolveSiteIds());
         values.put("userRole", user.getUserRole() == null ? null : user.getUserRole().name());
         return values;
     }
@@ -501,7 +509,7 @@ public class UserService {
             String userId,
             String username,
             String userEmail,
-            String siteId,
+            List<String> siteIds,
             UserRole userRole
     ) {
         AuthUtil.ensureUserAdmin();
@@ -517,24 +525,20 @@ public class UserService {
         }
 
         boolean isSelf = currentUser.getUserId().equals(userId);
+        List<String> requestedSiteIds = siteIds;
         if (isSelf) {
-            siteId = user.getSiteId();
+            requestedSiteIds = user.resolveSiteIds();
             userRole = user.getUserRole();
         }
-        String targetSiteId = siteId;
         UserRole targetUserRole = userRole;
 
-        if (currentUser.getUserRole() == UserRole.SITE_ADMIN) {
-            if (!currentUser.getUserSiteId().equals(targetSiteId)) {
-                throw CoreException.of(ErrorType.FORBIDDEN, "자신의 사이트 계정만 수정할 수 있습니다.");
-            }
-            if (targetUserRole != UserRole.USER && targetUserRole != UserRole.SITE_ADMIN) {
-                throw CoreException.of(ErrorType.FORBIDDEN, "슈퍼유저 권한은 부여할 수 없습니다.");
-            }
+        if (currentUser.getUserRole() == UserRole.SITE_ADMIN
+                && targetUserRole != UserRole.USER && targetUserRole != UserRole.SITE_ADMIN) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "슈퍼유저 권한은 부여할 수 없습니다.");
         }
 
-        siteMapper.findSiteById(SiteInfo.builder().siteId(targetSiteId).build())
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + targetSiteId));
+        List<String> mergedSiteIds = mergeGrantedSiteIds(currentUser, user, requestedSiteIds);
+        String homeSiteId = resolveHomeSiteId(user, mergedSiteIds);
         userMapper.findUserByEmail(userEmail)
                 .filter(existing -> !existing.getUserId().equals(userId))
                 .ifPresent(existing -> {
@@ -543,12 +547,13 @@ public class UserService {
 
         user.setUsername(username);
         user.setUserEmail(userEmail);
-        user.setSiteId(targetSiteId);
+        user.setSiteId(homeSiteId);
         user.setUserRole(targetUserRole);
         user.setUpdatedBy(currentUser.getUserId());
         if (userMapper.updateManagedUser(user) != 1) {
             throw CoreException.of(ErrorType.INVALID_DATA, "승인 완료 또는 비활성화된 계정만 수정할 수 있습니다.");
         }
+        replaceSiteAccess(user.getAccountId(), mergedSiteIds);
         User updatedUser = findUserById(userId);
         auditService.recordChanges(
                 updatedUser.getSiteId(),
@@ -721,12 +726,149 @@ public class UserService {
             return;
         }
 
-        siteMapper.findSiteById(SiteInfo.builder().siteId(user.getSiteId()).build())
-                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
-                .orElseThrow(() -> CoreException.of(
-                        ErrorType.FORBIDDEN,
-                        "비활성화된 사이트의 계정은 로그인할 수 없습니다."
-                ));
+        boolean anyEnabled = loadAccessibleSiteIds(user).stream()
+                .map(siteId -> siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build()))
+                .flatMap(java.util.Optional::stream)
+                .anyMatch(site -> Boolean.TRUE.equals(site.getSiteEnabled()));
+        if (!anyEnabled) {
+            throw CoreException.of(
+                    ErrorType.FORBIDDEN,
+                    "비활성화된 사이트의 계정은 로그인할 수 없습니다."
+            );
+        }
+    }
+
+    private List<String> loadAccessibleSiteIds(User user) {
+        if (user.getSiteIds() != null && !user.getSiteIds().isEmpty()) {
+            return user.getSiteIds();
+        }
+        if (user.getAccountId() != null) {
+            List<String> stored = userMapper.findSiteIdsByAccountId(user.getAccountId());
+            if (stored != null && !stored.isEmpty()) {
+                return stored;
+            }
+        }
+        return user.resolveSiteIds();
+    }
+
+    private void attachAccessibleSites(User user) {
+        if (user == null) {
+            return;
+        }
+        attachAccessibleSites(List.of(user));
+    }
+
+    private void attachAccessibleSites(List<User> users) {
+        if (users == null || users.isEmpty()) {
+            return;
+        }
+        List<Long> accountIds = users.stream()
+                .map(User::getAccountId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, List<UserSite>> sitesByAccount = new LinkedHashMap<>();
+        if (!accountIds.isEmpty()) {
+            List<UserSite> loaded = userMapper.findAccessibleSitesByAccountIds(accountIds);
+            if (loaded != null) {
+                for (UserSite site : loaded) {
+                    if (site.getAccountId() == null) {
+                        continue;
+                    }
+                    sitesByAccount.computeIfAbsent(site.getAccountId(), ignored -> new ArrayList<>()).add(site);
+                }
+            }
+        }
+        for (User user : users) {
+            List<UserSite> sites = user.getAccountId() == null
+                    ? List.of()
+                    : sitesByAccount.getOrDefault(user.getAccountId(), List.of());
+            user.setSites(sites);
+            List<String> siteIds = sites.stream().map(UserSite::getSiteId).filter(Objects::nonNull).toList();
+            if (siteIds.isEmpty() && user.getSiteId() != null && !user.getSiteId().isBlank()) {
+                siteIds = List.of(user.getSiteId());
+            }
+            user.setSiteIds(siteIds);
+        }
+    }
+
+    private boolean hasAnyExistingSite(User user) {
+        return loadAccessibleSiteIds(user).stream()
+                .map(siteId -> siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build()))
+                .anyMatch(java.util.Optional::isPresent);
+    }
+
+    private List<String> mergeGrantedSiteIds(CurrentUser actor, User target, List<String> requestedSiteIds) {
+        List<String> requested = normalizeSiteIds(requestedSiteIds);
+        if (requested.isEmpty()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "사이트를 하나 이상 부여해야 합니다.");
+        }
+        validateSitesExist(requested);
+
+        if (actor.getUserRole() == UserRole.SUPER) {
+            return requested;
+        }
+
+        Set<String> adminSites = new LinkedHashSet<>(actor.resolveAccessibleSiteIds());
+        for (String siteId : requested) {
+            if (!adminSites.contains(siteId)) {
+                throw CoreException.of(ErrorType.FORBIDDEN, "자신의 사이트만 부여할 수 있습니다.");
+            }
+        }
+
+        Set<String> merged = new LinkedHashSet<>(requested);
+        for (String existing : target.resolveSiteIds()) {
+            if (!adminSites.contains(existing)) {
+                merged.add(existing);
+            }
+        }
+        if (merged.isEmpty()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "사이트를 하나 이상 부여해야 합니다.");
+        }
+        return List.copyOf(merged);
+    }
+
+    private String resolveHomeSiteId(User target, List<String> mergedSiteIds) {
+        if (target.getSiteId() != null && mergedSiteIds.contains(target.getSiteId())) {
+            return target.getSiteId();
+        }
+        return mergedSiteIds.get(0);
+    }
+
+    private List<String> normalizeSiteIds(List<String> siteIds) {
+        if (siteIds == null) {
+            return List.of();
+        }
+        return siteIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(siteId -> !siteId.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private void validateSitesExist(List<String> siteIds) {
+        for (String siteId : siteIds) {
+            siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
+                    .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
+        }
+    }
+
+    private void persistHomeSiteAccess(User user) {
+        if (user.getAccountId() == null || user.getSiteId() == null || user.getSiteId().isBlank()) {
+            return;
+        }
+        userMapper.insertSiteAccess(user.getAccountId(), user.getSiteId());
+    }
+
+    private void replaceSiteAccess(Long accountId, List<String> siteIds) {
+        if (accountId == null) {
+            return;
+        }
+        userMapper.deleteSiteAccessByAccountId(accountId);
+        if (siteIds != null && !siteIds.isEmpty()) {
+            userMapper.insertSiteAccessBatch(accountId, siteIds);
+        }
     }
 
     private void ensureRegistrationSiteEnabled(String siteId) {

@@ -1,6 +1,7 @@
 package com.winten.greenlight.admin.domain.site;
 
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
+import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
@@ -22,6 +23,7 @@ public class SiteService {
     private final SiteCacheRepository siteCacheRepository;
     private final SiteApiKeyGenerator siteApiKeyGenerator;
     private final AuditService auditService;
+    private final UserMapper userMapper;
 
     private static final List<String> AUDITED_SITE_FIELDS = List.of(
             "siteName", "siteDescription", "siteEnabled", "queueEnabled"
@@ -39,7 +41,9 @@ public class SiteService {
         var currentUser = AuthUtil.getCurrentUser();
         List<SiteInfo> siteList = currentUser.getUserRole().isSuper()
                 ? siteMapper.findAllSite()
-                : List.of(findSiteById(currentUser.getUserSiteId()));
+                : currentUser.resolveAccessibleSiteIds().stream()
+                        .map(this::findSiteById)
+                        .toList();
         for (var site : siteList) {
             siteCacheRepository.updateSiteApiKeyCache(site);
             siteCacheRepository.updateSiteInfo(site);
@@ -49,13 +53,16 @@ public class SiteService {
     public SitePage getManageableSites(int requestedPage, int size, String query, Boolean enabled) {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
-        String siteId = currentUser.getUserRole().isSuper() ? null : currentUser.getUserSiteId();
+        List<String> siteIds = currentUser.getUserRole().isSuper() ? null : currentUser.resolveAccessibleSiteIds();
+        if (siteIds != null && siteIds.isEmpty()) {
+            return new SitePage(List.of(), 1, size, 0, 0);
+        }
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        long totalElements = siteMapper.countSites(siteId, normalizedQuery, enabled);
+        long totalElements = siteMapper.countSites(siteIds, normalizedQuery, enabled);
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
         int page = totalPages == 0 ? 1 : Math.min(requestedPage, totalPages);
         var content = totalElements == 0 ? List.<SiteInfo>of()
-                : siteMapper.findSitesPage(siteId, normalizedQuery, enabled, size, (long) (page - 1) * size);
+                : siteMapper.findSitesPage(siteIds, normalizedQuery, enabled, size, (long) (page - 1) * size);
         return new SitePage(content, page, size, totalElements, totalPages);
     }
 
@@ -112,6 +119,8 @@ public class SiteService {
         if (siteMapper.softDeleteSite(SiteInfo.builder().siteId(siteId).build()) != 1) {
             throw CoreException.of(ErrorType.SITE_NOT_FOUND, "사이트 ID를 찾을 수 없습니다. " + siteId);
         }
+        userMapper.deleteSiteAccessBySiteId(siteId);
+        userMapper.reassignHomeSiteIfMissing(siteId);
         Map<String, Object> before = new LinkedHashMap<>();
         before.put("siteEnabled", previousSite.getSiteEnabled());
         before.put("queueEnabled", previousSite.getQueueEnabled());

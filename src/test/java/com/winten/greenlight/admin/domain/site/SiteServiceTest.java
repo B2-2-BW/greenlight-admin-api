@@ -44,13 +44,13 @@ class SiteServiceTest {
     void siteAdminListsOnlyOwnSiteAndCapsPage() {
         var service = service();
         authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
-        when(siteMapper.countSites("site-a", "alpha", true)).thenReturn(21L);
-        when(siteMapper.findSitesPage("site-a", "alpha", true, 10, 20)).thenReturn(List.of());
+        when(siteMapper.countSites(List.of("site-a"), "alpha", true)).thenReturn(21L);
+        when(siteMapper.findSitesPage(List.of("site-a"), "alpha", true, 10, 20)).thenReturn(List.of());
 
         var result = service.getManageableSites(99, 10, " alpha ", true);
 
         assertThat(result.getPage()).isEqualTo(3);
-        verify(siteMapper).findSitesPage("site-a", "alpha", true, 10, 20);
+        verify(siteMapper).findSitesPage(List.of("site-a"), "alpha", true, 10, 20);
     }
 
     @Test
@@ -323,8 +323,10 @@ class SiteServiceTest {
 
         service.deleteSite("old1", "계약 종료");
 
-        InOrder order = inOrder(siteMapper, auditService, siteCacheRepository);
+        InOrder order = inOrder(siteMapper, userMapper, auditService, siteCacheRepository);
         order.verify(siteMapper).softDeleteSite(any());
+        order.verify(userMapper).deleteSiteAccessBySiteId("old1");
+        order.verify(userMapper).reassignHomeSiteIfMissing("old1");
         order.verify(auditService).recordChanges(
                 eq("old1"), eq("SITE"), eq("old1"), eq(AuditAction.DELETE), eq("계약 종료"),
                 anyMap(), anyMap(), eq(List.of("siteEnabled", "queueEnabled", "deleted"))
@@ -332,12 +334,12 @@ class SiteServiceTest {
         order.verify(siteCacheRepository).deleteSiteApiKeyCache("old-api-key");
         order.verify(siteCacheRepository).updateSiteInfo(any());
         order.verify(siteCacheRepository).updateRoomListCache("old1", List.of());
-        verifyNoInteractions(roomMapper, userMapper);
+        verifyNoInteractions(roomMapper);
     }
 
     private SiteService service() {
         return new SiteService(
-                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService
+                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService, userMapper
         );
     }
 

@@ -13,7 +13,7 @@ class UserApprovalRequestTest {
         var request = new UserApprovalRequest();
         request.setUsername("승인 사용자");
         request.setUserEmail("approved@example.com");
-        request.setSiteId("site-a");
+        request.setSiteIds(java.util.List.of("site-a"));
         request.setUserRole(UserRole.USER);
         request.setReason(" ");
 

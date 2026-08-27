@@ -4,6 +4,7 @@ import com.winten.greenlight.admin.domain.user.User;
 import com.winten.greenlight.admin.domain.user.AccountStatus;
 import com.winten.greenlight.admin.domain.user.UserLoginAttempt;
 import com.winten.greenlight.admin.domain.user.UserRole;
+import com.winten.greenlight.admin.domain.user.UserSite;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -34,6 +35,14 @@ public interface UserMapper {
     void updateUserLoginAttempt(UserLoginAttempt user);
     void resetUserPassword(User user);
     int disableUsersBySiteId(@Param("siteId") String siteId);
+    List<String> findSiteIdsByAccountId(@Param("accountId") Long accountId);
+    List<UserSite> findAccessibleSites(@Param("accountId") Long accountId);
+    List<UserSite> findAccessibleSitesByAccountIds(@Param("accountIds") List<Long> accountIds);
+    void insertSiteAccess(@Param("accountId") Long accountId, @Param("siteId") String siteId);
+    void insertSiteAccessBatch(@Param("accountId") Long accountId, @Param("siteIds") List<String> siteIds);
+    int deleteSiteAccessByAccountId(@Param("accountId") Long accountId);
+    int deleteSiteAccessBySiteId(@Param("siteId") String siteId);
+    int reassignHomeSiteIfMissing(@Param("siteId") String siteId);
     UserLoginAttempt findUserLoginAttempt(UserLoginAttempt attempt); // null 별도처리를 하기때문에 Optional 쓰지 않음
     void saveUserLoginAttempt(UserLoginAttempt attempt);
 }
