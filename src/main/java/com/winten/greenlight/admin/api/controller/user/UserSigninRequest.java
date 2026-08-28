@@ -14,6 +14,8 @@ public class UserSigninRequest {
     @NotBlank
     private String userId;
     @NotBlank
+    private String siteId;
+    @NotBlank
     @Email
     private String userEmail;
     @NotBlank

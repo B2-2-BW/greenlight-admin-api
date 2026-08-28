@@ -41,7 +41,7 @@ public class SecurityConfig {
         return (web) -> web.ignoring()
                 .requestMatchers(HttpMethod.OPTIONS)
                 .requestMatchers(CorsUtils::isPreFlightRequest)
-                .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*")
+                .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*", "/users/availability")
                 .requestMatchers(
                         HttpMethod.POST,
                         "/users/login",
@@ -80,7 +80,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                     .requestMatchers(HttpMethod.OPTIONS).permitAll()
                     .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                    .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*", "/users/availability").permitAll()
                     .requestMatchers(
                             HttpMethod.POST,
                             "/users/login",

@@ -72,6 +72,11 @@ public class UserController {
         return ResponseEntity.ok(new UserBulkActionResponse(updatedCount));
     }
 
+    @GetMapping("/availability")
+    public ResponseEntity<UserIdAvailabilityResponse> checkUserIdAvailability(@RequestParam String userId) {
+        return ResponseEntity.ok(new UserIdAvailabilityResponse(userService.isUserIdAvailable(userId)));
+    }
+
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUser(@PathVariable String userId) {
         var user = userService.getViewableUser(userId);
