@@ -55,6 +55,35 @@ class RoomMetricHistoryRepositoryTest {
                 .doesNotContain("r._field == \"room_capacity\"");
     }
 
+    @Test
+    void concurrentGaugesSumLastSnapshotsAcrossRoomsThenKeepWindowSeries() {
+        QueryApi queryApi = mock(QueryApi.class);
+        when(queryApi.query(org.mockito.ArgumentMatchers.anyString())).thenReturn(List.of());
+        RoomMetricHistoryRepository repository = new RoomMetricHistoryRepository(queryApi);
+        ReflectionTestUtils.setField(repository, "bucket", "queue-bucket");
+
+        repository.findConcurrentGauges(
+                List.of("room-one", "room-two"),
+                Instant.parse("2026-07-01T00:00:00Z"),
+                Instant.parse("2026-07-01T01:00:00Z"),
+                "1m"
+        );
+
+        ArgumentCaptor<String> fluxCaptor = ArgumentCaptor.forClass(String.class);
+        verify(queryApi).query(fluxCaptor.capture());
+        String flux = fluxCaptor.getValue();
+        assertThat(flux)
+                .contains("from(bucket: \"queue-bucket\")")
+                .contains("(r.room_id == \"room-one\" or r.room_id == \"room-two\")")
+                .contains("(r._field == \"total_waiting\" or r._field == \"total_active\")")
+                .contains("aggregateWindow(every: 1m, fn: last, createEmpty: false)")
+                .contains("group(columns: [\"_field\"])")
+                .contains("aggregateWindow(every: 1m, fn: sum, createEmpty: false)")
+                .doesNotContain("waiting_count")
+                .doesNotContain("room_capacity");
+        assertThat(countOccurrences(flux, "aggregateWindow(")).isEqualTo(2);
+    }
+
     private static int countOccurrences(String value, String target) {
         return value.split(java.util.regex.Pattern.quote(target), -1).length - 1;
     }

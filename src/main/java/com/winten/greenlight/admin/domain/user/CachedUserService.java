@@ -6,14 +6,21 @@ import com.winten.greenlight.admin.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class CachedUserService {
     private final UserMapper userMapper;
 
     public User getUser(String userId) {
-        return userMapper.findUserById(userId)
+        User user = userMapper.findUserById(userId)
                 .orElseThrow(() -> CoreException.of(ErrorType.USER_NOT_FOUND, "존재하지 않는 사용자입니다."));
+        if (user.getAccountId() != null) {
+            var siteIds = userMapper.findSiteIdsByAccountId(user.getAccountId());
+            user.setSiteIds(siteIds == null ? List.of() : siteIds);
+        }
+        return user;
     }
 
 }

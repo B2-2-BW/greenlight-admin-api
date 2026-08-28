@@ -11,6 +11,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * 스케줄러가 3초마다 기록하는 {@code room_metric} 조회.
+ * 게이지(대기/체류 인원)와 카운터(유입/입장 등)는 집계 함수가 다르다.
+ */
 @Repository
 @RequiredArgsConstructor
 public class RoomMetricHistoryRepository {
@@ -20,6 +24,10 @@ public class RoomMetricHistoryRepository {
     @Value("${influxdb.default-bucket}")
     private String bucket;
 
+    /**
+     * 방별 시계열. 게이지는 창의 last(스냅샷), 카운터는 sum(구간 합).
+     * 게이지에 sum을 쓰면 3초 샘플이 더해져 인원이 부풀어 오른다.
+     */
     public List<RoomMetricRecord> findByRoomIds(List<String> roomIds, Instant from, Instant to, String window) {
         String roomPredicate = fluxOrPredicate("r.room_id", roomIds);
         String safeWindow = fluxDurationLiteral(window);
@@ -47,6 +55,36 @@ public class RoomMetricHistoryRepository {
         return queryApi.query(flux).stream()
                 .flatMap(table -> table.getRecords().stream())
                 .map(this::toRecord)
+                .toList();
+    }
+
+    /**
+     * 전체 방의 동시 대기/체류. 방마다 last를 맞춘 뒤 같은 시각의 방을 더한다.
+     * 방별 최댓값을 더하면 피크 시각이 다를 때 과대 집계된다.
+     */
+    public List<ConcurrentGaugeRecord> findConcurrentGauges(List<String> roomIds, Instant from, Instant to, String window) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return List.of();
+        }
+        String roomPredicate = fluxOrPredicate("r.room_id", roomIds);
+        String safeWindow = fluxDurationLiteral(window);
+        String flux = """
+                from(bucket: %s)
+                    |> range(start: %s, stop: %s)
+                    |> filter(fn: (r) => r._measurement == "room_metric" and %s and (%s))
+                    |> aggregateWindow(every: %s, fn: last, createEmpty: false)
+                    |> group(columns: ["_field"])
+                    |> aggregateWindow(every: %s, fn: sum, createEmpty: false)
+                    |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                    |> sort(columns: ["_time"])
+                """.formatted(
+                fluxStringLiteral(bucket), fluxTimeLiteral(from), fluxTimeLiteral(to), roomPredicate,
+                fluxOrPredicate("r._field", List.of("total_waiting", "total_active")),
+                safeWindow, safeWindow);
+
+        return queryApi.query(flux).stream()
+                .flatMap(table -> table.getRecords().stream())
+                .map(this::toConcurrentRecord)
                 .toList();
     }
 
@@ -104,10 +142,22 @@ public class RoomMetricHistoryRepository {
         );
     }
 
+    private ConcurrentGaugeRecord toConcurrentRecord(FluxRecord record) {
+        return new ConcurrentGaugeRecord(
+                record.getTime(),
+                asLong(record.getValueByKey("total_waiting")),
+                asLong(record.getValueByKey("total_active"))
+        );
+    }
+
     private Long asLong(Object value) {
         return value instanceof Number number ? number.longValue() : null;
     }
 
     public record RoomMetricRecord(String roomId, QueueStatisticsPoint point) {
+    }
+
+    /** 같은 시각에 선택한 방을 합친 대기/체류 인원. */
+    public record ConcurrentGaugeRecord(Instant timestamp, Long totalWaiting, Long totalActive) {
     }
 }

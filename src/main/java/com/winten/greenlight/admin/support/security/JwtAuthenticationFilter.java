@@ -53,12 +53,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                 }
 
-                String userSiteId = user.getSiteId();
+                String userSiteId = user.resolveHomeSiteId();
                 String requestedSiteId = request.getHeader("X-ADMIN-SITE-ID");
-                if (user.getUserRole() == UserRole.SUPER
-                        && requestedSiteId != null
-                        && !requestedSiteId.isBlank()) {
-                    userSiteId = requestedSiteId.trim();
+                var accessibleSiteIds = user.resolveSiteIds();
+                if (requestedSiteId != null && !requestedSiteId.isBlank()) {
+                    requestedSiteId = requestedSiteId.trim();
+                    if (user.getUserRole() == UserRole.SUPER) {
+                        userSiteId = requestedSiteId;
+                    } else if (accessibleSiteIds.contains(requestedSiteId)) {
+                        userSiteId = requestedSiteId;
+                    } else {
+                        throw CoreException.of(ErrorType.FORBIDDEN, "해당 사이트에 대한 권한이 없습니다");
+                    }
                 }
 
                 CurrentUser currentUser = CurrentUser.builder()
@@ -66,6 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .userId(user.getUserId())
                         .userSiteId(userSiteId)
                         .userRole(user.getUserRole())
+                        .accessibleSiteIds(user.getUserRole() == UserRole.SUPER ? List.of() : accessibleSiteIds)
                         .build();
 
                 // Spring Security Authentication 객체 생성

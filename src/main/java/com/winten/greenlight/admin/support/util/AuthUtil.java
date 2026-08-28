@@ -1,6 +1,7 @@
 package com.winten.greenlight.admin.support.util;
 
 import com.winten.greenlight.admin.domain.user.CurrentUser;
+import com.winten.greenlight.admin.domain.user.User;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
@@ -54,39 +55,40 @@ public class AuthUtil {
         var currentUser = getCurrentUser();
         if (currentUser.getUserRole() != UserRole.SUPER
                 && (currentUser.getUserRole() != UserRole.SITE_ADMIN
-                || currentUser.getUserSiteId() == null
-                || !currentUser.getUserSiteId().equals(siteId))) {
+                || !currentUser.canAccessSite(siteId))) {
             throw CoreException.of(ErrorType.FORBIDDEN, "해당 사이트를 관리할 권한이 없습니다");
         }
     }
 
-    public static void ensureCanManageUser(String siteId, UserRole targetRole) {
+    public static void ensureCanManageUser(User target) {
         var currentUser = getCurrentUser();
         if (currentUser.getUserRole() == UserRole.SUPER) {
             return;
         }
         if (currentUser.getUserRole() != UserRole.SITE_ADMIN
                 || currentUser.getUserSiteId() == null
-                || !currentUser.getUserSiteId().equals(siteId)
-                || targetRole == UserRole.SUPER) {
+                || target == null
+                || !target.hasSiteAccess(currentUser.getUserSiteId())
+                || target.getUserRole() == UserRole.SUPER) {
             throw CoreException.of(ErrorType.FORBIDDEN, "해당 사용자를 관리할 권한이 없습니다");
         }
     }
 
     /**
      * User detail visibility is intentionally broader than user-management authority.
-     * A site administrator may inspect every account in their own site, including a
-     * SUPER account, but must still pass {@link #ensureCanManageUser(String, UserRole)}
-     * before any mutation.
+     * A site administrator may inspect every account that can access the currently
+     * selected site, including a SUPER account, but must still pass
+     * {@link #ensureCanManageUser(User)} before any mutation.
      */
-    public static void ensureCanViewUser(String siteId) {
+    public static void ensureCanViewUser(User target) {
         var currentUser = getCurrentUser();
         if (currentUser.getUserRole() == UserRole.SUPER) {
             return;
         }
         if (currentUser.getUserRole() != UserRole.SITE_ADMIN
                 || currentUser.getUserSiteId() == null
-                || !currentUser.getUserSiteId().equals(siteId)) {
+                || target == null
+                || !target.hasSiteAccess(currentUser.getUserSiteId())) {
             throw CoreException.of(ErrorType.FORBIDDEN, "해당 사용자를 조회할 권한이 없습니다");
         }
     }

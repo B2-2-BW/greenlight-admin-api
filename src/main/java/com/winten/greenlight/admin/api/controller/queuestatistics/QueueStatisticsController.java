@@ -20,6 +20,7 @@ public class QueueStatisticsController {
 
     @GetMapping
     public ResponseEntity<QueueStatistics> getQueueStatistics(@ParameterObject @Valid QueueStatisticsRequest request) {
-        return ResponseEntity.ok(queueStatisticsService.getStatistics(request.from(), request.to(), request.roomIds()));
+        return ResponseEntity.ok(queueStatisticsService.getStatistics(
+                request.from(), request.to(), request.roomIds(), request.window()));
     }
 }

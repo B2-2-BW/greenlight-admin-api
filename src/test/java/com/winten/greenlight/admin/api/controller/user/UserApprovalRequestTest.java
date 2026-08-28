@@ -13,7 +13,7 @@ class UserApprovalRequestTest {
         var request = new UserApprovalRequest();
         request.setUsername("승인 사용자");
         request.setUserEmail("approved@example.com");
-        request.setSiteId("site-a");
+        request.setSiteIds(java.util.List.of("site-a"));
         request.setUserRole(UserRole.USER);
         request.setReason(" ");
 
@@ -24,5 +24,14 @@ class UserApprovalRequestTest {
                     .anySatisfy(violation ->
                             assertThat(violation.getPropertyPath().toString()).isEqualTo("reason"));
         }
+    }
+
+    @Test
+    void legacySiteIdFillsSiteIdsWhenListIsMissing() {
+        var request = new UserApprovalRequest();
+        request.setSiteId("site-a");
+
+        assertThat(request.resolveSiteIds()).containsExactly("site-a");
+        assertThat(request.getSiteIds()).containsExactly("site-a");
     }
 }

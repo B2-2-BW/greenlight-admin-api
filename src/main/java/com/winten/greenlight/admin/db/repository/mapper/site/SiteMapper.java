@@ -11,9 +11,9 @@ import java.util.Optional;
 public interface SiteMapper {
     // TODO public 하게 모두가 쓸 수 있는 API임을 함수명에 명시해야함
     Optional<SiteInfo> findSiteById(SiteInfo siteInfo);
-    List<SiteInfo> findSitesPage(@Param("siteId") String siteId, @Param("query") String query,
+    List<SiteInfo> findSitesPage(@Param("siteIds") List<String> siteIds, @Param("query") String query,
                                  @Param("enabled") Boolean enabled, @Param("limit") int limit, @Param("offset") long offset);
-    long countSites(@Param("siteId") String siteId, @Param("query") String query, @Param("enabled") Boolean enabled);
+    long countSites(@Param("siteIds") List<String> siteIds, @Param("query") String query, @Param("enabled") Boolean enabled);
     int updateSiteInfoById(SiteInfo siteInfo);
     int updateSiteApiKey(SiteInfo siteInfo);
     int insertSite(SiteInfo siteInfo);
