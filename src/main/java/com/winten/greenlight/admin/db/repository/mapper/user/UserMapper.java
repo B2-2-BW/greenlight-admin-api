@@ -37,7 +37,12 @@ public interface UserMapper {
     List<String> findSiteIdsByAccountId(@Param("accountId") Long accountId);
     List<UserSite> findAccessibleSites(@Param("accountId") Long accountId);
     List<UserSite> findAccessibleSitesByAccountIds(@Param("accountIds") List<Long> accountIds);
-    void insertSiteAccess(@Param("accountId") Long accountId, @Param("siteId") String siteId);
+    void insertSiteAccess(
+            @Param("accountId") Long accountId,
+            @Param("siteId") String siteId,
+            @Param("createdBy") String createdBy,
+            @Param("createdIp") String createdIp
+    );
     void insertSiteAccessBatch(@Param("accountId") Long accountId, @Param("siteIds") List<String> siteIds);
     int deleteSiteAccessByAccountId(@Param("accountId") Long accountId);
     int deleteSiteAccessBySiteId(@Param("siteId") String siteId);

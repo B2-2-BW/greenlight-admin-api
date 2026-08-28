@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -98,6 +99,11 @@ class UserServiceTest {
                 .thenReturn(Optional.of(request));
         when(userMapper.findUserByEmail("new-user@example.com"))
                 .thenReturn(Optional.empty());
+        doAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setAccountId(10L);
+            return null;
+        }).when(userMapper).saveUser(any());
 
         User result = service.signin(request);
 
@@ -107,10 +113,13 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         assertThat(savedUser.getValue().getUserRole()).isEqualTo(UserRole.USER);
         assertThat(savedUser.getValue().getPasswordResetRequired()).isFalse();
+        assertThat(savedUser.getValue().getCreatedBy()).isEqualTo("ANONYMOUS");
+        assertThat(savedUser.getValue().getUpdatedBy()).isEqualTo("ANONYMOUS");
         assertThat(savedUser.getValue().getPassword()).isNull();
         assertThat(savedUser.getValue().getPasswordHash()).isNotBlank();
         assertThat(savedUser.getValue().getProfileColor()).matches("^#[0-9A-F]{6}$");
         assertThat(savedUser.getValue().getProfileInitials()).isEqualTo("신");
+        verify(userMapper).insertSiteAccess(10L, "site-a", "ANONYMOUS", savedUser.getValue().getCreatedIp());
         assertThat(result).isSameAs(request);
     }
 

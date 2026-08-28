@@ -349,8 +349,8 @@
         VALUES (
             #{accountId},
             #{siteId},
-            COALESCE(#{createdBy}, 'SYSTEM'),
-            COALESCE(#{createdIp}, '0.0.0.0')
+            COALESCE(#{createdBy, jdbcType=VARCHAR}, 'SYSTEM'),
+            COALESCE(#{createdIp, jdbcType=VARCHAR}, '0.0.0.0')
         )
         ON CONFLICT (account_id, site_id) DO NOTHING
     </insert>
