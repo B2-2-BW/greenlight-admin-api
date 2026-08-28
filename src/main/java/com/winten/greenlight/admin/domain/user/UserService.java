@@ -46,6 +46,7 @@ public class UserService {
             "#475569"
     );
     private static final Pattern PROFILE_COLOR_PATTERN = Pattern.compile("^#[0-9A-Fa-f]{6}$");
+    private static final String ANONYMOUS_ACTOR = "ANONYMOUS";
     private static final List<String> MANAGED_USER_AUDIT_FIELDS = List.of(
             "username", "userEmail", "siteIds", "userRole"
     );
@@ -183,8 +184,6 @@ public class UserService {
         userParam.setAccountStatus(AccountStatus.PENDING); // 사용자 생성 시 Pending 상태로 생성
         userParam.setUserRole(UserRole.USER);
         userParam.setPasswordResetRequired(false);
-        userParam.setCreatedBy(userParam.getUserId());
-        userParam.setUpdatedBy(userParam.getUserId());
         this.createUser(userParam);
 
         // TODO 비정상 login attempt 가 있을 수 있으므로 가입한 ID 기준으로 기존 loginAttempt 삭제 or 초기화 로직 추가
@@ -202,6 +201,8 @@ public class UserService {
         if (user.getAccountStatus() == null) { // Status 지정이 없으면 PENDING 상태로 생성
             user.setAccountStatus(AccountStatus.PENDING);
         }
+        user.setCreatedBy(ANONYMOUS_ACTOR);
+        user.setUpdatedBy(ANONYMOUS_ACTOR);
         applyDefaultProfileAppearance(user);
         userMapper.saveUser(user);
         persistHomeSiteAccess(user);
@@ -873,7 +874,12 @@ public class UserService {
         if (user.getAccountId() == null || user.getSiteId() == null || user.getSiteId().isBlank()) {
             return;
         }
-        userMapper.insertSiteAccess(user.getAccountId(), user.getSiteId());
+        userMapper.insertSiteAccess(
+                user.getAccountId(),
+                user.getSiteId(),
+                user.getCreatedBy(),
+                user.getCreatedIp()
+        );
     }
 
     private void replaceSiteAccess(Long accountId, List<String> siteIds) {
