@@ -113,6 +113,16 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void blankAccountSiteFallsBackToFirstGrantedSite() throws Exception {
+        prepareUser(UserRole.SITE_ADMIN, "  ", List.of("granted-a", "granted-b"));
+        var request = authenticatedRequest("GET", "/rooms");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(currentUser().getUserSiteId()).isEqualTo("granted-a");
+    }
+
+    @Test
     void nonSuperUsesRequestedSiteWhenGranted() throws Exception {
         prepareUser(UserRole.SITE_ADMIN, "account-site", List.of("account-site", "other-site"));
         var request = authenticatedRequest("GET", "/rooms");

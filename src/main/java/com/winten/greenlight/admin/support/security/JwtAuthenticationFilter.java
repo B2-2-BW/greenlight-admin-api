@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                 }
 
-                String userSiteId = user.getSiteId();
+                String userSiteId = user.resolveHomeSiteId();
                 String requestedSiteId = request.getHeader("X-ADMIN-SITE-ID");
                 var accessibleSiteIds = user.resolveSiteIds();
                 if (requestedSiteId != null && !requestedSiteId.isBlank()) {

@@ -25,4 +25,13 @@ class UserApprovalRequestTest {
                             assertThat(violation.getPropertyPath().toString()).isEqualTo("reason"));
         }
     }
+
+    @Test
+    void legacySiteIdFillsSiteIdsWhenListIsMissing() {
+        var request = new UserApprovalRequest();
+        request.setSiteId("site-a");
+
+        assertThat(request.resolveSiteIds()).containsExactly("site-a");
+        assertThat(request.getSiteIds()).containsExactly("site-a");
+    }
 }

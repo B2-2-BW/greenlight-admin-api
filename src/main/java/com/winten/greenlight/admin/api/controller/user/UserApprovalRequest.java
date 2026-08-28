@@ -22,10 +22,33 @@ public class UserApprovalRequest {
     @NotEmpty
     private List<@NotBlank String> siteIds;
 
+    /**
+     * 이전 승인 API 호환용. 권한의 기준은 {@link #siteIds}이며,
+     * siteIds가 비어 있을 때만 이 값을 채운다.
+     */
+    private String siteId;
+
     @NotNull
     private UserRole userRole;
 
     @NotBlank
     @Size(max = 1000)
     private String reason;
+
+    public void setSiteId(String siteId) {
+        this.siteId = siteId;
+        if ((siteIds == null || siteIds.isEmpty()) && siteId != null && !siteId.isBlank()) {
+            this.siteIds = List.of(siteId.trim());
+        }
+    }
+
+    public List<String> resolveSiteIds() {
+        if (siteIds != null && !siteIds.isEmpty()) {
+            return siteIds;
+        }
+        if (siteId == null || siteId.isBlank()) {
+            return List.of();
+        }
+        return List.of(siteId.trim());
+    }
 }

@@ -115,6 +115,7 @@ public class UserService {
         }
 
         ensureSiteEnabled(user);
+        attachAccessibleSites(user);
 
         // 관리자 비밀번호 초기화 직후: 토큰을 발급하지 않고 비밀번호 변경을 강제한다.
         if (Boolean.TRUE.equals(user.getPasswordResetRequired())) {
@@ -153,8 +154,7 @@ public class UserService {
     // 회원가입
     @Transactional
     public User signin(User userParam) {
-        // 유효한 Site ID인지 검증
-        ensureRegistrationSiteEnabled(userParam.getSiteId());
+        userParam.setSiteId(null);
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
@@ -340,7 +340,10 @@ public class UserService {
         AuthUtil.ensureUserAdmin();
         var user = this.findUserById(userId);
         AuthUtil.ensureCanManageUser(user);
-        if (user.getUserRole() != UserRole.SUPER && !hasAnyExistingSite(user)) {
+        // PENDING은 승인 시 사이트를 새로 부여하므로, 홈 site_id가 비어 있어도 막지 않는다.
+        if (user.getUserRole() != UserRole.SUPER
+                && user.getAccountStatus() != AccountStatus.PENDING
+                && !hasAnyExistingSite(user)) {
             throw CoreException.of(
                     ErrorType.SITE_NOT_FOUND,
                     "폐기된 사이트의 사용자는 변경할 수 없습니다."
@@ -469,6 +472,9 @@ public class UserService {
 
         List<String> mergedSiteIds = mergeGrantedSiteIds(currentUser, user, siteIds);
         String homeSiteId = resolveHomeSiteId(user, mergedSiteIds);
+        if (homeSiteId == null || homeSiteId.isBlank()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "사이트를 하나 이상 부여해야 합니다.");
+        }
         userMapper.findUserByEmail(userEmail)
                 .filter(existing -> !existing.getUserId().equals(userId))
                 .ifPresent(existing -> {
@@ -539,6 +545,9 @@ public class UserService {
 
         List<String> mergedSiteIds = mergeGrantedSiteIds(currentUser, user, requestedSiteIds);
         String homeSiteId = resolveHomeSiteId(user, mergedSiteIds);
+        if (homeSiteId == null || homeSiteId.isBlank()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "사이트를 하나 이상 부여해야 합니다.");
+        }
         userMapper.findUserByEmail(userEmail)
                 .filter(existing -> !existing.getUserId().equals(userId))
                 .ifPresent(existing -> {
@@ -784,11 +793,7 @@ public class UserService {
                     ? List.of()
                     : sitesByAccount.getOrDefault(user.getAccountId(), List.of());
             user.setSites(sites);
-            List<String> siteIds = sites.stream().map(UserSite::getSiteId).filter(Objects::nonNull).toList();
-            if (siteIds.isEmpty() && user.getSiteId() != null && !user.getSiteId().isBlank()) {
-                siteIds = List.of(user.getSiteId());
-            }
-            user.setSiteIds(siteIds);
+            user.setSiteIds(sites.stream().map(UserSite::getSiteId).filter(Objects::nonNull).toList());
         }
     }
 
@@ -829,10 +834,11 @@ public class UserService {
     }
 
     private String resolveHomeSiteId(User target, List<String> mergedSiteIds) {
-        if (target.getSiteId() != null && mergedSiteIds.contains(target.getSiteId())) {
-            return target.getSiteId();
+        String currentHome = target.getSiteId();
+        if (currentHome != null && !currentHome.isBlank() && mergedSiteIds.contains(currentHome)) {
+            return currentHome;
         }
-        return mergedSiteIds.get(0);
+        return mergedSiteIds.isEmpty() ? null : mergedSiteIds.get(0);
     }
 
     private List<String> normalizeSiteIds(List<String> siteIds) {
@@ -871,12 +877,6 @@ public class UserService {
         }
     }
 
-    private void ensureRegistrationSiteEnabled(String siteId) {
-        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
-                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
-    }
-
     private UserToken generateUserToken(User user) {
         // 토큰 생성 전 명시적으로 민감정보는 삭제
         user.setPassword(null);
@@ -885,7 +885,7 @@ public class UserService {
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", user.getAccountId());
-        claims.put("userSiteId", user.getSiteId());
+        claims.put("userSiteId", user.resolveHomeSiteId());
         claims.put("userRole", user.getUserRole());
 
         String accessToken =  jwtUtil.generateToken(user.getUserId(), claims, accessTokenExpiration);

@@ -176,7 +176,7 @@ public class UserController {
                 userId,
                 request.getUsername(),
                 request.getUserEmail(),
-                request.getSiteIds(),
+                request.resolveSiteIds(),
                 request.getUserRole(),
                 request.getReason()
         );
@@ -192,7 +192,7 @@ public class UserController {
                 userId,
                 request.getUsername(),
                 request.getUserEmail(),
-                request.getSiteIds(),
+                request.resolveSiteIds(),
                 request.getUserRole()
         );
         return ResponseEntity.ok(userConverter.toResponse(user));

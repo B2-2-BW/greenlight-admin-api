@@ -18,12 +18,7 @@ public class CachedUserService {
                 .orElseThrow(() -> CoreException.of(ErrorType.USER_NOT_FOUND, "존재하지 않는 사용자입니다."));
         if (user.getAccountId() != null) {
             var siteIds = userMapper.findSiteIdsByAccountId(user.getAccountId());
-            if (siteIds == null || siteIds.isEmpty()) {
-                siteIds = user.getSiteId() == null || user.getSiteId().isBlank()
-                        ? List.of()
-                        : List.of(user.getSiteId());
-            }
-            user.setSiteIds(siteIds);
+            user.setSiteIds(siteIds == null ? List.of() : siteIds);
         }
         return user;
     }

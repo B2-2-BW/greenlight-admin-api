@@ -54,6 +54,16 @@ class UserServiceTest {
     void allowExistingSiteByDefault() {
         lenient().when(siteMapper.findSiteById(any()))
                 .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+        lenient().when(userMapper.findAccessibleSitesByAccountIds(any())).thenAnswer(invocation -> {
+            List<Long> accountIds = invocation.getArgument(0);
+            if (accountIds == null || accountIds.isEmpty()) {
+                return List.of();
+            }
+            return accountIds.stream()
+                    .map(accountId -> UserSite.builder().accountId(accountId).siteId("site-a").build())
+                    .toList();
+        });
+        lenient().when(userMapper.findSiteIdsByAccountId(any())).thenReturn(List.of("site-a"));
     }
 
     @AfterEach
@@ -62,7 +72,7 @@ class UserServiceTest {
     }
 
     @Test
-    void signinCreatesPendingUserForVerifiedSite() {
+    void signinCreatesPendingUserWithoutSiteGrant() {
         PasswordManager passwordManager = new PasswordManager();
         UserService service = new UserService(
                 userMapper,
@@ -81,8 +91,6 @@ class UserServiceTest {
                 .password("password123!")
                 .build();
 
-        when(siteMapper.findSiteById(any()))
-                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build()));
         when(userMapper.findUserById("new-user"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(request));
@@ -93,6 +101,7 @@ class UserServiceTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userMapper).saveUser(savedUser.capture());
+        assertThat(savedUser.getValue().getSiteId()).isNull();
         assertThat(savedUser.getValue().getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         assertThat(savedUser.getValue().getUserRole()).isEqualTo(UserRole.USER);
         assertThat(savedUser.getValue().getPasswordResetRequired()).isFalse();
@@ -101,27 +110,7 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getProfileColor()).matches("^#[0-9A-F]{6}$");
         assertThat(savedUser.getValue().getProfileInitials()).isEqualTo("신");
         assertThat(result).isSameAs(request);
-    }
-
-    @Test
-    void signinRejectsDisabledSite() {
-        UserService service = createService(new PasswordManager());
-        User request = User.builder()
-                .userId("new-user")
-                .siteId("site-a")
-                .userEmail("new-user@example.com")
-                .username("신규 사용자")
-                .password("password123!")
-                .build();
-
-        when(siteMapper.findSiteById(any()))
-                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build()));
-
-        assertThatThrownBy(() -> service.signin(request))
-                .isInstanceOf(CoreException.class)
-                .extracting(error -> ((CoreException) error).getErrorType())
-                .isEqualTo(ErrorType.SITE_NOT_FOUND);
-        verify(userMapper, never()).saveUser(any());
+        verify(userMapper, never()).insertSiteAccess(any(), any());
     }
 
     @Test
@@ -607,6 +596,9 @@ class UserServiceTest {
         target.setUsername("가입 사용자");
         target.setUserEmail("pending@example.com");
         when(userMapper.findUserById("target-user")).thenReturn(Optional.of(target));
+        when(userMapper.findAccessibleSitesByAccountIds(any()))
+                .thenReturn(List.of(UserSite.builder().accountId(2L).siteId("site-a").build()))
+                .thenReturn(List.of(UserSite.builder().accountId(2L).siteId("site-b").build()));
         when(siteMapper.findSiteById(any())).thenReturn(
                 Optional.of(SiteInfo.builder().siteId("site-b").siteEnabled(true).build())
         );
@@ -686,6 +678,25 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> service.approveUser("target-user", "사용자", "user@example.com", List.of("site-a"), UserRole.SUPER))
                 .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void approvalUsesGrantedSiteWhenAccountSiteIdIsBlank() {
+        UserService service = serviceWithSuperUser();
+        User target = pendingUser("target-user", " ");
+        when(userMapper.findUserById("target-user")).thenReturn(Optional.of(target));
+        when(siteMapper.findSiteById(any())).thenReturn(
+                Optional.of(SiteInfo.builder().siteId("site-b").siteEnabled(true).build())
+        );
+        when(userMapper.findUserByEmail("approved@example.com")).thenReturn(Optional.empty());
+        when(userMapper.approveUser(any())).thenReturn(1);
+
+        service.approveUser("target-user", "승인 사용자", "approved@example.com", List.of("site-b"), UserRole.USER);
+
+        ArgumentCaptor<User> approved = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).approveUser(approved.capture());
+        assertThat(approved.getValue().getSiteId()).isEqualTo("site-b");
+        verify(userMapper).insertSiteAccessBatch(2L, List.of("site-b"));
     }
 
     @Test
@@ -785,6 +796,9 @@ class UserServiceTest {
         UserService service = serviceWithSiteAdmin();
         when(userMapper.findUserById("other-site-user"))
                 .thenReturn(Optional.of(managedUser("other-site-user", "site-b", UserRole.SUPER, AccountStatus.ACTIVE)));
+        when(userMapper.findAccessibleSitesByAccountIds(any())).thenReturn(List.of(
+                UserSite.builder().accountId(2L).siteId("site-b").build()
+        ));
 
         assertThatThrownBy(() -> service.getViewableUser("other-site-user"))
                 .isInstanceOf(CoreException.class)

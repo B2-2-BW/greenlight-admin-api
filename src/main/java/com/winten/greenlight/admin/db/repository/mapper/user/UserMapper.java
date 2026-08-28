@@ -34,7 +34,6 @@ public interface UserMapper {
     void updateUserPassword(User user);
     void updateUserLoginAttempt(UserLoginAttempt user);
     void resetUserPassword(User user);
-    int disableUsersBySiteId(@Param("siteId") String siteId);
     List<String> findSiteIdsByAccountId(@Param("accountId") Long accountId);
     List<UserSite> findAccessibleSites(@Param("accountId") Long accountId);
     List<UserSite> findAccessibleSitesByAccountIds(@Param("accountIds") List<Long> accountIds);

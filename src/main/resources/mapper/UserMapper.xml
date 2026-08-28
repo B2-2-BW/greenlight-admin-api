@@ -34,6 +34,7 @@
         WHERE u.user_email = #{email}
     </select>
 
+    <!-- 권한은 user_site_access만 본다. 가입 직후 PENDING은 아직 grant가 없어 승인 목록에 보이게 한다. -->
     <sql id="userHasSiteAccess">
         (
             EXISTS (
@@ -42,11 +43,11 @@
                   AND usa.site_id = #{siteId}
             )
             OR (
-                NOT EXISTS (
+                u.account_status = 'PENDING'
+                AND NOT EXISTS (
                     SELECT 1 FROM user_site_access usa
                     WHERE usa.account_id = u.account_id
                 )
-                AND u.site_id = #{siteId}
             )
         )
     </sql>
@@ -304,17 +305,6 @@
             updated_at = CURRENT_TIMESTAMP,
             updated_ip = #{updatedIp}
         WHERE user_id = #{userId}
-    </update>
-
-    <update id="disableUsersBySiteId">
-        UPDATE user_account
-        SET account_status = 'DISABLED',
-            updated_by = #{updatedBy},
-            updated_at = CURRENT_TIMESTAMP,
-            updated_ip = #{updatedIp}
-        WHERE site_id = #{siteId}
-          AND user_role &lt;&gt; 'SUPER'
-          AND account_status &lt;&gt; 'DISABLED'
     </update>
 
     <select id="findSiteIdsByAccountId" resultType="string">
