@@ -151,15 +151,24 @@ public class UserService {
         attachAccessibleSites(user);
         return user;
     }
+    @Transactional(readOnly = true)
+    public boolean isUserIdAvailable(String userId) {
+        String normalized = userId == null ? "" : userId.trim();
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        return userMapper.findUserById(normalized).isEmpty();
+    }
+
     // 회원가입
     @Transactional
     public User signin(User userParam) {
-        userParam.setSiteId(null);
+        ensureRegistrationSiteEnabled(userParam.getSiteId());
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
                 .ifPresent(user -> {
-                    throw CoreException.of(ErrorType.USERNAME_EXISTS, "사용할 수 없는 계정입니다.");
+                    throw CoreException.of(ErrorType.USERNAME_EXISTS, "사용할 수 없는 아이디입니다.");
                 });
 
         // email 중복체크
@@ -875,6 +884,12 @@ public class UserService {
         if (siteIds != null && !siteIds.isEmpty()) {
             userMapper.insertSiteAccessBatch(accountId, siteIds);
         }
+    }
+
+    private void ensureRegistrationSiteEnabled(String siteId) {
+        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
+                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
+                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
     }
 
     private UserToken generateUserToken(User user) {

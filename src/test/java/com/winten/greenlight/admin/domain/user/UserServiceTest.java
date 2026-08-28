@@ -72,7 +72,7 @@ class UserServiceTest {
     }
 
     @Test
-    void signinCreatesPendingUserWithoutSiteGrant() {
+    void signinCreatesPendingUserForVerifiedSite() {
         PasswordManager passwordManager = new PasswordManager();
         UserService service = new UserService(
                 userMapper,
@@ -91,6 +91,8 @@ class UserServiceTest {
                 .password("password123!")
                 .build();
 
+        when(siteMapper.findSiteById(any()))
+                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build()));
         when(userMapper.findUserById("new-user"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(request));
@@ -101,7 +103,7 @@ class UserServiceTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userMapper).saveUser(savedUser.capture());
-        assertThat(savedUser.getValue().getSiteId()).isNull();
+        assertThat(savedUser.getValue().getSiteId()).isEqualTo("site-a");
         assertThat(savedUser.getValue().getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         assertThat(savedUser.getValue().getUserRole()).isEqualTo(UserRole.USER);
         assertThat(savedUser.getValue().getPasswordResetRequired()).isFalse();
@@ -110,7 +112,36 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getProfileColor()).matches("^#[0-9A-F]{6}$");
         assertThat(savedUser.getValue().getProfileInitials()).isEqualTo("신");
         assertThat(result).isSameAs(request);
-        verify(userMapper, never()).insertSiteAccess(any(), any());
+    }
+
+    @Test
+    void signinRejectsDisabledSite() {
+        UserService service = createService(new PasswordManager());
+        User request = User.builder()
+                .userId("new-user")
+                .siteId("site-a")
+                .userEmail("new-user@example.com")
+                .username("신규 사용자")
+                .password("password123!")
+                .build();
+
+        when(siteMapper.findSiteById(any()))
+                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build()));
+
+        assertThatThrownBy(() -> service.signin(request))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.SITE_NOT_FOUND);
+        verify(userMapper, never()).saveUser(any());
+    }
+
+    @Test
+    void isUserIdAvailableReturnsFalseWhenAccountExists() {
+        UserService service = createService(new PasswordManager());
+        when(userMapper.findUserById("taken-id")).thenReturn(Optional.of(pendingUser("taken-id", "site-a")));
+
+        assertThat(service.isUserIdAvailable("taken-id")).isFalse();
+        assertThat(service.isUserIdAvailable("  ")).isFalse();
     }
 
     @Test
