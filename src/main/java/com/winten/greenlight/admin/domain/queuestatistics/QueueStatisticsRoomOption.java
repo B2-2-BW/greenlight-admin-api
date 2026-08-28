@@ -1,4 +1,4 @@
 package com.winten.greenlight.admin.domain.queuestatistics;
 
-public record QueueStatisticsRoomOption(String roomId, String name) {
+public record QueueStatisticsRoomOption(String roomId, String name, String description, Boolean enabled) {
 }
