@@ -233,24 +233,28 @@ public class SiteService {
                 auditedValues(siteInfo),
                 AUDITED_SITE_FIELDS
         );
-        if (!Objects.equals(previousSite.getSiteEnabled(), siteInfo.getSiteEnabled())
-                && siteInfo.getSiteEnabled() != null) {
-            boolean disabled = Boolean.FALSE.equals(siteInfo.getSiteEnabled());
+        if (!Objects.equals(previousSite.getQueueEnabled(), siteInfo.getQueueEnabled())
+                && siteInfo.getQueueEnabled() != null) {
+            boolean disabled = Boolean.FALSE.equals(siteInfo.getQueueEnabled());
+            String siteLabel = siteLabel(siteInfo);
             alertService.applySiteStatusAlert(
                     siteInfo.getSiteId(),
-                    AlertCatalog.SITE_DISABLED,
+                    AlertCatalog.QUEUE_DISABLED,
                     disabled,
-                    disabled ? "사이트 비활성화: " + siteInfo.getSiteId() : "사이트 활성화: " + siteInfo.getSiteId()
+                    disabled
+                            ? "사이트 대기열 비활성화: " + siteLabel
+                            : "사이트 대기열 활성화: " + siteLabel
             );
         }
         if (!Objects.equals(previousSite.getMaintenanceEnabled(), siteInfo.getMaintenanceEnabled())
                 && siteInfo.getMaintenanceEnabled() != null) {
             boolean maintenance = Boolean.TRUE.equals(siteInfo.getMaintenanceEnabled());
+            String siteLabel = siteLabel(siteInfo);
             alertService.applySiteStatusAlert(
                     siteInfo.getSiteId(),
                     AlertCatalog.SITE_MAINTENANCE,
                     maintenance,
-                    maintenance ? "사이트 점검 시작: " + siteInfo.getSiteId() : "사이트 점검 종료: " + siteInfo.getSiteId()
+                    maintenance ? "사이트 점검 시작: " + siteLabel : "사이트 점검 종료: " + siteLabel
             );
         }
         return siteInfo;
@@ -284,6 +288,23 @@ public class SiteService {
                 List.of("apiKeyRotated")
         );
         return apiKey;
+    }
+
+    static String siteLabel(SiteInfo siteInfo) {
+        if (siteInfo == null) {
+            return "";
+        }
+        return namedId(siteInfo.getSiteName(), siteInfo.getSiteId());
+    }
+
+    static String namedId(String name, String id) {
+        if (name == null || name.isBlank()) {
+            return id == null ? "" : id;
+        }
+        if (id == null || id.isBlank() || name.equals(id)) {
+            return name;
+        }
+        return name + " (" + id + ")";
     }
 
     private Map<String, Object> auditedValues(SiteInfo siteInfo) {

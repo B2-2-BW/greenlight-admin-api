@@ -205,8 +205,35 @@ class SiteServiceTest {
 
         assertThat(result.getSiteEnabled()).isFalse();
         assertThat(result.getQueueEnabled()).isTrue();
-        verify(alertService).applySiteStatusAlert("site-a", AlertCatalog.SITE_DISABLED, true, "사이트 비활성화: site-a");
+        verify(alertService, never()).applySiteStatusAlert(
+                eq("site-a"), eq(AlertCatalog.QUEUE_DISABLED), anyBoolean(), any()
+        );
         verifyNoInteractions(roomMapper, userMapper);
+    }
+
+    @Test
+    void disablingQueueFiresQueueDisabledAlert() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .queueEnabled(true)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
+                .siteName("현대백화점")
+                .siteEnabled(true)
+                .queueEnabled(false)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        service.updateQueueEnabled("site-a", false, "대기열 해제");
+
+        verify(alertService).applySiteStatusAlert(
+                "site-a", AlertCatalog.QUEUE_DISABLED, true, "사이트 대기열 비활성화: 현대백화점 (site-a)"
+        );
     }
 
     @Test
@@ -236,6 +263,7 @@ class SiteServiceTest {
                 .build();
         var updated = SiteInfo.builder()
                 .siteId("site-a")
+                .siteName("현대백화점")
                 .siteEnabled(true)
                 .maintenanceEnabled(true)
                 .build();
@@ -251,10 +279,10 @@ class SiteServiceTest {
         );
 
         verify(alertService).applySiteStatusAlert(
-                "site-a", AlertCatalog.SITE_MAINTENANCE, true, "사이트 점검 시작: site-a"
+                "site-a", AlertCatalog.SITE_MAINTENANCE, true, "사이트 점검 시작: 현대백화점 (site-a)"
         );
         verify(alertService, never()).applySiteStatusAlert(
-                eq("site-a"), eq(AlertCatalog.SITE_DISABLED), anyBoolean(), any()
+                eq("site-a"), eq(AlertCatalog.QUEUE_DISABLED), anyBoolean(), any()
         );
     }
 

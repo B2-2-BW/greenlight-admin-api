@@ -41,7 +41,7 @@ class AlertSubscriptionServiceTest {
 
         assertThat(mine).extracting(AlertSubscription::getAlertname)
                 .containsExactly(
-                        "QUEUE_WAIT", "SITE_DISABLED", "SITE_MAINTENANCE"
+                        "QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE"
                 );
         assertThat(mine.get(0).isEnabled()).isTrue();
         assertThat(mine.get(1).isEnabled()).isFalse();
@@ -57,8 +57,21 @@ class AlertSubscriptionServiceTest {
         ));
 
         assertThat(service().getMine()).extracting(AlertSubscription::getAlertname)
-                .containsExactly("QUEUE_WAIT", "SITE_DISABLED", "SITE_MAINTENANCE")
+                .containsExactly("QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE")
                 .doesNotContain("ACTIVE_USERS", "VISITOR_SURGE");
+    }
+
+    @Test
+    void getMineTreatsLegacySiteDisabledAsQueueDisabled() {
+        authenticate();
+        when(alertSubscriptionMapper.findByAccountId(1L)).thenReturn(List.of(
+                AlertSubscription.builder().alertname("SITE_DISABLED").enabled(true).build()
+        ));
+
+        List<AlertSubscription> mine = service().getMine();
+        assertThat(mine).filteredOn(item -> "QUEUE_DISABLED".equals(item.getAlertname()))
+                .extracting(AlertSubscription::isEnabled)
+                .containsExactly(true);
     }
 
     @Test
@@ -70,7 +83,7 @@ class AlertSubscriptionServiceTest {
 
         List<AlertSubscription> mine = service().getMine();
         assertThat(mine).extracting(AlertSubscription::getAlertname)
-                .containsExactly("QUEUE_WAIT", "SITE_DISABLED", "SITE_MAINTENANCE", "INFRA");
+                .containsExactly("QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE", "INFRA");
         assertThat(mine).filteredOn(item -> "INFRA".equals(item.getAlertname()))
                 .extracting(AlertSubscription::isEnabled)
                 .containsExactly(true);
@@ -83,7 +96,7 @@ class AlertSubscriptionServiceTest {
 
         assertThat(service().getMine()).extracting(AlertSubscription::getAlertname)
                 .containsExactly(
-                        "QUEUE_WAIT", "SITE_DISABLED", "SITE_MAINTENANCE", "INFRA"
+                        "QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE", "INFRA"
                 );
     }
 

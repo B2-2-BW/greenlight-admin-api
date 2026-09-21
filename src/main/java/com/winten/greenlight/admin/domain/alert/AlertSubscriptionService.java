@@ -36,6 +36,9 @@ public class AlertSubscriptionService {
         for (AlertCatalog item : AlertCatalog.catalog(includePlatformWide())) {
             AlertSubscription row = stored.get(item.name());
             boolean enabled = row != null && row.isEnabled();
+            if (item == AlertCatalog.QUEUE_DISABLED && !enabled) {
+                enabled = isEnabled(stored, "SITE_DISABLED");
+            }
             if (item == AlertCatalog.INFRA && !enabled) {
                 enabled = isEnabled(stored, "SCHEDULER_FAILED") || isEnabled(stored, "SCHEDULER_STOPPED");
             }
