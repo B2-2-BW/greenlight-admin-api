@@ -18,7 +18,10 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 public class AlertService {
     static final Duration MAX_RANGE = Duration.ofDays(7);
     static final ZoneId ZONE_ID = ZoneId.of("Asia/Seoul");
+    static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZONE_ID);
     private final AlertLogMapper alertLogMapper;
     private final TeamsAlertClient teamsAlertClient;
     private final AlertSubscriptionService alertSubscriptionService;
@@ -233,19 +237,19 @@ public class AlertService {
                 description = alert.getAnnotations().get("description");
                 occurredAt = alert.getAnnotations().get("occurred_at");
             }
-            if (summary == null) {
-                summary = alertname;
-            }
             if (occurredAt == null) {
                 occurredAt = firstNonBlank(alert.getStartsAt(), alert.getEndsAt(), sentAt);
             }
-            var content = "<b>[Greenlight]" + profileTag() + " Alert</b>"
-                    + "<br> - " + (summary == null ? alert.getStatus() : summary);
-            if (description != null && !description.isBlank() && !description.equals(summary)) {
-                content += "<br> &nbsp; " + description.trim();
-            }
-            content += "<br> &nbsp; 발생: " + occurredAt
-                    + "<br> &nbsp; 발송: " + sentAt;
+            String severity = alert.getLabels() == null ? null : alert.getLabels().get("severity");
+            var content = teamsContent(
+                    profileTag(),
+                    alertname,
+                    alert.getStatus(),
+                    severity,
+                    summary,
+                    description,
+                    occurredAt
+            );
             var body = TeamsMessage.builder()
                     .referer("greenlight")
                     .content(content)
@@ -254,6 +258,69 @@ public class AlertService {
                     .sentAt(sentAt)
                     .build();
             teamsAlertClient.sendWithRetry(body, 3);
+        }
+    }
+
+    static String teamsContent(
+            String profileTag,
+            String alertname,
+            String status,
+            String severity,
+            String summary,
+            String description,
+            String occurredAt
+    ) {
+        String title = alertTitle(alertname);
+        String level = severityLabel(status, severity);
+        String body = firstNonBlank(description, summary);
+        if (body == null) {
+            body = title;
+        }
+        return "<b>[Greenlight]" + profileTag + " " + title + "</b>"
+                + "<br>[" + level + "] " + body.trim()
+                + "<br>[At: " + formatDisplayTime(occurredAt) + "]";
+    }
+
+    static String alertTitle(String alertname) {
+        if (alertname == null || alertname.isBlank()) {
+            return "알림";
+        }
+        String key = AlertCatalog.subscriptionKey(alertname);
+        if (AlertCatalog.isKnown(key)) {
+            return AlertCatalog.valueOf(key).label();
+        }
+        return alertname.trim();
+    }
+
+    static String severityLabel(String status, String severity) {
+        if (status != null && AlertStatus.RESOLVED.name().equalsIgnoreCase(status.trim())) {
+            return "해제";
+        }
+        if (severity != null && AlertSeverity.CRITICAL.name().equalsIgnoreCase(severity.trim())) {
+            return "심각";
+        }
+        return "경고";
+    }
+
+    static String formatDisplayTime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "";
+        }
+        String value = raw.trim();
+        try {
+            return DISPLAY_TIME.format(Instant.parse(value));
+        } catch (DateTimeParseException ignored) {
+            // fall through
+        }
+        try {
+            return DISPLAY_TIME.format(OffsetDateTime.parse(value).toInstant());
+        } catch (DateTimeParseException ignored) {
+            // fall through
+        }
+        try {
+            return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.parse(value));
+        } catch (DateTimeParseException ignored) {
+            return value;
         }
     }
 
@@ -320,7 +387,7 @@ public class AlertService {
         return ip == null || ip.isBlank() ? "0.0.0.0" : ip;
     }
 
-    private String firstNonBlank(String... values) {
+    static String firstNonBlank(String... values) {
         if (values == null) {
             return null;
         }

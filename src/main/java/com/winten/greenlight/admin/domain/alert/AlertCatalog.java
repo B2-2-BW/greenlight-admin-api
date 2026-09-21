@@ -5,7 +5,7 @@ import java.util.Locale;
 
 public enum AlertCatalog {
     QUEUE_WAIT("대기인원"),
-    SITE_DISABLED("사이트 비활성화"),
+    QUEUE_DISABLED("사이트 대기열 비활성화"),
     SITE_MAINTENANCE("사이트 점검"),
     INFRA("인프라");
 
@@ -35,8 +35,11 @@ public enum AlertCatalog {
         if (alertname == null || alertname.isBlank()) {
             return INFRA.name();
         }
-        String normalized = alertname.trim();
-        return isKnown(normalized) ? valueOf(normalized.toUpperCase(Locale.ROOT)).name() : INFRA.name();
+        String normalized = alertname.trim().toUpperCase(Locale.ROOT);
+        if ("SITE_DISABLED".equals(normalized)) {
+            return QUEUE_DISABLED.name();
+        }
+        return isKnown(normalized) ? valueOf(normalized).name() : INFRA.name();
     }
 
     public boolean isPlatformWide() {
@@ -51,6 +54,6 @@ public enum AlertCatalog {
         if (includePlatformWide) {
             return catalog();
         }
-        return List.of(QUEUE_WAIT, SITE_DISABLED, SITE_MAINTENANCE);
+        return List.of(QUEUE_WAIT, QUEUE_DISABLED, SITE_MAINTENANCE);
     }
 }

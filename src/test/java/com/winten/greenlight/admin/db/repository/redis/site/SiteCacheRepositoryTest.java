@@ -33,13 +33,19 @@ class SiteCacheRepositoryTest {
 
         repository.updateSiteInfo(SiteInfo.builder()
                 .siteId("site-a")
+                .siteName("현대백화점")
                 .siteEnabled(false)
                 .queueEnabled(true)
                 .build());
 
         verify(hashOperations).putAll(
                 eq("greenlight:site:site-a:meta"),
-                eq(Map.of("siteEnabled", false, "queueEnabled", true, "maintenanceEnabled", false))
+                eq(Map.of(
+                        "siteEnabled", false,
+                        "queueEnabled", true,
+                        "maintenanceEnabled", false,
+                        "siteName", "현대백화점"
+                ))
         );
     }
 }
