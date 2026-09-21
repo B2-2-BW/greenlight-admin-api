@@ -86,31 +86,36 @@ jwt:
     access: 1800 # 30분
     refresh: 1209600 # 14일
 
-alertmanager:
-  token: ${ALERT_TOKEN}
+admin:
+  alert:
+    webhook:
+      token: ${ADMIN_ALERT_WEBHOOK_TOKEN}
 
 teams:
   alert:
     url: https://extapi.thehyundai.com
-    token: D27F00F3C60E6A722E3EBC60F1016CF7
+    token: ${TEAMS_API_TOKEN}
+    enabled: true
+
+scheduler:
+  api:
+    url: ${SCHEDULER_API_URL}
+  liveness:
+    interval-ms: 15000
+    failure-threshold: 2
 
 ---
 spring.config.activate.on-profile: local
 
-scheduler:
-  url: http://localhost:27070
+teams:
+  alert:
+    enabled: false
 
 ---
 spring.config.activate.on-profile: dev
 
-scheduler:
-  url: http://greenlight-scheduler-dev:27070 # docker url
-
 ---
 spring.config.activate.on-profile: live
-
-scheduler:
-  url: http://greenlight-scheduler-live:27070 # docker url
 
 logging:
   level:

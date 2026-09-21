@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.alert.AlertChannelTargetMapper">
+    <select id="findByAccountId" resultType="AlertChannelTarget">
+        SELECT target_id, account_id, channel, target
+        FROM alert_channel_target
+        WHERE account_id = #{accountId}
+        ORDER BY target_id
+    </select>
+
+    <delete id="deleteByAccountId">
+        DELETE FROM alert_channel_target
+        WHERE account_id = #{accountId}
+    </delete>
+
+    <insert id="insert" parameterType="AlertChannelTarget" useGeneratedKeys="true" keyProperty="targetId">
+        INSERT INTO alert_channel_target (
+            account_id, channel, target,
+            created_by, created_at, created_ip,
+            updated_by, updated_at, updated_ip
+        ) VALUES (
+            #{accountId}, #{channel}, #{target},
+            #{createdBy}, CURRENT_TIMESTAMP, #{createdIp},
+            #{updatedBy}, CURRENT_TIMESTAMP, #{updatedIp}
+        )
+    </insert>
+
+    <select id="findEnabledTargets" resultType="string">
+        SELECT DISTINCT t.target
+        FROM alert_channel_target t
+        JOIN alert_subscription s ON s.account_id = t.account_id
+        JOIN user_account u ON u.account_id = t.account_id
+        WHERE s.enabled = true
+          AND (
+              s.alertname = #{alertname}
+              OR (
+                  #{alertname} = 'INFRA'
+                  AND s.alertname IN ('SCHEDULER_FAILED', 'SCHEDULER_STOPPED')
+              )
+          )
+          AND t.channel = #{channel}
+          AND u.account_status = 'ACTIVE'
+          <if test="siteId != null and siteId != ''">
+              AND (
+                  u.user_role = 'SUPER'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM user_site_access a
+                      WHERE a.account_id = u.account_id
+                        AND a.site_id = #{siteId}
+                  )
+              )
+          </if>
+          <if test="siteId == null or siteId == ''">
+              AND u.user_role IN ('SITE_ADMIN', 'SUPER')
+          </if>
+    </select>
+</mapper>

@@ -2,7 +2,6 @@ package com.winten.greenlight.admin.domain.alert;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -10,22 +9,27 @@ import org.springframework.web.client.RestClient;
 @Component
 @RequiredArgsConstructor
 public class TeamsAlertClient {
-    @Value("${teams.alert.url}")
-    private String teamsAlertUrl;
-
-    @Value("${teams.alert.token}")
-    private String teamsAlertToken;
-
-    private static final String alertPath = "/api/openapi/v1/co/sys/notification";
+    private static final String ALERT_PATH = "/api/openapi/v1/co/sys/notification";
+    private final TeamsAlertProperties properties;
     private final RestClient restClient = RestClient.builder().build();
 
     public void sendWithRetry(TeamsMessage message, int retryCount) {
-        Exception lastError;
-        for (int i = 1; i < retryCount; i++) { // retry count 계산 시 덜 헷갈리게 1부터 시작
+        log.info("Teams alert payload={}", message);
+        if (!properties.isEnabled()) {
+            log.info("Teams alert skipped (teams.alert.enabled=false)");
+            return;
+        }
+        if (message.getTargets() == null || message.getTargets().isEmpty()) {
+            log.warn("Teams alert skipped: targets empty");
+            return;
+        }
+
+        Exception lastError = null;
+        for (int i = 1; i < retryCount; i++) {
             try {
                 restClient.post()
-                        .uri(teamsAlertUrl + alertPath)
-                        .header("X-OPENAPI-KEY", teamsAlertToken)
+                        .uri(properties.getUrl() + ALERT_PATH)
+                        .header("X-OPENAPI-KEY", properties.getToken())
                         .body(message)
                         .retrieve()
                         .toBodilessEntity();

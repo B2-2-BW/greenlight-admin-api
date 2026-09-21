@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.alert.AlertLogMapper">
+    <sql id="columns">
+        alert_id, fingerprint, alertname, status, site_id, room_id, labels, annotations,
+        started_at, ended_at, created_by, created_at, created_ip, updated_by, updated_at, updated_ip
+    </sql>
+
+    <insert id="upsertFiring" parameterType="AlertLog">
+        INSERT INTO alert_log (
+            fingerprint, alertname, status, site_id, room_id, labels, annotations,
+            started_at, ended_at, created_by, created_at, created_ip,
+            updated_by, updated_at, updated_ip
+        ) VALUES (
+            #{fingerprint}, #{alertname}, #{status}, #{siteId}, #{roomId}, #{labels}, #{annotations},
+            #{startedAt}, NULL, #{createdBy}, #{createdAt}, #{createdIp},
+            #{updatedBy}, #{updatedAt}, #{updatedIp}
+        )
+        ON CONFLICT (fingerprint) WHERE status = 'FIRING'
+        DO UPDATE SET
+            annotations = EXCLUDED.annotations,
+            labels = EXCLUDED.labels,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = EXCLUDED.updated_at,
+            updated_ip = EXCLUDED.updated_ip
+    </insert>
+
+    <update id="resolve" parameterType="AlertLog">
+        UPDATE alert_log
+        SET status = 'RESOLVED',
+            ended_at = #{endedAt},
+            annotations = #{annotations},
+            updated_by = #{updatedBy},
+            updated_at = #{updatedAt},
+            updated_ip = #{updatedIp}
+        WHERE fingerprint = #{fingerprint}
+          AND status = 'FIRING'
+    </update>
+
+    <sql id="filters">
+        <where>
+            <if test="siteId != null and siteId != ''">
+                site_id = #{siteId}
+            </if>
+            <if test="alertname != null and alertname != ''">
+                AND alertname = #{alertname}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="from != null">
+                AND started_at &gt;= #{from}
+            </if>
+            <if test="to != null">
+                AND started_at &lt;= #{to}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findPage" resultType="AlertLog">
+        SELECT <include refid="columns"/>
+        FROM alert_log
+        <include refid="filters"/>
+        ORDER BY started_at DESC, alert_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM alert_log
+        <include refid="filters"/>
+    </select>
+</mapper>
