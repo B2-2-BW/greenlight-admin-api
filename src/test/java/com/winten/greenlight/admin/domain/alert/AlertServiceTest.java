@@ -111,6 +111,33 @@ class AlertServiceTest {
         assertThat(AlertService.profileTag(new String[]{})).isEqualTo("[default]");
     }
 
+    @Test
+    void teamsContentUsesCatalogTitleSeverityAndKoreaTime() {
+        String content = AlertService.teamsContent(
+                "[dev]",
+                "SITE_MAINTENANCE",
+                "FIRING",
+                "WARNING",
+                "사이트 점검 시작: site-a",
+                null,
+                "2026-09-21T06:12:03Z"
+        );
+        assertThat(content).isEqualTo(
+                "<b>[Greenlight][dev] 사이트 점검</b>"
+                        + "<br>[경고] 사이트 점검 시작: site-a"
+                        + "<br>[At: 2026-09-21 15:12:03]"
+        );
+    }
+
+    @Test
+    void teamsContentMarksResolvedAndCritical() {
+        assertThat(AlertService.severityLabel("RESOLVED", "CRITICAL")).isEqualTo("해제");
+        assertThat(AlertService.severityLabel("FIRING", "CRITICAL")).isEqualTo("심각");
+        assertThat(AlertService.alertTitle("QUEUE_DISABLED")).isEqualTo("사이트 대기열 비활성화");
+        assertThat(AlertService.alertTitle("SITE_DISABLED")).isEqualTo("사이트 대기열 비활성화");
+        assertThat(AlertService.formatDisplayTime("2026-09-21T06:12:03.123456789Z")).isEqualTo("2026-09-21 15:12:03");
+    }
+
     private AlertService service() {
         return new AlertService(
                 alertLogMapper, teamsAlertClient, alertSubscriptionService, JsonMapper.builder().build(), environment
