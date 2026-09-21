@@ -86,8 +86,10 @@ jwt:
     access: 1800 # 30분
     refresh: 1209600 # 14일
 
-alertmanager:
-  token: ${ALERTMANAGER_TOKEN}
+admin:
+  alert:
+    webhook:
+      token: ${ADMIN_ALERT_WEBHOOK_TOKEN}
 
 teams:
   alert:
@@ -98,6 +100,9 @@ teams:
 scheduler:
   api:
     url: ${SCHEDULER_API_URL}
+  liveness:
+    interval-ms: 15000
+    failure-threshold: 2
 
 ---
 spring.config.activate.on-profile: local

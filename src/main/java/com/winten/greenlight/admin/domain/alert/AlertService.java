@@ -79,6 +79,39 @@ public class AlertService {
         apply(List.of(alert), createdBy == null ? "admin" : createdBy);
     }
 
+    @Transactional
+    public void applyPlatformAlert(
+            String alertname,
+            String schedulerCode,
+            boolean firing,
+            String summary,
+            String description,
+            String createdBy
+    ) {
+        AlertStatus status = firing ? AlertStatus.FIRING : AlertStatus.RESOLVED;
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("alertname", alertname);
+        labels.put("scheduler_code", schedulerCode);
+        Map<String, String> annotations = new LinkedHashMap<>();
+        annotations.put("summary", summary);
+        if (description != null && !description.isBlank()) {
+            annotations.put("description", description);
+        }
+        String occurredAt = Instant.now().toString();
+        annotations.put("occurred_at", occurredAt);
+        AlertManagerRequest.Alert alert = new AlertManagerRequest.Alert();
+        alert.setStatus(status.name());
+        alert.setLabels(labels);
+        alert.setAnnotations(annotations);
+        alert.setFingerprint(AlertFingerprint.of(labels));
+        if (firing) {
+            alert.setStartsAt(occurredAt);
+        } else {
+            alert.setEndsAt(occurredAt);
+        }
+        apply(List.of(alert), createdBy);
+    }
+
     @Transactional(readOnly = true)
     public AlertLogPage getAlertLogs(
             int requestedPage,

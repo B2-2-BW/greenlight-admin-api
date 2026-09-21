@@ -18,8 +18,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AlertController {
 
-    @Value("${alertmanager.token}")
-    private String alertmanagerToken;
+    @Value("${admin.alert.webhook.token}")
+    private String adminAlertWebhookToken;
 
     private final AlertService alertService;
 
@@ -56,7 +56,7 @@ public class AlertController {
             @RequestHeader("X-ALERT-TOKEN") String alertTokenHeader,
             @RequestBody AlertManagerRequest message
     ) {
-        if (!alertmanagerToken.equals(alertTokenHeader)) {
+        if (!adminAlertWebhookToken.equals(alertTokenHeader)) {
             throw CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 인증정보입니다.");
         }
 
@@ -71,7 +71,7 @@ public class AlertController {
             @RequestHeader("X-ALERT-TOKEN") String alertTokenHeader,
             @RequestBody AlertWebhookRequest message
     ) {
-        if (!alertmanagerToken.equals(alertTokenHeader)) {
+        if (!adminAlertWebhookToken.equals(alertTokenHeader)) {
             throw CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 인증정보입니다.");
         }
 
