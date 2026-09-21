@@ -5,6 +5,8 @@ import com.winten.greenlight.admin.db.repository.mapper.room.RoomMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.api.controller.site.SiteResponse;
+import com.winten.greenlight.admin.domain.alert.AlertCatalog;
+import com.winten.greenlight.admin.domain.alert.AlertService;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
@@ -27,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +37,7 @@ class SiteServiceTest {
     @Mock private SiteMapper siteMapper;
     @Mock private SiteCacheRepository siteCacheRepository;
     @Mock private AuditService auditService;
+    @Mock private AlertService alertService;
     @Mock private RoomMapper roomMapper;
     @Mock private UserMapper userMapper;
     private final SiteApiKeyGenerator siteApiKeyGenerator = new SiteApiKeyGenerator();
@@ -76,7 +80,7 @@ class SiteServiceTest {
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(updated));
 
-        service.updateSiteInfoById(request, false, false, "사이트 정보 변경");
+        service.updateSiteInfoById(request, false, false, false, "사이트 정보 변경");
 
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
         verify(siteMapper).updateSiteInfoById(captured.capture());
@@ -132,7 +136,7 @@ class SiteServiceTest {
         when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
         when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
 
-        var result = service.updateSiteInfoById(request, false, false, "변경");
+        var result = service.updateSiteInfoById(request, false, false, false, "변경");
 
         assertThat(result).isSameAs(updated);
         var captured = ArgumentCaptor.forClass(SiteInfo.class);
@@ -151,7 +155,7 @@ class SiteServiceTest {
                 .siteEnabled(false)
                 .build();
 
-        assertThatThrownBy(() -> service.updateSiteInfoById(request, true, false, "변경"))
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, true, false, false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -167,7 +171,7 @@ class SiteServiceTest {
                 .siteName("변경 이름")
                 .build();
 
-        assertThatThrownBy(() -> service.updateSiteInfoById(request, false, false, "변경"))
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, false, false, false, "변경"))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -195,12 +199,63 @@ class SiteServiceTest {
                 SiteInfo.builder().siteId("site-a").siteEnabled(false).build(),
                 true,
                 false,
+                false,
                 "운영 중지"
         );
 
         assertThat(result.getSiteEnabled()).isFalse();
         assertThat(result.getQueueEnabled()).isTrue();
+        verify(alertService).applySiteStatusAlert("site-a", AlertCatalog.SITE_DISABLED, true, "사이트 비활성화: site-a");
         verifyNoInteractions(roomMapper, userMapper);
+    }
+
+    @Test
+    void siteAdminCannotUpdateMaintenanceEnabled() {
+        var service = service();
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        var request = SiteInfo.builder()
+                .siteId("site-a")
+                .maintenanceEnabled(true)
+                .build();
+
+        assertThatThrownBy(() -> service.updateSiteInfoById(request, false, false, true, "점검"))
+                .isInstanceOf(CoreException.class)
+                .extracting(error -> ((CoreException) error).getErrorType())
+                .isEqualTo(ErrorType.FORBIDDEN);
+        verifyNoInteractions(siteMapper, siteCacheRepository, alertService);
+    }
+
+    @Test
+    void superEnablingMaintenanceFiresSiteMaintenanceAlert() {
+        var service = service();
+        authenticate("super", "root", UserRole.SUPER);
+        var previous = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .maintenanceEnabled(false)
+                .build();
+        var updated = SiteInfo.builder()
+                .siteId("site-a")
+                .siteEnabled(true)
+                .maintenanceEnabled(true)
+                .build();
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(previous), Optional.of(updated));
+        when(siteMapper.updateSiteInfoById(any())).thenReturn(1);
+
+        service.updateSiteInfoById(
+                SiteInfo.builder().siteId("site-a").maintenanceEnabled(true).build(),
+                false,
+                false,
+                true,
+                "점검 시작"
+        );
+
+        verify(alertService).applySiteStatusAlert(
+                "site-a", AlertCatalog.SITE_MAINTENANCE, true, "사이트 점검 시작: site-a"
+        );
+        verify(alertService, never()).applySiteStatusAlert(
+                eq("site-a"), eq(AlertCatalog.SITE_DISABLED), anyBoolean(), any()
+        );
     }
 
     @Test
@@ -298,13 +353,14 @@ class SiteServiceTest {
 
         assertThat(created.getSiteEnabled()).isTrue();
         assertThat(created.getQueueEnabled()).isFalse();
+        assertThat(created.getMaintenanceEnabled()).isFalse();
         assertThat(created.getSiteApiKey()).matches("gl_[A-Za-z0-9_-]{43}");
         verify(siteCacheRepository).updateSiteApiKeyCache(created);
         verify(siteCacheRepository).updateSiteInfo(created);
         verify(siteCacheRepository).updateRoomListCache("new1", List.of());
         verify(auditService).recordChanges(
                 eq("new1"), eq("SITE"), eq("new1"), eq(AuditAction.CREATE), eq("신규 계약"),
-                anyMap(), anyMap(), eq(List.of("siteName", "siteDescription", "siteEnabled", "queueEnabled"))
+                anyMap(), anyMap(), eq(List.of("siteName", "siteDescription", "siteEnabled", "queueEnabled", "maintenanceEnabled"))
         );
     }
 
@@ -339,7 +395,7 @@ class SiteServiceTest {
 
     private SiteService service() {
         return new SiteService(
-                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService, userMapper
+                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService, alertService, userMapper
         );
     }
 

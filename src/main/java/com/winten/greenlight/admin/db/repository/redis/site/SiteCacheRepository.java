@@ -62,6 +62,7 @@ public class SiteCacheRepository {
         var siteInfoMap = new HashMap<String, Object>();
         siteInfoMap.put("siteEnabled", Boolean.TRUE.equals(siteInfo.getSiteEnabled()));
         siteInfoMap.put("queueEnabled", Boolean.TRUE.equals(siteInfo.getQueueEnabled()));
+        siteInfoMap.put("maintenanceEnabled", Boolean.TRUE.equals(siteInfo.getMaintenanceEnabled()));
         jsonRedisTemplate.opsForHash().putAll(key, siteInfoMap);
     }
 

@@ -3,6 +3,8 @@ package com.winten.greenlight.admin.domain.site;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
+import com.winten.greenlight.admin.domain.alert.AlertCatalog;
+import com.winten.greenlight.admin.domain.alert.AlertService;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.support.error.CoreException;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -23,10 +26,11 @@ public class SiteService {
     private final SiteCacheRepository siteCacheRepository;
     private final SiteApiKeyGenerator siteApiKeyGenerator;
     private final AuditService auditService;
+    private final AlertService alertService;
     private final UserMapper userMapper;
 
     private static final List<String> AUDITED_SITE_FIELDS = List.of(
-            "siteName", "siteDescription", "siteEnabled", "queueEnabled"
+            "siteName", "siteDescription", "siteEnabled", "queueEnabled", "maintenanceEnabled"
     );
 
     public SiteInfo findSiteById(String siteId) {
@@ -90,6 +94,7 @@ public class SiteService {
                 .siteApiKey(generateAvailableApiKey())
                 .siteEnabled(true)
                 .queueEnabled(false)
+                .maintenanceEnabled(false)
                 .build();
         if (siteMapper.insertSite(siteInfo) != 1) {
             throw CoreException.of(ErrorType.DEFAULT_ERROR, "사이트 생성에 실패했습니다.");
@@ -155,11 +160,13 @@ public class SiteService {
             SiteInfo siteParam,
             boolean siteEnabledPresent,
             boolean queueEnabledPresent,
+            boolean maintenanceEnabledPresent,
             String reason
     ) {
         AuthUtil.ensureUserAdmin();
         AuthUtil.ensureCanManageSite(siteParam.getSiteId());
-        if (siteEnabledPresent || siteParam.getSiteEnabled() != null) {
+        if (siteEnabledPresent || siteParam.getSiteEnabled() != null
+                || maintenanceEnabledPresent || siteParam.getMaintenanceEnabled() != null) {
             AuthUtil.ensureSuper();
         }
         if (siteEnabledPresent && siteParam.getSiteEnabled() == null) {
@@ -168,10 +175,14 @@ public class SiteService {
         if (queueEnabledPresent && siteParam.getQueueEnabled() == null) {
             throw CoreException.of(ErrorType.INVALID_DATA, "queueEnabled 값은 null일 수 없습니다.");
         }
+        if (maintenanceEnabledPresent && siteParam.getMaintenanceEnabled() == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "maintenanceEnabled 값은 null일 수 없습니다.");
+        }
         if (siteParam.getSiteName() == null
                 && siteParam.getSiteDescription() == null
                 && siteParam.getSiteEnabled() == null
-                && siteParam.getQueueEnabled() == null) {
+                && siteParam.getQueueEnabled() == null
+                && siteParam.getMaintenanceEnabled() == null) {
             throw CoreException.of(ErrorType.INVALID_DATA, "수정할 사이트 정보가 없습니다.");
         }
         if (siteParam.getSiteName() != null) {
@@ -222,6 +233,26 @@ public class SiteService {
                 auditedValues(siteInfo),
                 AUDITED_SITE_FIELDS
         );
+        if (!Objects.equals(previousSite.getSiteEnabled(), siteInfo.getSiteEnabled())
+                && siteInfo.getSiteEnabled() != null) {
+            boolean disabled = Boolean.FALSE.equals(siteInfo.getSiteEnabled());
+            alertService.applySiteStatusAlert(
+                    siteInfo.getSiteId(),
+                    AlertCatalog.SITE_DISABLED,
+                    disabled,
+                    disabled ? "사이트 비활성화: " + siteInfo.getSiteId() : "사이트 활성화: " + siteInfo.getSiteId()
+            );
+        }
+        if (!Objects.equals(previousSite.getMaintenanceEnabled(), siteInfo.getMaintenanceEnabled())
+                && siteInfo.getMaintenanceEnabled() != null) {
+            boolean maintenance = Boolean.TRUE.equals(siteInfo.getMaintenanceEnabled());
+            alertService.applySiteStatusAlert(
+                    siteInfo.getSiteId(),
+                    AlertCatalog.SITE_MAINTENANCE,
+                    maintenance,
+                    maintenance ? "사이트 점검 시작: " + siteInfo.getSiteId() : "사이트 점검 종료: " + siteInfo.getSiteId()
+            );
+        }
         return siteInfo;
     }
 
@@ -261,6 +292,7 @@ public class SiteService {
         values.put("siteDescription", siteInfo.getSiteDescription());
         values.put("siteEnabled", siteInfo.getSiteEnabled());
         values.put("queueEnabled", siteInfo.getQueueEnabled());
+        values.put("maintenanceEnabled", siteInfo.getMaintenanceEnabled());
         return values;
     }
 

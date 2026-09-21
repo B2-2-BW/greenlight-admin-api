@@ -19,6 +19,7 @@ public class SiteInfoRequest {
     private String siteDescription;
     private Boolean siteEnabled;
     private Boolean queueEnabled;
+    private Boolean maintenanceEnabled;
     @NotBlank
     @Size(max = 1000)
     private String reason;
@@ -35,6 +36,10 @@ public class SiteInfoRequest {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private boolean siteEnabledPresent;
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private boolean maintenanceEnabledPresent;
 
     @JsonSetter("siteName")
     public void setSiteName(String siteName) {
@@ -61,6 +66,13 @@ public class SiteInfoRequest {
         this.queueEnabledPresent = true;
     }
 
+    @JsonSetter("maintenanceEnabled")
+    public void setMaintenanceEnabled(Boolean maintenanceEnabled) {
+        this.maintenanceEnabled = maintenanceEnabled;
+        this.siteManagementFieldsPresent = true;
+        this.maintenanceEnabledPresent = true;
+    }
+
     @JsonIgnore
     public boolean hasSiteManagementFields() {
         return siteManagementFieldsPresent;
@@ -74,5 +86,10 @@ public class SiteInfoRequest {
     @JsonIgnore
     public boolean isSiteEnabledPresent() {
         return siteEnabledPresent;
+    }
+
+    @JsonIgnore
+    public boolean isMaintenanceEnabledPresent() {
+        return maintenanceEnabledPresent;
     }
 }

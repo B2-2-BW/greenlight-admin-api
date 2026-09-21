@@ -39,7 +39,7 @@ class SiteCacheRepositoryTest {
 
         verify(hashOperations).putAll(
                 eq("greenlight:site:site-a:meta"),
-                eq(Map.of("siteEnabled", false, "queueEnabled", true))
+                eq(Map.of("siteEnabled", false, "queueEnabled", true, "maintenanceEnabled", false))
         );
     }
 }
