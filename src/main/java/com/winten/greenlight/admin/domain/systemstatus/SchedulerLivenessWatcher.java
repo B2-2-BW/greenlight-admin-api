@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class SchedulerLivenessWatcher {
-    static final String ALERTNAME = "SCHEDULER_STOPPED";
+    static final String ALERTNAME = "SCHEDULER_FAILED";
     static final String PROCESS_CODE = "PROCESS";
     static final String CREATED_BY = "admin-liveness";
 
@@ -42,8 +42,8 @@ public class SchedulerLivenessWatcher {
                         ALERTNAME,
                         PROCESS_CODE,
                         false,
-                        "스케줄러 프로세스 복구",
-                        "GET /schedulers 가 다시 성공했습니다.",
+                        "스케쥴러 실행",
+                        "스케쥴러: " + PROCESS_CODE + " 실행",
                         CREATED_BY
                 );
                 processDownAlerted = false;
@@ -60,12 +60,20 @@ public class SchedulerLivenessWatcher {
                         ALERTNAME,
                         PROCESS_CODE,
                         true,
-                        "스케줄러 프로세스 중단",
-                        "GET /schedulers 호출에 실패했습니다. " + exception.getMessage(),
+                        "스케쥴러 실패",
+                        "스케쥴러: " + PROCESS_CODE + " Error: " + errorText(exception),
                         CREATED_BY
                 );
                 processDownAlerted = true;
             }
         }
+    }
+
+    private static String errorText(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return exception.getClass().getSimpleName();
+        }
+        return message;
     }
 }

@@ -120,14 +120,14 @@ class AlertServiceTest {
                 "SCHEDULER_FAILED",
                 "FIRING",
                 "CRITICAL",
-                "[WAITING_TO_READY] 스케쥴러 실행 실패",
-                "스케쥴러 실행 연속 4회 실패",
+                "스케쥴러 중단",
+                "스케쥴러: WAITING_TO_READY 중단",
                 "2026-09-21T06:12:03Z"
         );
         assertThat(content).isEqualTo(
-                "<b>[Greenlight][dev] [WAITING_TO_READY] 스케쥴러 실행 실패</b>"
-                        + "<br>[심각] 스케쥴러 실행 연속 4회 실패"
-                        + "<br>[At: 2026-09-21 15:12:03]"
+                "<b>[Greenlight][dev] [심각] 스케쥴러 중단</b>"
+                        + "<br>스케쥴러: WAITING_TO_READY 중단"
+                        + "<br>[2026-09-21 15:12:03]"
         );
     }
 

@@ -61,7 +61,7 @@ public class AlertService {
     }
 
     @Transactional
-    public void applySiteStatusAlert(String siteId, AlertCatalog catalog, boolean firing, String summary) {
+    public void applySiteStatusAlert(String siteId, AlertCatalog catalog, boolean firing, String summary, String description) {
         AlertStatus status = firing ? AlertStatus.FIRING : AlertStatus.RESOLVED;
         Map<String, String> labels = new LinkedHashMap<>();
         labels.put("alertname", catalog.name());
@@ -69,6 +69,9 @@ public class AlertService {
         labels.put("severity", AlertSeverity.WARNING.name());
         Map<String, String> annotations = new LinkedHashMap<>();
         annotations.put("summary", summary);
+        if (description != null && !description.isBlank()) {
+            annotations.put("description", description);
+        }
         String occurredAt = Instant.now().toString();
         annotations.put("occurred_at", occurredAt);
         AlertManagerRequest.Alert alert = new AlertManagerRequest.Alert();
@@ -98,6 +101,7 @@ public class AlertService {
         Map<String, String> labels = new LinkedHashMap<>();
         labels.put("alertname", alertname);
         labels.put("scheduler_code", schedulerCode);
+        labels.put("severity", AlertSeverity.CRITICAL.name());
         Map<String, String> annotations = new LinkedHashMap<>();
         annotations.put("summary", summary);
         if (description != null && !description.isBlank()) {
@@ -314,10 +318,15 @@ public class AlertService {
         String title = firstNonBlank(summary, alertTitle(alertname));
         String level = severityLabel(status, severity);
         String body = firstNonBlank(description);
-        String levelLine = body == null ? "[" + level + "]" : "[" + level + "] " + body.trim();
-        return "<b>[Greenlight]" + profileTag + " " + title + "</b>"
-                + "<br>" + levelLine
-                + "<br>[At: " + formatDisplayTime(occurredAt) + "]";
+        StringBuilder content = new StringBuilder();
+        content.append("<b>[Greenlight]").append(profileTag)
+                .append(" [").append(level).append("] ")
+                .append(title).append("</b>");
+        if (body != null) {
+            content.append("<br>").append(body.replace("\n", "<br>"));
+        }
+        content.append("<br>[").append(formatDisplayTime(occurredAt)).append("]");
+        return content.toString();
     }
 
     static String alertTitle(String alertname) {

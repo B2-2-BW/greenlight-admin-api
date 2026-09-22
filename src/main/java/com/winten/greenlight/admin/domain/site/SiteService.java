@@ -254,9 +254,8 @@ public class SiteService {
                     siteInfo.getSiteId(),
                     AlertCatalog.QUEUE_DISABLED,
                     disabled,
-                    disabled
-                            ? "사이트 대기열 비활성화: " + siteLabel
-                            : "사이트 대기열 활성화: " + siteLabel
+                    disabled ? "사이트 대기열 비활성화" : "사이트 대기열 활성화",
+                    siteLabel
             );
         }
         if (!Objects.equals(previousSite.getMaintenanceEnabled(), siteInfo.getMaintenanceEnabled())
@@ -267,7 +266,8 @@ public class SiteService {
                     siteInfo.getSiteId(),
                     AlertCatalog.SITE_MAINTENANCE,
                     maintenance,
-                    maintenance ? "사이트 점검 시작: " + siteLabel : "사이트 점검 종료: " + siteLabel
+                    maintenance ? "사이트 점검 시작" : "사이트 점검 종료",
+                    siteLabel
             );
         }
         return siteInfo;

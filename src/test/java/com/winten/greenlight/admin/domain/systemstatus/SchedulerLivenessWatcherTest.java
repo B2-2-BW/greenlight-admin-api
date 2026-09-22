@@ -40,7 +40,7 @@ class SchedulerLivenessWatcherTest {
 
         watcher.poll();
         verify(alertService, times(1)).applyPlatformAlert(
-                eq("SCHEDULER_STOPPED"),
+                eq("SCHEDULER_FAILED"),
                 eq("PROCESS"),
                 eq(true),
                 anyString(),
@@ -50,7 +50,7 @@ class SchedulerLivenessWatcherTest {
 
         watcher.poll();
         verify(alertService, times(1)).applyPlatformAlert(
-                eq("SCHEDULER_STOPPED"),
+                eq("SCHEDULER_FAILED"),
                 eq("PROCESS"),
                 eq(true),
                 anyString(),
@@ -58,7 +58,7 @@ class SchedulerLivenessWatcherTest {
                 eq("admin-liveness")
         );
         verify(alertService).applyPlatformAlert(
-                eq("SCHEDULER_STOPPED"),
+                eq("SCHEDULER_FAILED"),
                 eq("PROCESS"),
                 eq(false),
                 anyString(),
