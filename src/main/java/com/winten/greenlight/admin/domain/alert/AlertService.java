@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.domain.alert;
 
 import com.winten.greenlight.admin.api.controller.webhook.AlertManagerRequest;
 import com.winten.greenlight.admin.db.repository.mapper.alert.AlertLogMapper;
+import com.winten.greenlight.admin.db.repository.mapper.alert.AlertSendLogMapper;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.AuthUtil;
@@ -36,6 +37,7 @@ public class AlertService {
     static final ZoneId ZONE_ID = ZoneId.of("Asia/Seoul");
     static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZONE_ID);
     private final AlertLogMapper alertLogMapper;
+    private final AlertSendLogMapper alertSendLogMapper;
     private final TeamsAlertClient teamsAlertClient;
     private final AlertSubscriptionService alertSubscriptionService;
     private final JsonMapper jsonMapper;
@@ -55,7 +57,7 @@ public class AlertService {
                 accepted.add(alert);
             }
         }
-        scheduleSend(accepted);
+        scheduleSend(accepted, actor, ip);
     }
 
     @Transactional
@@ -196,13 +198,13 @@ public class AlertService {
         return true;
     }
 
-    private void scheduleSend(List<AlertManagerRequest.Alert> alerts) {
+    private void scheduleSend(List<AlertManagerRequest.Alert> alerts, String actor, String ip) {
         if (alerts.isEmpty()) {
             return;
         }
         Runnable send = () -> {
             try {
-                sendTeams(alerts);
+                sendTeams(alerts, actor, ip);
             } catch (Exception exception) {
                 log.error("Alert send failed after persist. size={}", alerts.size(), exception);
             }
@@ -219,7 +221,7 @@ public class AlertService {
         }
     }
 
-    private void sendTeams(List<AlertManagerRequest.Alert> alerts) {
+    private void sendTeams(List<AlertManagerRequest.Alert> alerts, String actor, String ip) {
         for (AlertManagerRequest.Alert alert : alerts) {
             String alertname = alert.getLabels() == null ? null : alert.getLabels().get("alertname");
             String siteId = alert.getLabels() == null ? null : alert.getLabels().get("site_id");
@@ -257,7 +259,46 @@ public class AlertService {
                     .targets(targets)
                     .sentAt(sentAt)
                     .build();
-            teamsAlertClient.sendWithRetry(body, 3);
+            if (!teamsAlertClient.sendWithRetry(body, 3)) {
+                continue;
+            }
+            recordSend(alert, content, targets, actor, ip);
+        }
+    }
+
+    private void recordSend(
+            AlertManagerRequest.Alert alert,
+            String message,
+            List<String> targets,
+            String actor,
+            String ip
+    ) {
+        Map<String, String> labels = alert.getLabels() == null ? Map.of() : alert.getLabels();
+        String alertname = firstNonBlank(labels.get("alertname"), "Unknown");
+        LocalDateTime sentAt = LocalDateTime.now(ZONE_ID);
+        for (String target : targets) {
+            AlertSendLog row = AlertSendLog.builder()
+                    .fingerprint(firstNonBlank(alert.getFingerprint(), AlertFingerprint.of(labels)))
+                    .alertname(alertname)
+                    .status(AlertStatus.from(alert.getStatus()))
+                    .siteId(blankToNull(labels.get("site_id")))
+                    .roomId(blankToNull(labels.get("room_id")))
+                    .channel(AlertChannel.TEAMS.name())
+                    .target(target)
+                    .message(message)
+                    .sentAt(sentAt)
+                    .createdBy(actor)
+                    .createdAt(sentAt)
+                    .createdIp(ip)
+                    .updatedBy(actor)
+                    .updatedAt(sentAt)
+                    .updatedIp(ip)
+                    .build();
+            try {
+                alertSendLogMapper.insert(row);
+            } catch (Exception exception) {
+                log.error("Alert send log insert failed. alertname={} target={}", alertname, target, exception);
+            }
         }
     }
 
