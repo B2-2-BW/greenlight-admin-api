@@ -52,6 +52,10 @@ public class AlertPolicyService {
 
     public int reloadAllCache() {
         AuthUtil.ensureSuper();
+        return reloadAllForSystem();
+    }
+
+    public int reloadAllForSystem() {
         List<AlertPolicy> policies = alertPolicyMapper.findAllLive();
         if (policies != null) {
             for (AlertPolicy policy : policies) {

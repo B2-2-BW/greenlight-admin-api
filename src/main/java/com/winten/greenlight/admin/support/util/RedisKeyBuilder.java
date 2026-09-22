@@ -110,4 +110,8 @@ public class RedisKeyBuilder {
     public String alertPolicyLegacy() {
         return prefix + ":admin:alert_policy";
     }
+
+    public String schedulerEnabled(String schedulerCode) {
+        return prefix + ":scheduler:" + schedulerCode + ":enabled";
+    }
 }

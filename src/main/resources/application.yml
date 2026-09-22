@@ -80,6 +80,10 @@ redis:
   key-prefix: ${REDIS_KEY_PREFIX}
   connection-type: ${REDIS_CONNECTION_TYPE:standalone}
 
+operational-cache:
+  sync-ms: 300000
+  probe-ms: 15000
+
 jwt:
   secret: ${JWT_SECRET}
   expiration:
@@ -101,7 +105,7 @@ scheduler:
   api:
     url: ${SCHEDULER_API_URL}
   liveness:
-    interval-ms: 15000
+    interval-ms: 5000
     failure-threshold: 2
 
 ---
