@@ -21,7 +21,6 @@ class AlertCatalogTest {
         assertThat(AlertCatalog.catalog(false))
                 .containsExactly(AlertCatalog.QUEUE_WAIT, AlertCatalog.QUEUE_DISABLED, AlertCatalog.SITE_MAINTENANCE);
         assertThat(AlertCatalog.catalog(true)).extracting(AlertCatalog::name)
-                .containsExactly("QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE", "INFRA")
-                .doesNotContain("ACTIVE_USERS", "VISITOR_SURGE", "SCHEDULER_FAILED", "SCHEDULER_STOPPED");
+                .containsExactly("QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE", "INFRA");
     }
 }
