@@ -112,19 +112,19 @@ class AlertServiceTest {
     }
 
     @Test
-    void teamsContentUsesCatalogTitleSeverityAndKoreaTime() {
+    void teamsContentUsesSummaryAsTitle() {
         String content = AlertService.teamsContent(
                 "[dev]",
-                "SITE_MAINTENANCE",
+                "SCHEDULER_FAILED",
                 "FIRING",
-                "WARNING",
-                "사이트 점검 시작: site-a",
-                null,
+                "CRITICAL",
+                "[WAITING_TO_READY] 스케쥴러 실행 실패",
+                "스케쥴러 실행 연속 4회 실패",
                 "2026-09-21T06:12:03Z"
         );
         assertThat(content).isEqualTo(
-                "<b>[Greenlight][dev] 사이트 점검</b>"
-                        + "<br>[경고] 사이트 점검 시작: site-a"
+                "<b>[Greenlight][dev] [WAITING_TO_READY] 스케쥴러 실행 실패</b>"
+                        + "<br>[심각] 스케쥴러 실행 연속 4회 실패"
                         + "<br>[At: 2026-09-21 15:12:03]"
         );
     }

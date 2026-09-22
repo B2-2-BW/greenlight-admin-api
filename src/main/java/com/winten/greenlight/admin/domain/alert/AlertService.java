@@ -270,14 +270,12 @@ public class AlertService {
             String description,
             String occurredAt
     ) {
-        String title = alertTitle(alertname);
+        String title = firstNonBlank(summary, alertTitle(alertname));
         String level = severityLabel(status, severity);
-        String body = firstNonBlank(description, summary);
-        if (body == null) {
-            body = title;
-        }
+        String body = firstNonBlank(description);
+        String levelLine = body == null ? "[" + level + "]" : "[" + level + "] " + body.trim();
         return "<b>[Greenlight]" + profileTag + " " + title + "</b>"
-                + "<br>[" + level + "] " + body.trim()
+                + "<br>" + levelLine
                 + "<br>[At: " + formatDisplayTime(occurredAt) + "]";
     }
 
