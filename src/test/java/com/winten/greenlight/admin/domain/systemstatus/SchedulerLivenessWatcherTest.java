@@ -11,6 +11,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.when;
 class SchedulerLivenessWatcherTest {
     @Mock private SchedulerStatusClient schedulerStatusClient;
     @Mock private AlertService alertService;
+    @Mock private SchedulerRunningStatusStore schedulerRunningStatusStore;
     @InjectMocks private SchedulerLivenessWatcher watcher;
 
     @Test
@@ -63,6 +65,8 @@ class SchedulerLivenessWatcherTest {
                 anyString(),
                 eq("admin-liveness")
         );
+        verify(schedulerRunningStatusStore).saveAllDisabled();
+        verify(schedulerRunningStatusStore).saveAll(any());
     }
 
     @Test

@@ -17,6 +17,7 @@ public class SchedulerLivenessWatcher {
 
     private final SchedulerStatusClient schedulerStatusClient;
     private final AlertService alertService;
+    private final SchedulerRunningStatusStore schedulerRunningStatusStore;
 
     @Value("${scheduler.api.url:}")
     private String schedulerUrl;
@@ -27,14 +28,15 @@ public class SchedulerLivenessWatcher {
     private int consecutiveFailures;
     private boolean processDownAlerted;
 
-    @Scheduled(fixedDelayString = "${scheduler.liveness.interval-ms:15000}")
+    @Scheduled(fixedDelayString = "${scheduler.liveness.interval-ms:5000}")
     public void poll() {
         if (schedulerUrl == null || schedulerUrl.isBlank()) {
             return;
         }
         try {
-            schedulerStatusClient.getSchedulers();
+            var schedulers = schedulerStatusClient.getSchedulers();
             consecutiveFailures = 0;
+            schedulerRunningStatusStore.saveAll(schedulers);
             if (processDownAlerted) {
                 alertService.applyPlatformAlert(
                         ALERTNAME,
@@ -50,6 +52,9 @@ public class SchedulerLivenessWatcher {
             consecutiveFailures += 1;
             log.warn("Scheduler liveness poll failed. consecutive={} message={}",
                     consecutiveFailures, exception.getMessage());
+            if (consecutiveFailures >= Math.max(failureThreshold, 1)) {
+                schedulerRunningStatusStore.saveAllDisabled();
+            }
             if (!processDownAlerted && consecutiveFailures >= Math.max(failureThreshold, 1)) {
                 alertService.applyPlatformAlert(
                         ALERTNAME,

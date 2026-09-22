@@ -40,6 +40,12 @@
         ORDER BY r.room_id
     </select>
 
+    <select id="findRoomsBySiteId" resultType="RoomEntity">
+        <include refid="selectFromRoom"/>
+        WHERE r.site_id = #{siteId}
+        ORDER BY r.room_id
+    </select>
+
     <sql id="roomPageWhere">
         <where>
             <if test="enabled != null">r.enabled = #{enabled}</if>
@@ -169,6 +175,25 @@
         WHERE rule.room_id = #{roomId}
         AND rm.default_rule_type != 'ALL'
         AND rm.site_id = #{userSiteId}
+    </select>
+
+    <select id="findRoomRulesByRoomId" resultType="RoomRuleEntity">
+        SELECT
+            rule.room_id,
+            rule.rule_seq,
+            rule.value,
+            rule.match_operator,
+            rule.description,
+            rule.created_by,
+            rule.created_at,
+            rule.created_ip,
+            rule.updated_by,
+            rule.updated_at,
+            rule.updated_ip
+        FROM room_rule rule
+        JOIN room rm ON rule.room_id = rm.room_id
+        WHERE rule.room_id = #{roomId}
+          AND rm.default_rule_type != 'ALL'
     </select>
 
     <select id="saveRoomRule" parameterType="RoomRuleEntity" resultType="RoomRuleEntity">

@@ -2,6 +2,7 @@ package com.winten.greenlight.admin.domain.alert;
 
 import com.winten.greenlight.admin.api.controller.webhook.AlertManagerRequest;
 import com.winten.greenlight.admin.db.repository.mapper.alert.AlertLogMapper;
+import com.winten.greenlight.admin.db.repository.mapper.alert.AlertSendLogMapper;
 import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AlertServiceTest {
     @Mock private AlertLogMapper alertLogMapper;
+    @Mock private AlertSendLogMapper alertSendLogMapper;
     @Mock private TeamsAlertClient teamsAlertClient;
     @Mock private AlertSubscriptionService alertSubscriptionService;
     @Mock private Environment environment;
@@ -140,7 +142,7 @@ class AlertServiceTest {
 
     private AlertService service() {
         return new AlertService(
-                alertLogMapper, teamsAlertClient, alertSubscriptionService, JsonMapper.builder().build(), environment
+                alertLogMapper, alertSendLogMapper, teamsAlertClient, alertSubscriptionService, JsonMapper.builder().build(), environment
         );
     }
 

@@ -54,6 +54,19 @@ public class SiteService {
         }
     }
 
+    public void reloadAllSitesForSystem() {
+        List<SiteInfo> siteList = siteMapper.findAllSite();
+        if (siteList == null) {
+            return;
+        }
+        for (var site : siteList) {
+            if (site.getSiteApiKey() != null && !site.getSiteApiKey().isBlank()) {
+                siteCacheRepository.updateSiteApiKeyCache(site);
+            }
+            siteCacheRepository.updateSiteInfo(site);
+        }
+    }
+
     public SitePage getManageableSites(int requestedPage, int size, String query, Boolean enabled) {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();

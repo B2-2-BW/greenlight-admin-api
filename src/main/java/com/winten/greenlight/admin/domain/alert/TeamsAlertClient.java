@@ -13,15 +13,15 @@ public class TeamsAlertClient {
     private final TeamsAlertProperties properties;
     private final RestClient restClient = RestClient.builder().build();
 
-    public void sendWithRetry(TeamsMessage message, int retryCount) {
+    public boolean sendWithRetry(TeamsMessage message, int retryCount) {
         log.info("Teams alert payload={}", message);
         if (!properties.isEnabled()) {
             log.info("Teams alert skipped (teams.alert.enabled=false)");
-            return;
+            return false;
         }
         if (message.getTargets() == null || message.getTargets().isEmpty()) {
             log.warn("Teams alert skipped: targets empty");
-            return;
+            return false;
         }
 
         Exception lastError = null;
@@ -35,7 +35,7 @@ public class TeamsAlertClient {
                         .toBodilessEntity();
 
                 log.info("Alert success");
-                return;
+                return true;
             } catch (Exception e) {
                 lastError = e;
                 log.warn("Alert fail attempt={}", i + 1, e);
@@ -45,5 +45,9 @@ public class TeamsAlertClient {
                 }
             }
         }
+        if (lastError != null) {
+            log.error("Final fail: {}", lastError.toString());
+        }
+        return false;
     }
 }
