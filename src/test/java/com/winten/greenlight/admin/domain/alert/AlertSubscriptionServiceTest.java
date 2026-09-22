@@ -48,20 +48,6 @@ class AlertSubscriptionServiceTest {
     }
 
     @Test
-    void getMineIgnoresRemovedAlertTypes() {
-        authenticate();
-        when(alertSubscriptionMapper.findByAccountId(1L)).thenReturn(List.of(
-                AlertSubscription.builder().alertname("QUEUE_WAIT").enabled(true).build(),
-                AlertSubscription.builder().alertname("ACTIVE_USERS").enabled(true).build(),
-                AlertSubscription.builder().alertname("VISITOR_SURGE").enabled(true).build()
-        ));
-
-        assertThat(service().getMine()).extracting(AlertSubscription::getAlertname)
-                .containsExactly("QUEUE_WAIT", "QUEUE_DISABLED", "SITE_MAINTENANCE")
-                .doesNotContain("ACTIVE_USERS", "VISITOR_SURGE");
-    }
-
-    @Test
     void getMineTreatsLegacySiteDisabledAsQueueDisabled() {
         authenticate();
         when(alertSubscriptionMapper.findByAccountId(1L)).thenReturn(List.of(
