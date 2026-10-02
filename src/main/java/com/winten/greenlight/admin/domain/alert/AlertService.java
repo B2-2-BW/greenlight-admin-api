@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -40,6 +41,7 @@ public class AlertService {
     private final AlertSendLogMapper alertSendLogMapper;
     private final TeamsAlertClient teamsAlertClient;
     private final AlertSubscriptionService alertSubscriptionService;
+    private final AlertSilenceService alertSilenceService;
     private final JsonMapper jsonMapper;
     private final Environment environment;
 
@@ -51,8 +53,13 @@ public class AlertService {
         String actor = normalizeActor(createdBy);
         String ip = requestIp();
         LocalDateTime now = LocalDateTime.now();
+        Set<AlertSilenceSystem> silenced = alertSilenceService.activeSystems(LocalDateTime.now(ZONE_ID));
         List<AlertManagerRequest.Alert> accepted = new ArrayList<>();
         for (AlertManagerRequest.Alert alert : alerts) {
+            if (isSilencedFiring(alert, silenced)) {
+                log.info("Skip silenced firing alert. alertname={}", alertnameOf(alert));
+                continue;
+            }
             if (applyOne(alert, actor, ip, now)) {
                 accepted.add(alert);
             }
@@ -146,6 +153,30 @@ public class AlertService {
                         size, (long) (page - 1) * size
                 );
         return new AlertLogPage(content, page, size, totalElements, totalPages);
+    }
+
+    private static boolean isSilencedFiring(AlertManagerRequest.Alert alert, Set<AlertSilenceSystem> silenced) {
+        if (alert == null || alert.getStatus() == null || silenced == null || silenced.isEmpty()) {
+            return false;
+        }
+        AlertStatus status;
+        try {
+            status = AlertStatus.from(alert.getStatus());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+        if (status != AlertStatus.FIRING) {
+            return false;
+        }
+        AlertSilenceSystem system = AlertSilenceSystem.ofAlertname(alertnameOf(alert));
+        return system != null && silenced.contains(system);
+    }
+
+    private static String alertnameOf(AlertManagerRequest.Alert alert) {
+        if (alert == null || alert.getLabels() == null) {
+            return null;
+        }
+        return alert.getLabels().get("alertname");
     }
 
     private boolean applyOne(AlertManagerRequest.Alert alert, String actor, String ip, LocalDateTime now) {
