@@ -14,6 +14,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,8 +62,8 @@ class SchedulerLivenessWatcherTest {
                 eq("SCHEDULER_FAILED"),
                 eq("PROCESS"),
                 eq(false),
-                anyString(),
-                anyString(),
+                eq("스케쥴러 PROCESS 업"),
+                isNull(),
                 eq("admin-liveness")
         );
         verify(schedulerRunningStatusStore).saveAllDisabled();
