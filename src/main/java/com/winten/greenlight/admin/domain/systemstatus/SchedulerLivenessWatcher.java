@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SchedulerLivenessWatcher {
     static final String ALERTNAME = "SCHEDULER_FAILED";
-    static final String PROCESS_CODE = "PROCESS";
     static final String CREATED_BY = "admin-liveness";
 
     private final SchedulerStatusClient schedulerStatusClient;
@@ -40,10 +39,10 @@ public class SchedulerLivenessWatcher {
             if (processDownAlerted) {
                 alertService.applyPlatformAlert(
                         ALERTNAME,
-                        PROCESS_CODE,
+                        "PROCESS",
                         false,
-                        "스케쥴러 실행",
-                        "스케쥴러: " + PROCESS_CODE + " 실행",
+                        "스케쥴러 PROCESS 업",
+                        null,
                         CREATED_BY
                 );
                 processDownAlerted = false;
@@ -58,10 +57,10 @@ public class SchedulerLivenessWatcher {
             if (!processDownAlerted && consecutiveFailures >= Math.max(failureThreshold, 1)) {
                 alertService.applyPlatformAlert(
                         ALERTNAME,
-                        PROCESS_CODE,
+                        "PROCESS",
                         true,
-                        "스케쥴러 실패",
-                        "스케쥴러: " + PROCESS_CODE + " Error: " + errorText(exception),
+                        "스케쥴러 PROCESS 다운",
+                        "Error: " + errorText(exception),
                         CREATED_BY
                 );
                 processDownAlerted = true;
