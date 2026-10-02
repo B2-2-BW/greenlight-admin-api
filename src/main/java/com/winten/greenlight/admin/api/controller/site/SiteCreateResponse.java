@@ -6,6 +6,7 @@ public record SiteCreateResponse(
         String siteDescription,
         boolean siteEnabled,
         boolean queueEnabled,
+        boolean maintenanceEnabled,
         String apiKey
 ) {
 }

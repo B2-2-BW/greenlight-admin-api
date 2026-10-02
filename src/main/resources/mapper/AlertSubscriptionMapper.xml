@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.alert.AlertSubscriptionMapper">
+    <select id="findByAccountId" resultType="AlertSubscription">
+        SELECT account_id, alertname, enabled
+        FROM alert_subscription
+        WHERE account_id = #{accountId}
+    </select>
+
+    <insert id="upsert" parameterType="AlertSubscription">
+        INSERT INTO alert_subscription (
+            account_id, alertname, enabled,
+            created_by, created_at, created_ip,
+            updated_by, updated_at, updated_ip
+        ) VALUES (
+            #{accountId}, #{alertname}, #{enabled},
+            #{createdBy}, CURRENT_TIMESTAMP, #{createdIp},
+            #{updatedBy}, CURRENT_TIMESTAMP, #{updatedIp}
+        )
+        ON CONFLICT (account_id, alertname)
+        DO UPDATE SET
+            enabled = EXCLUDED.enabled,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = EXCLUDED.updated_at,
+            updated_ip = EXCLUDED.updated_ip
+    </insert>
+</mapper>

@@ -13,4 +13,5 @@ public class SiteResponse {
     private String siteDescription;
     private boolean siteEnabled;
     private boolean queueEnabled;
+    private boolean maintenanceEnabled;
 }

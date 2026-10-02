@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -143,6 +144,7 @@ public class RoomService {
 //        updateRoomListCache();
 
         updateSiteEnabledRoomListCache(result.getSiteId());
+        roomCacheRepository.updateRoomMetaVersionToNow();
 
         return createdRoom;
     }
@@ -190,6 +192,7 @@ public class RoomService {
         roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
 
         updateSiteEnabledRoomListCache(currentRoom.getSiteId());
+        roomCacheRepository.updateRoomMetaVersionToNow();
 
         return updatedRoom;
     }
@@ -226,6 +229,7 @@ public class RoomService {
 //        updateRoomListCache();
 
         updateSiteEnabledRoomListCache(currentRoom.getSiteId()); // room list 갱신
+        roomCacheRepository.updateRoomMetaVersionToNow();
 
         return Room.builder()
                 .roomId(roomId)
@@ -255,6 +259,30 @@ public class RoomService {
         siteCacheRepository.updateRoomListCache(siteId, enabledRoomsBySite.getOrDefault(siteId, List.of()));
 
         return roomList.stream().map(Room::getRoomId).toList();
+    }
+
+    public void reloadAllRoomsForSystem() {
+        List<SiteInfo> sites = siteMapper.findAllSite();
+        if (sites == null) {
+            return;
+        }
+        for (SiteInfo site : sites) {
+            List<RoomEntity> entities = roomMapper.findRoomsBySiteId(site.getSiteId());
+            if (entities == null) {
+                entities = List.of();
+            }
+            List<Room> rooms = new ArrayList<>();
+            for (RoomEntity entity : entities) {
+                var rules = roomMapper.findRoomRulesByRoomId(entity.getRoomId());
+                entity.setRoomRules(rules == null ? List.of() : rules);
+                Room room = roomConverter.toDto(entity);
+                roomCacheRepository.deleteRoomMetaCache(room.getRoomId());
+                roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(room));
+                rooms.add(room);
+            }
+            siteCacheRepository.updateRoomListCache(site.getSiteId(), rooms);
+        }
+        roomCacheRepository.updateRoomMetaVersionToNow();
     }
 
     private void updateSiteEnabledRoomListCache(String siteId) {

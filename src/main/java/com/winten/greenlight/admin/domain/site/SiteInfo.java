@@ -21,6 +21,7 @@ public class SiteInfo extends AuditDto {
     private String siteApiKey;
     private Boolean siteEnabled;
     private Boolean queueEnabled;
+    private Boolean maintenanceEnabled;
     private String deletedBy;
     private LocalDateTime deletedAt;
     private String deletedIp;

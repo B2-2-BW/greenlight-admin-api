@@ -35,6 +35,7 @@ public class SiteController {
                 site.getSiteDescription(),
                 Boolean.TRUE.equals(site.getSiteEnabled()),
                 Boolean.TRUE.equals(site.getQueueEnabled()),
+                Boolean.TRUE.equals(site.getMaintenanceEnabled()),
                 site.getSiteApiKey()
         ));
     }
@@ -73,6 +74,7 @@ public class SiteController {
                         siteParam,
                         request.isSiteEnabledPresent(),
                         request.isQueueEnabledPresent(),
+                        request.isMaintenanceEnabledPresent(),
                         request.getReason()
                 )
                 : siteService.updateQueueEnabled(siteId, request.getQueueEnabled(), request.getReason());

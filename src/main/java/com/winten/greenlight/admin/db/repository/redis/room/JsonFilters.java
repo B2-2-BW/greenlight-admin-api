@@ -6,6 +6,7 @@ import tools.jackson.databind.ser.std.SimpleBeanPropertyFilter;
 public class JsonFilters {
     public static final PropertyFilter roomFilter = SimpleBeanPropertyFilter.serializeAllExcept(
             "userRole",
+            "userSiteId",
             "description",
             "createdBy",
             "createdAt",

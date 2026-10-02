@@ -15,6 +15,7 @@ public class AlertManagerRequest {
     private List<Alert> alerts;
     private Map<String, String> commonLabels;
     private Map<String, String> commonAnnotations;
+    private String groupKey;
     private String externalURL;
 
     @Data
@@ -25,5 +26,6 @@ public class AlertManagerRequest {
         private String startsAt;
         private String endsAt;
         private String generatorURL;
+        private String fingerprint;
     }
 }

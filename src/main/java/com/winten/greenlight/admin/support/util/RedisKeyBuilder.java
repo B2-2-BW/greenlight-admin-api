@@ -102,4 +102,16 @@ public class RedisKeyBuilder {
     public String siteRoomId() {
         return prefix + ":site:roomId";
     }
+
+    public String alertPolicy(String siteId) {
+        return prefix + ":admin:alert_policy:" + siteId;
+    }
+
+    public String alertPolicyLegacy() {
+        return prefix + ":admin:alert_policy";
+    }
+
+    public String schedulerEnabled(String schedulerCode) {
+        return prefix + ":scheduler:" + schedulerCode + ":enabled";
+    }
 }

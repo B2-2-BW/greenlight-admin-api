@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.alert.AlertSendLogMapper">
+    <insert id="insert" parameterType="AlertSendLog" useGeneratedKeys="true" keyProperty="sendId">
+        INSERT INTO alert_send_log (
+            fingerprint, alertname, status, site_id, room_id, channel, target, message, sent_at,
+            created_by, created_at, created_ip,
+            updated_by, updated_at, updated_ip
+        ) VALUES (
+            #{fingerprint}, #{alertname}, #{status}, #{siteId}, #{roomId}, #{channel}, #{target}, #{message}, #{sentAt},
+            #{createdBy}, #{createdAt}, #{createdIp},
+            #{updatedBy}, #{updatedAt}, #{updatedIp}
+        )
+    </insert>
+</mapper>

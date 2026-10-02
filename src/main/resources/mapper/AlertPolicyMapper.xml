@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.winten.greenlight.admin.db.repository.mapper.alert.AlertPolicyMapper">
+    <sql id="columns">
+        site_id, for_ticks, repeat_interval_seconds,
+        waiting_compare, waiting_threshold,
+        active_compare, active_threshold,
+        surge_wait_time_seconds
+    </sql>
+
+    <select id="findBySiteId" resultType="AlertPolicy">
+        SELECT <include refid="columns"/>
+        FROM alert_policy
+        WHERE site_id = #{siteId}
+    </select>
+
+    <select id="findAllLive" resultType="AlertPolicy">
+        SELECT
+            p.site_id, p.for_ticks, p.repeat_interval_seconds,
+            p.waiting_compare, p.waiting_threshold,
+            p.active_compare, p.active_threshold,
+            p.surge_wait_time_seconds
+        FROM alert_policy p
+        JOIN site_info s ON s.site_id = p.site_id
+        WHERE s.deleted_at IS NULL
+    </select>
+
+    <insert id="upsert" parameterType="AlertPolicy">
+        INSERT INTO alert_policy (
+            site_id, for_ticks, repeat_interval_seconds,
+            waiting_compare, waiting_threshold,
+            active_compare, active_threshold, surge_wait_time_seconds,
+            created_by, created_at, created_ip,
+            updated_by, updated_at, updated_ip
+        ) VALUES (
+            #{siteId}, #{forTicks}, #{repeatIntervalSeconds},
+            #{waitingCompare}, #{waitingThreshold},
+            #{activeCompare}, #{activeThreshold}, #{surgeWaitTimeSeconds},
+            #{createdBy}, CURRENT_TIMESTAMP, #{createdIp},
+            #{updatedBy}, CURRENT_TIMESTAMP, #{updatedIp}
+        )
+        ON CONFLICT (site_id)
+        DO UPDATE SET
+            for_ticks = EXCLUDED.for_ticks,
+            repeat_interval_seconds = EXCLUDED.repeat_interval_seconds,
+            waiting_compare = EXCLUDED.waiting_compare,
+            waiting_threshold = EXCLUDED.waiting_threshold,
+            active_compare = EXCLUDED.active_compare,
+            active_threshold = EXCLUDED.active_threshold,
+            surge_wait_time_seconds = EXCLUDED.surge_wait_time_seconds,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = EXCLUDED.updated_at,
+            updated_ip = EXCLUDED.updated_ip
+    </insert>
+</mapper>

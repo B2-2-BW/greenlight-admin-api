@@ -12,6 +12,7 @@ public interface RoomMapper {
     Optional<RoomEntity> findRoomById(RoomEntity roomEntity);
     List<RoomEntity> findAllRoom(RoomEntity roomEntity);
     List<RoomEntity> findEnabledRoomsBySiteId(@Param("siteId") String siteId);
+    List<RoomEntity> findRoomsBySiteId(@Param("siteId") String siteId);
     List<RoomEntity> findRoomsPage(@Param("roomEnvironment") RoomEnvironment roomEnvironment,
                                    @Param("enabled") Boolean enabled,
                                    @Param("query") String query,
@@ -24,6 +25,7 @@ public interface RoomMapper {
     RoomEntity updateRoomById(RoomEntity roomEntity);
     Long deleteRoomById(RoomEntity roomEntity);
     List<RoomRuleEntity> findAllRoomRuleByRoomId(RoomRuleEntity roomRuleEntity);
+    List<RoomRuleEntity> findRoomRulesByRoomId(@Param("roomId") String roomId);
     RoomRuleEntity saveRoomRule(RoomRuleEntity roomRuleEntity);
     Long deleteAllRoomRuleByRoomId(RoomRuleEntity roomRuleEntity);
     int disableRoomsBySiteId(@Param("siteId") String siteId);

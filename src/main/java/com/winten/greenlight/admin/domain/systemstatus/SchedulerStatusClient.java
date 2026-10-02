@@ -22,7 +22,7 @@ public class SchedulerStatusClient {
 
     @Autowired
     public SchedulerStatusClient(
-            @Value("${scheduler.url:}") String schedulerUrl,
+            @Value("${scheduler.api.url:}") String schedulerUrl,
             JsonMapper jsonMapper
     ) {
         this(

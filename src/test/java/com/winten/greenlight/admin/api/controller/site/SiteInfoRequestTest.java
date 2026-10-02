@@ -26,6 +26,23 @@ class SiteInfoRequestTest {
     }
 
     @Test
+    void maintenanceEnabledIsASiteManagementField() throws Exception {
+        var request = jsonMapper.readValue(
+                """
+                {
+                  "maintenanceEnabled": true,
+                  "reason": "점검"
+                }
+                """,
+                SiteInfoRequest.class
+        );
+
+        assertThat(request.hasSiteManagementFields()).isTrue();
+        assertThat(request.isMaintenanceEnabledPresent()).isTrue();
+        assertThat(request.getMaintenanceEnabled()).isTrue();
+    }
+
+    @Test
     void queueOnlyPayloadDoesNotClaimSiteManagementFields() throws Exception {
         var request = jsonMapper.readValue("{\"queueEnabled\":true}", SiteInfoRequest.class);
 
