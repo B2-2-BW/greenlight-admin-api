@@ -24,4 +24,5 @@ public class AlertSilence {
     private String updatedBy;
     private LocalDateTime updatedAt;
     private String updatedIp;
+    private String status;
 }

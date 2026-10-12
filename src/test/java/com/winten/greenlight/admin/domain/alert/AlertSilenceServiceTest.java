@@ -20,7 +20,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -85,13 +84,32 @@ class AlertSilenceServiceTest {
     }
 
     @Test
+    void siteAdminCanList() {
+        authenticate(UserRole.SITE_ADMIN);
+        when(alertSilenceMapper.count(isNull(), isNull(), any())).thenReturn(0L);
+
+        var page = service().list(null, null, 1, 10);
+
+        assertThat(page.getContent()).isEmpty();
+        verify(alertSilenceMapper).count(isNull(), isNull(), any());
+    }
+
+    @Test
     void listActivePassesNormalizedSystem() {
         authenticate(UserRole.SUPER);
-        when(alertSilenceMapper.findOpen(eq("DOCKER"), eq(true), any())).thenReturn(List.of());
+        when(alertSilenceMapper.count(eq("DOCKER"), eq("ACTIVE"), any())).thenReturn(1L);
+        when(alertSilenceMapper.findPage(eq("DOCKER"), eq("ACTIVE"), any(), eq(10), eq(0L)))
+                .thenReturn(List.of(AlertSilence.builder()
+                        .silenceId(1L)
+                        .systemCode("DOCKER")
+                        .startsAt(LocalDateTime.now(AlertSilenceService.ZONE_ID).minusMinutes(1))
+                        .endsAt(LocalDateTime.now(AlertSilenceService.ZONE_ID).plusHours(1))
+                        .build()));
 
-        service().list("docker", true);
+        var page = service().list("docker", "active", 1, 10);
 
-        verify(alertSilenceMapper).findOpen(eq("DOCKER"), eq(true), any());
+        assertThat(page.getTotalElements()).isEqualTo(1L);
+        assertThat(page.getContent().get(0).getStatus()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -143,11 +161,51 @@ class AlertSilenceServiceTest {
     @Test
     void listWithoutSystemDoesNotFilterCode() {
         authenticate(UserRole.SUPER);
-        when(alertSilenceMapper.findOpen(isNull(), anyBoolean(), any())).thenReturn(List.of());
+        when(alertSilenceMapper.count(isNull(), isNull(), any())).thenReturn(0L);
 
-        service().list("  ", false);
+        var page = service().list("  ", null, 1, 10);
 
-        verify(alertSilenceMapper).findOpen(isNull(), eq(false), any());
+        assertThat(page.getContent()).isEmpty();
+        verify(alertSilenceMapper).count(isNull(), isNull(), any());
+    }
+
+    @Test
+    void updateKeepsStartAfterSilenceHasStarted() {
+        authenticate(UserRole.SUPER);
+        LocalDateTime startedAt = LocalDateTime.now(AlertSilenceService.ZONE_ID).minusMinutes(10);
+        LocalDateTime endsAt = LocalDateTime.now(AlertSilenceService.ZONE_ID).plusHours(2);
+        when(alertSilenceMapper.findById(4L)).thenReturn(AlertSilence.builder()
+                .silenceId(4L)
+                .systemCode("QUEUE")
+                .startsAt(startedAt)
+                .endsAt(LocalDateTime.now(AlertSilenceService.ZONE_ID).plusMinutes(30))
+                .build());
+        when(alertSilenceMapper.update(eq(4L), eq(startedAt), eq(endsAt), eq("연장"), eq("super"), any(), any(), any()))
+                .thenReturn(1);
+
+        AlertSilence updated = service().update(4L, startedAt.plusHours(3), endsAt, " 연장 ");
+
+        assertThat(updated.getStartsAt()).isEqualTo(startedAt);
+        assertThat(updated.getEndsAt()).isEqualTo(endsAt);
+        assertThat(updated.getComment()).isEqualTo("연장");
+        assertThat(updated.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void updateRejectsCancelledSilence() {
+        authenticate(UserRole.SUPER);
+        when(alertSilenceMapper.findById(4L)).thenReturn(AlertSilence.builder()
+                .silenceId(4L)
+                .cancelledAt(LocalDateTime.now(AlertSilenceService.ZONE_ID).minusMinutes(1))
+                .build());
+
+        assertThatThrownBy(() -> service().update(
+                4L,
+                LocalDateTime.now(AlertSilenceService.ZONE_ID).plusMinutes(5),
+                LocalDateTime.now(AlertSilenceService.ZONE_ID).plusHours(1),
+                null
+        )).isInstanceOf(CoreException.class);
+        verify(alertSilenceMapper, never()).update(anyLong(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private AlertSilenceService service() {
