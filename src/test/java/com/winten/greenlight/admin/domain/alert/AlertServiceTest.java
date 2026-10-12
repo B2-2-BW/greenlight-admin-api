@@ -27,6 +27,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -132,6 +134,30 @@ class AlertServiceTest {
         AlertManagerRequest.Alert alert = alert("pending", AlertCatalog.QUEUE_WAIT.name(), "site-a", "room-a");
 
         assertThatThrownBy(() -> service.apply(List.of(alert), "scheduler"))
+                .isInstanceOf(CoreException.class);
+        verifyNoInteractions(alertLogMapper);
+    }
+
+    @Test
+    void platformLogsUseSystemAlertnamesAndIgnoreCurrentSite() {
+        authenticate("super", "site-a", UserRole.SUPER);
+        LocalDateTime from = LocalDateTime.now().minusHours(1);
+        LocalDateTime to = LocalDateTime.now();
+        when(alertLogMapper.count(isNull(), isNull(), isNull(), eq(from), eq(to), eq(List.of("ContainerDown"))))
+                .thenReturn(0L);
+
+        var page = service().getAlertLogs(1, 10, "QUEUE_WAIT", null, from, to, true, "docker", "  ");
+
+        assertThat(page.getTotalElements()).isZero();
+    }
+
+    @Test
+    void platformLogsRejectSiteAdmin() {
+        authenticate("admin", "site-a", UserRole.SITE_ADMIN);
+        LocalDateTime from = LocalDateTime.now().minusHours(1);
+        LocalDateTime to = LocalDateTime.now();
+
+        assertThatThrownBy(() -> service().getAlertLogs(1, 10, null, null, from, to, true, null, null))
                 .isInstanceOf(CoreException.class);
         verifyNoInteractions(alertLogMapper);
     }

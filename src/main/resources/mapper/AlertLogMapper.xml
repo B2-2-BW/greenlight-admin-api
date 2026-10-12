@@ -45,6 +45,12 @@
             <if test="alertname != null and alertname != ''">
                 AND alertname = #{alertname}
             </if>
+            <if test="alertnames != null and alertnames.size() &gt; 0">
+                AND alertname IN
+                <foreach collection="alertnames" item="name" open="(" separator="," close=")">
+                    #{name}
+                </foreach>
+            </if>
             <if test="status != null and status != ''">
                 AND status = #{status}
             </if>

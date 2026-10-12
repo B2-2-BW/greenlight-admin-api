@@ -138,18 +138,50 @@ public class AlertService {
             LocalDateTime from,
             LocalDateTime to
     ) {
-        AuthUtil.ensureUserAdmin();
+        return getAlertLogs(requestedPage, size, alertname, status, from, to, false, null, null);
+    }
+
+    public AlertLogPage getAlertLogs(
+            int requestedPage,
+            int size,
+            String alertname,
+            AlertStatus status,
+            LocalDateTime from,
+            LocalDateTime to,
+            boolean platform,
+            String systemCode,
+            String requestedSiteId
+    ) {
+        if (platform) {
+            AuthUtil.ensureSuper();
+        } else {
+            AuthUtil.ensureUserAdmin();
+        }
         validateRange(from, to);
-        String siteId = AuthUtil.getCurrentUser().getUserSiteId();
+        String siteId = platform ? blankToNull(requestedSiteId) : AuthUtil.getCurrentUser().getUserSiteId();
         String normalizedAlertname = normalize(alertname);
+        List<String> alertnames = null;
+        if (systemCode != null && !systemCode.isBlank()) {
+            AlertSilenceSystem system = AlertSilenceSystem.fromCode(systemCode);
+            if (system == null) {
+                throw CoreException.of(
+                        ErrorType.INVALID_DATA,
+                        "systemCode는 QUEUE, SCHEDULER, DOCKER, REDIS, HOST, TARGET 중 하나여야 합니다."
+                );
+            }
+            alertnames = system.alertnames();
+            normalizedAlertname = null;
+        }
         String normalizedStatus = status == null ? null : status.name();
-        long totalElements = alertLogMapper.count(siteId, normalizedAlertname, normalizedStatus, from, to);
+        long totalElements = alertLogMapper.count(
+                siteId, normalizedAlertname, normalizedStatus, from, to, alertnames
+        );
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
         int page = totalPages == 0 ? 1 : Math.min(requestedPage, totalPages);
         List<AlertLog> content = totalElements == 0
                 ? List.of()
                 : alertLogMapper.findPage(
-                        siteId, normalizedAlertname, normalizedStatus, from, to,
+                        siteId, normalizedAlertname, normalizedStatus, from, to, alertnames,
                         size, (long) (page - 1) * size
                 );
         return new AlertLogPage(content, page, size, totalElements, totalPages);
