@@ -19,6 +19,7 @@ public interface AlertLogMapper {
             @Param("status") String status,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
+            @Param("alertnames") List<String> alertnames,
             @Param("limit") int limit,
             @Param("offset") long offset
     );
@@ -28,6 +29,7 @@ public interface AlertLogMapper {
             @Param("alertname") String alertname,
             @Param("status") String status,
             @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to
+            @Param("to") LocalDateTime to,
+            @Param("alertnames") List<String> alertnames
     );
 }

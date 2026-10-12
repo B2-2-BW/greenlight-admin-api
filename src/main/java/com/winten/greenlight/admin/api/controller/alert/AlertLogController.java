@@ -32,10 +32,13 @@ public class AlertLogController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "false") boolean platform,
+            @RequestParam(required = false) String systemCode,
+            @RequestParam(required = false) String siteId
     ) {
         return ResponseEntity.ok(alertService.getAlertLogs(
-                page, size, alertname, status, from, to
+                page, size, alertname, status, from, to, platform, systemCode, siteId
         ));
     }
 }

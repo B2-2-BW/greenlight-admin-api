@@ -4,6 +4,7 @@ import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.domain.alert.AlertCatalog;
+import com.winten.greenlight.admin.domain.alert.AlertPolicyService;
 import com.winten.greenlight.admin.domain.alert.AlertService;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
@@ -28,6 +29,7 @@ public class SiteService {
     private final AuditService auditService;
     private final AlertService alertService;
     private final UserMapper userMapper;
+    private final AlertPolicyService alertPolicyService;
 
     private static final List<String> AUDITED_SITE_FIELDS = List.of(
             "siteName", "siteDescription", "siteEnabled", "queueEnabled", "maintenanceEnabled"
@@ -43,7 +45,8 @@ public class SiteService {
     public void reloadSiteCache() {
         AuthUtil.ensureUserAdmin();
         var currentUser = AuthUtil.getCurrentUser();
-        List<SiteInfo> siteList = currentUser.getUserRole().isSuper()
+        boolean superUser = currentUser.getUserRole().isSuper();
+        List<SiteInfo> siteList = superUser
                 ? siteMapper.findAllSite()
                 : currentUser.resolveAccessibleSiteIds().stream()
                         .map(this::findSiteById)
@@ -51,6 +54,9 @@ public class SiteService {
         for (var site : siteList) {
             siteCacheRepository.updateSiteApiKeyCache(site);
             siteCacheRepository.updateSiteInfo(site);
+        }
+        if (superUser) {
+            alertPolicyService.reloadAllForSystem();
         }
     }
 
