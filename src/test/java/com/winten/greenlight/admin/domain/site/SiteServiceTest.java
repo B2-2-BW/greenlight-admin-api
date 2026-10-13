@@ -6,6 +6,7 @@ import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.redis.site.SiteCacheRepository;
 import com.winten.greenlight.admin.api.controller.site.SiteResponse;
 import com.winten.greenlight.admin.domain.alert.AlertCatalog;
+import com.winten.greenlight.admin.domain.alert.AlertPolicyService;
 import com.winten.greenlight.admin.domain.alert.AlertService;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
@@ -40,6 +41,7 @@ class SiteServiceTest {
     @Mock private AlertService alertService;
     @Mock private RoomMapper roomMapper;
     @Mock private UserMapper userMapper;
+    @Mock private AlertPolicyService alertPolicyService;
     private final SiteApiKeyGenerator siteApiKeyGenerator = new SiteApiKeyGenerator();
 
     @AfterEach void clearSecurityContext() { SecurityContextHolder.clearContext(); }
@@ -421,9 +423,37 @@ class SiteServiceTest {
         verifyNoInteractions(roomMapper);
     }
 
+    @Test
+    void superSiteCacheReloadAlsoReloadsAllAlertPolicies() {
+        authenticate("super", "root", UserRole.SUPER);
+        when(siteMapper.findAllSite()).thenReturn(List.of(SiteInfo.builder().siteId("site-a").siteApiKey("key").build()));
+
+        service().reloadSiteCache();
+
+        verify(siteCacheRepository).updateSiteInfo(any());
+        verify(alertPolicyService).reloadAllForSystem();
+    }
+
+    @Test
+    void siteAdminCacheReloadDoesNotReloadAllAlertPolicies() {
+        authenticate("site-admin", "site-a", UserRole.SITE_ADMIN);
+        when(siteMapper.findSiteById(any())).thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").build()));
+
+        service().reloadSiteCache();
+
+        verify(siteCacheRepository).updateSiteInfo(any());
+        verify(alertPolicyService, never()).reloadAllForSystem();
+    }
+
     private SiteService service() {
         return new SiteService(
-                siteMapper, siteCacheRepository, siteApiKeyGenerator, auditService, alertService, userMapper
+                siteMapper,
+                siteCacheRepository,
+                siteApiKeyGenerator,
+                auditService,
+                alertService,
+                userMapper,
+                alertPolicyService
         );
     }
 

@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -40,6 +41,7 @@ public class AlertService {
     private final AlertSendLogMapper alertSendLogMapper;
     private final TeamsAlertClient teamsAlertClient;
     private final AlertSubscriptionService alertSubscriptionService;
+    private final AlertSilenceService alertSilenceService;
     private final JsonMapper jsonMapper;
     private final Environment environment;
 
@@ -51,8 +53,13 @@ public class AlertService {
         String actor = normalizeActor(createdBy);
         String ip = requestIp();
         LocalDateTime now = LocalDateTime.now();
+        Set<AlertSilenceSystem> silenced = alertSilenceService.activeSystems(LocalDateTime.now(ZONE_ID));
         List<AlertManagerRequest.Alert> accepted = new ArrayList<>();
         for (AlertManagerRequest.Alert alert : alerts) {
+            if (isSilencedFiring(alert, silenced)) {
+                log.info("Skip silenced firing alert. alertname={}", alertnameOf(alert));
+                continue;
+            }
             if (applyOne(alert, actor, ip, now)) {
                 accepted.add(alert);
             }
@@ -131,21 +138,77 @@ public class AlertService {
             LocalDateTime from,
             LocalDateTime to
     ) {
-        AuthUtil.ensureUserAdmin();
+        return getAlertLogs(requestedPage, size, alertname, status, from, to, false, null, null);
+    }
+
+    public AlertLogPage getAlertLogs(
+            int requestedPage,
+            int size,
+            String alertname,
+            AlertStatus status,
+            LocalDateTime from,
+            LocalDateTime to,
+            boolean platform,
+            String systemCode,
+            String requestedSiteId
+    ) {
+        if (platform) {
+            AuthUtil.ensureSuper();
+        } else {
+            AuthUtil.ensureUserAdmin();
+        }
         validateRange(from, to);
-        String siteId = AuthUtil.getCurrentUser().getUserSiteId();
+        String siteId = platform ? blankToNull(requestedSiteId) : AuthUtil.getCurrentUser().getUserSiteId();
         String normalizedAlertname = normalize(alertname);
+        List<String> alertnames = null;
+        if (systemCode != null && !systemCode.isBlank()) {
+            AlertSilenceSystem system = AlertSilenceSystem.fromCode(systemCode);
+            if (system == null) {
+                throw CoreException.of(
+                        ErrorType.INVALID_DATA,
+                        "systemCode는 QUEUE, SCHEDULER, DOCKER, REDIS, HOST, TARGET 중 하나여야 합니다."
+                );
+            }
+            alertnames = system.alertnames();
+            normalizedAlertname = null;
+        }
         String normalizedStatus = status == null ? null : status.name();
-        long totalElements = alertLogMapper.count(siteId, normalizedAlertname, normalizedStatus, from, to);
+        long totalElements = alertLogMapper.count(
+                siteId, normalizedAlertname, normalizedStatus, from, to, alertnames
+        );
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
         int page = totalPages == 0 ? 1 : Math.min(requestedPage, totalPages);
         List<AlertLog> content = totalElements == 0
                 ? List.of()
                 : alertLogMapper.findPage(
-                        siteId, normalizedAlertname, normalizedStatus, from, to,
+                        siteId, normalizedAlertname, normalizedStatus, from, to, alertnames,
                         size, (long) (page - 1) * size
                 );
         return new AlertLogPage(content, page, size, totalElements, totalPages);
+    }
+
+    private static boolean isSilencedFiring(AlertManagerRequest.Alert alert, Set<AlertSilenceSystem> silenced) {
+        if (alert == null || alert.getStatus() == null || silenced == null || silenced.isEmpty()) {
+            return false;
+        }
+        AlertStatus status;
+        try {
+            status = AlertStatus.from(alert.getStatus());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+        if (status != AlertStatus.FIRING) {
+            return false;
+        }
+        AlertSilenceSystem system = AlertSilenceSystem.ofAlertname(alertnameOf(alert));
+        return system != null && silenced.contains(system);
+    }
+
+    private static String alertnameOf(AlertManagerRequest.Alert alert) {
+        if (alert == null || alert.getLabels() == null) {
+            return null;
+        }
+        return alert.getLabels().get("alertname");
     }
 
     private boolean applyOne(AlertManagerRequest.Alert alert, String actor, String ip, LocalDateTime now) {

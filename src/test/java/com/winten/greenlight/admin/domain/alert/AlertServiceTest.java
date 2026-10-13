@@ -7,6 +7,7 @@ import com.winten.greenlight.admin.domain.user.CurrentUser;
 import com.winten.greenlight.admin.domain.user.UserRole;
 import com.winten.greenlight.admin.support.error.CoreException;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -21,10 +22,14 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -35,7 +40,13 @@ class AlertServiceTest {
     @Mock private AlertSendLogMapper alertSendLogMapper;
     @Mock private TeamsAlertClient teamsAlertClient;
     @Mock private AlertSubscriptionService alertSubscriptionService;
+    @Mock private AlertSilenceService alertSilenceService;
     @Mock private Environment environment;
+
+    @BeforeEach
+    void noSilence() {
+        lenient().when(alertSilenceService.activeSystems(any())).thenReturn(Set.of());
+    }
 
     @AfterEach
     void clearSecurityContext() {
@@ -87,11 +98,66 @@ class AlertServiceTest {
     }
 
     @Test
+    void silencedFiringIsNotPersistedAndResolvedStillApplies() {
+        var service = service();
+        when(alertSilenceService.activeSystems(any())).thenReturn(Set.of(AlertSilenceSystem.QUEUE));
+        when(alertLogMapper.resolve(any())).thenReturn(1);
+        AlertManagerRequest.Alert firing = alert("FIRING", AlertCatalog.QUEUE_WAIT.name(), "site-a", "room-a");
+        AlertManagerRequest.Alert resolved = alert("RESOLVED", AlertCatalog.QUEUE_WAIT.name(), "site-a", "room-a");
+        AlertManagerRequest.Alert other = alert("FIRING", "ContainerDown", null, null);
+
+        service.apply(List.of(firing, resolved, other), "greenlight-scheduler-local");
+
+        verify(alertLogMapper).resolve(any());
+        var captor = ArgumentCaptor.forClass(AlertLog.class);
+        verify(alertLogMapper).upsertFiring(captor.capture());
+        assertThat(captor.getValue().getAlertname()).isEqualTo("ContainerDown");
+    }
+
+    @Test
+    void schedulerSilenceSkipsSchedulerFailureOnly() {
+        var service = service();
+        when(alertSilenceService.activeSystems(any())).thenReturn(Set.of(AlertSilenceSystem.SCHEDULER));
+        AlertManagerRequest.Alert failed = alert("FIRING", "SCHEDULER_FAILED", null, null);
+        AlertManagerRequest.Alert queue = alert("FIRING", AlertCatalog.QUEUE_WAIT.name(), "site-a", "room-a");
+
+        service.apply(List.of(failed, queue), "scheduler");
+
+        var captor = ArgumentCaptor.forClass(AlertLog.class);
+        verify(alertLogMapper).upsertFiring(captor.capture());
+        assertThat(captor.getValue().getAlertname()).isEqualTo(AlertCatalog.QUEUE_WAIT.name());
+    }
+
+    @Test
     void rejectsUnknownStatus() {
         var service = service();
         AlertManagerRequest.Alert alert = alert("pending", AlertCatalog.QUEUE_WAIT.name(), "site-a", "room-a");
 
         assertThatThrownBy(() -> service.apply(List.of(alert), "scheduler"))
+                .isInstanceOf(CoreException.class);
+        verifyNoInteractions(alertLogMapper);
+    }
+
+    @Test
+    void platformLogsUseSystemAlertnamesAndIgnoreCurrentSite() {
+        authenticate("super", "site-a", UserRole.SUPER);
+        LocalDateTime from = LocalDateTime.now().minusHours(1);
+        LocalDateTime to = LocalDateTime.now();
+        when(alertLogMapper.count(isNull(), isNull(), isNull(), eq(from), eq(to), eq(List.of("ContainerDown"))))
+                .thenReturn(0L);
+
+        var page = service().getAlertLogs(1, 10, "QUEUE_WAIT", null, from, to, true, "docker", "  ");
+
+        assertThat(page.getTotalElements()).isZero();
+    }
+
+    @Test
+    void platformLogsRejectSiteAdmin() {
+        authenticate("admin", "site-a", UserRole.SITE_ADMIN);
+        LocalDateTime from = LocalDateTime.now().minusHours(1);
+        LocalDateTime to = LocalDateTime.now();
+
+        assertThatThrownBy(() -> service().getAlertLogs(1, 10, null, null, from, to, true, null, null))
                 .isInstanceOf(CoreException.class);
         verifyNoInteractions(alertLogMapper);
     }
@@ -142,7 +208,13 @@ class AlertServiceTest {
 
     private AlertService service() {
         return new AlertService(
-                alertLogMapper, alertSendLogMapper, teamsAlertClient, alertSubscriptionService, JsonMapper.builder().build(), environment
+                alertLogMapper,
+                alertSendLogMapper,
+                teamsAlertClient,
+                alertSubscriptionService,
+                alertSilenceService,
+                JsonMapper.builder().build(),
+                environment
         );
     }
 
