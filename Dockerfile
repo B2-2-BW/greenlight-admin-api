@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25.0.1_8-jre-alpine
+FROM amazoncorretto:25.0.5-alpine
 
 RUN apk --no-cache add tzdata
 ENV TZ=Asia/Seoul
