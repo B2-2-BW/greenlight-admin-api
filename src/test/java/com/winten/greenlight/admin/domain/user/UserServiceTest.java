@@ -4,12 +4,14 @@ import com.winten.greenlight.admin.api.controller.user.UserBulkAction;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount;
+import com.winten.greenlight.admin.db.repository.redis.user.RefreshTokenRepository;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
 import com.winten.greenlight.admin.domain.site.SiteInfo;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,7 +21,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +39,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -50,6 +55,8 @@ class UserServiceTest {
     private JwtUtil jwtUtil;
     @Mock
     private AuditService auditService;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @BeforeEach
     void allowExistingSiteByDefault() {
@@ -82,7 +89,8 @@ class UserServiceTest {
                 passwordManager,
                 cachedUserService,
                 jwtUtil,
-                auditService
+                auditService,
+                refreshTokenRepository
         );
         User request = User.builder()
                 .userId("new-user")
@@ -92,8 +100,6 @@ class UserServiceTest {
                 .password("password123!")
                 .build();
 
-        when(siteMapper.findSiteById(any()))
-                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(true).build()));
         when(userMapper.findUserById("new-user"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(request));
@@ -109,7 +115,7 @@ class UserServiceTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userMapper).saveUser(savedUser.capture());
-        assertThat(savedUser.getValue().getSiteId()).isEqualTo("site-a");
+        assertThat(savedUser.getValue().getSiteId()).isNull();
         assertThat(savedUser.getValue().getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         assertThat(savedUser.getValue().getUserRole()).isEqualTo(UserRole.USER);
         assertThat(savedUser.getValue().getPasswordResetRequired()).isFalse();
@@ -119,12 +125,12 @@ class UserServiceTest {
         assertThat(savedUser.getValue().getPasswordHash()).isNotBlank();
         assertThat(savedUser.getValue().getProfileColor()).matches("^#[0-9A-F]{6}$");
         assertThat(savedUser.getValue().getProfileInitials()).isEqualTo("신");
-        verify(userMapper).insertSiteAccess(10L, "site-a", "ANONYMOUS", savedUser.getValue().getCreatedIp());
+        verify(userMapper, never()).insertSiteAccess(any(), any(), any(), any());
         assertThat(result).isSameAs(request);
     }
 
     @Test
-    void signinRejectsDisabledSite() {
+    void signinIgnoresProvidedSite() {
         UserService service = createService(new PasswordManager());
         User request = User.builder()
                 .userId("new-user")
@@ -134,14 +140,11 @@ class UserServiceTest {
                 .password("password123!")
                 .build();
 
-        when(siteMapper.findSiteById(any()))
-                .thenReturn(Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build()));
-
-        assertThatThrownBy(() -> service.signin(request))
-                .isInstanceOf(CoreException.class)
-                .extracting(error -> ((CoreException) error).getErrorType())
-                .isEqualTo(ErrorType.SITE_NOT_FOUND);
-        verify(userMapper, never()).saveUser(any());
+        when(userMapper.findUserById("new-user")).thenReturn(Optional.empty(), Optional.of(request));
+        when(userMapper.findUserByEmail("new-user@example.com")).thenReturn(Optional.empty());
+        service.signin(request);
+        assertThat(request.getSiteId()).isNull();
+        verify(userMapper, never()).insertSiteAccess(any(), any(), any(), any());
     }
 
     @Test
@@ -183,16 +186,13 @@ class UserServiceTest {
     void refreshRejectsActiveUserWhenSiteIsDisabled() {
         UserService service = createService(new PasswordManager());
         User user = activeUser("user", "site-a", UserRole.USER);
-        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
-        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
-                CurrentUser.builder().userId("user").userRole(UserRole.USER).userSiteId("site-a").build()
-        );
+        prepareRefreshToken("user");
         when(userMapper.findUserById("user")).thenReturn(Optional.of(user));
         when(siteMapper.findSiteById(any())).thenReturn(
                 Optional.of(SiteInfo.builder().siteId("site-a").siteEnabled(false).build())
         );
 
-        assertThatThrownBy(() -> service.refresh("refresh-token", false))
+        assertThatThrownBy(() -> service.refresh("refresh-token", true))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.FORBIDDEN);
@@ -209,7 +209,7 @@ class UserServiceTest {
                 UserLoginAttempt.builder().loginId("super").userId("super").passwordErrorCount(0).build()
         );
         when(userMapper.findUserWithCredential("super")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
+        when(jwtUtil.generateToken(any(), any(), any(), any(), any(), any())).thenReturn("token");
 
         assertThat(service.login(
                 LoginInfo.builder().loginId("super").password("password123!").build()
@@ -241,7 +241,7 @@ class UserServiceTest {
                     CoreException coreException = (CoreException) error;
                     assertThat(coreException.getErrorType()).isEqualTo(ErrorType.USER_PASSWORD_RESET_REQUIRED);
                 });
-        verify(jwtUtil, never()).generateToken(any(), any(), any());
+        verify(jwtUtil, never()).generateToken(any(), any(), any(), any(), any(), any());
         verify(loginAttemptTxService, never()).updatePasswordErrorCountById(anyString(), anyInt());
     }
 
@@ -250,17 +250,14 @@ class UserServiceTest {
         UserService service = createService(new PasswordManager());
         User user = activeUser("user", "site-a", UserRole.USER);
         user.setPasswordResetRequired(true);
-        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
-        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
-                CurrentUser.builder().userId("user").userRole(UserRole.USER).userSiteId("site-a").build()
-        );
+        prepareRefreshToken("user");
         when(userMapper.findUserById("user")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> service.refresh("refresh-token", false))
+        assertThatThrownBy(() -> service.refresh("refresh-token", true))
                 .isInstanceOf(CoreException.class)
                 .extracting(error -> ((CoreException) error).getErrorType())
                 .isEqualTo(ErrorType.USER_PASSWORD_RESET_REQUIRED);
-        verify(jwtUtil, never()).generateToken(any(), any(), any());
+        verify(jwtUtil, never()).generateToken(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -285,7 +282,7 @@ class UserServiceTest {
         verify(userMapper).updateUserPassword(updated.capture());
         assertThat(passwordManager.matches("NewPass123!", updated.getValue().getPasswordHash())).isTrue();
         verify(loginAttemptTxService).updatePasswordErrorCountById("user", 0);
-        verify(jwtUtil, never()).generateToken(any(), any(), any());
+        verify(jwtUtil, never()).generateToken(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -315,14 +312,11 @@ class UserServiceTest {
     void superUserCanRefreshWhenSiteIsDisabled() {
         UserService service = createService(new PasswordManager());
         User user = activeUser("super", "site-a", UserRole.SUPER);
-        when(jwtUtil.validateToken("refresh-token")).thenReturn(true);
-        when(jwtUtil.getCurrentUserFromToken("refresh-token")).thenReturn(
-                CurrentUser.builder().userId("super").userRole(UserRole.SUPER).userSiteId("site-a").build()
-        );
+        prepareRefreshToken("super");
         when(userMapper.findUserById("super")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
+        when(jwtUtil.generateToken(any(), any(), any(), any(), any(), any())).thenReturn("token");
 
-        assertThat(service.refresh("refresh-token", false).getAccessToken()).isEqualTo("token");
+        assertThat(service.refresh("refresh-token", true).getAccessToken()).isEqualTo("token");
         verify(siteMapper, never()).findSiteById(any());
     }
 
@@ -335,7 +329,8 @@ class UserServiceTest {
                 new PasswordManager(),
                 cachedUserService,
                 jwtUtil,
-                auditService
+                auditService,
+                refreshTokenRepository
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L)
@@ -357,7 +352,7 @@ class UserServiceTest {
     void manageableUserPageUsesSiteScopeAndCapsOutOfRangePage() {
         UserService service = new UserService(
                 userMapper, loginAttemptTxService, siteMapper, new PasswordManager(), cachedUserService, jwtUtil,
-                auditService
+                auditService, refreshTokenRepository
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L).userId("site-admin").userSiteId("site-a").userRole(UserRole.SITE_ADMIN).build();
@@ -569,7 +564,8 @@ class UserServiceTest {
                 passwordManager,
                 cachedUserService,
                 jwtUtil,
-                auditService
+                auditService,
+                refreshTokenRepository
         );
         CurrentUser currentUser = CurrentUser.builder()
                 .accountId(1L)
@@ -924,7 +920,7 @@ class UserServiceTest {
             boolean enabled = "site-b".equals(param.getSiteId());
             return Optional.of(SiteInfo.builder().siteId(param.getSiteId()).siteEnabled(enabled).build());
         });
-        when(jwtUtil.generateToken(any(), any(), any())).thenReturn("token");
+        when(jwtUtil.generateToken(any(), any(), any(), any(), any(), any())).thenReturn("token");
 
         assertThat(service.login(
                 LoginInfo.builder().loginId("user").password("password123!").build()
@@ -1002,9 +998,26 @@ class UserServiceTest {
     }
 
     private UserService createService(PasswordManager passwordManager) {
-        return new UserService(
-                userMapper, loginAttemptTxService, siteMapper, passwordManager, cachedUserService, jwtUtil, auditService
+        UserService service = new UserService(
+                userMapper, loginAttemptTxService, siteMapper, passwordManager, cachedUserService, jwtUtil,
+                auditService, refreshTokenRepository
         );
+        ReflectionTestUtils.setField(service, "accessTokenExpiration", 180L);
+        ReflectionTestUtils.setField(service, "refreshTokenExpiration", 28800L);
+        ReflectionTestUtils.setField(service, "refreshRotationInterval", java.time.Duration.ofMinutes(30));
+        ReflectionTestUtils.setField(service, "secureCookie", false);
+        return service;
+    }
+
+    private void prepareRefreshToken(String userId) {
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.parseToken("refresh-token", "refresh")).thenReturn(claims);
+        when(claims.get("accountId")).thenReturn(2L);
+        when(claims.getId()).thenReturn("refresh-id");
+        when(claims.getSubject()).thenReturn(userId);
+        when(claims.getIssuedAt()).thenReturn(new Date());
+        when(claims.getExpiration()).thenReturn(new Date(System.currentTimeMillis() + 28800000));
+        when(refreshTokenRepository.exists(2L, "refresh-id")).thenReturn(true);
     }
 
     private User activeUser(String userId, String siteId, UserRole userRole) {

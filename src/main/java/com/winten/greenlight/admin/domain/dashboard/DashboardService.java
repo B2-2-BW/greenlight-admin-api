@@ -22,8 +22,8 @@ public class DashboardService {
 
         if (roomIdList != null) {
             for (String roomId : roomIdList) {
-                var roomMetric = roomCacheRepository.getRoomMetric(roomId);
-                dashboardDetail.getDetail().put(roomId, roomMetric);
+                roomCacheRepository.getRoomMetric(roomId)
+                        .ifPresent(metric -> dashboardDetail.getDetail().put(roomId, metric));
             }
         }
         dashboardDetail.setVersion(currentVersion);

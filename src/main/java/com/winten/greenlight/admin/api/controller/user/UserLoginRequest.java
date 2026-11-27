@@ -15,5 +15,4 @@ public class UserLoginRequest {
     private String loginId;
     @NotBlank
     private String password;
-    private boolean autoLogin;
 }

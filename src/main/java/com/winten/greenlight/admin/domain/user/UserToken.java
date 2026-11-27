@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.http.ResponseCookie;
+import java.time.Instant;
 
 @Data
 @AllArgsConstructor
@@ -15,4 +16,5 @@ public class UserToken {
     private String refreshToken;
     private ResponseCookie refreshCookie;
     private String tokenType;
+    private Instant refreshExpiresAt;
 }

@@ -39,7 +39,6 @@ public class User extends AuditDto {
     @JsonIgnore
     private String passwordHash;
     private UserRole userRole;
-    private Boolean autoLogin;
 
     public List<String> resolveSiteIds() {
         if (siteIds == null || siteIds.isEmpty()) {

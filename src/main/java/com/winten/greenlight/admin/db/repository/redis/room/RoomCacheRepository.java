@@ -14,6 +14,8 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.ser.std.SimpleFilterProvider;
 
+import java.util.Optional;
+
 @Slf4j
 @Repository
 @RequiredArgsConstructor
@@ -56,10 +58,11 @@ public class RoomCacheRepository {
         return (version != null) ? version : "0";
     }
 
-    public RoomMetric getRoomMetric(String roomId) {
+    public Optional<RoomMetric> getRoomMetric(String roomId) {
         var key = redisKeyBuilder.roomMetricLatest(roomId);
         var value = redisTemplate.opsForValue().get(key);
-        return jsonMapper.readValue(value, RoomMetric.class);
+        return Optional.ofNullable(value)
+                .map(json -> jsonMapper.readValue(json, RoomMetric.class));
     }
 
     public void updateRoomMetaVersionToNow() {

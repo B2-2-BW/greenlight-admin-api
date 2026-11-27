@@ -1,6 +1,7 @@
 package com.winten.greenlight.admin.support.security;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -19,6 +20,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsUtils;
+import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.util.List;
 
@@ -39,15 +42,9 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
-                .requestMatchers(HttpMethod.OPTIONS)
-                .requestMatchers(CorsUtils::isPreFlightRequest)
-                .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*", "/users/availability")
+                .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/users/availability")
                 .requestMatchers(
                         HttpMethod.POST,
-                        "/users/login",
-                        "/users/signin",
-                        "/users/refresh",
-                        "/users/password/change-required",
                         "/alerts/**"
                 )
                 .requestMatchers("/error")
@@ -61,7 +58,7 @@ public class SecurityConfig {
         var configuration = new CorsConfiguration();
         // 프론트엔드 주소 명시 (Credentials가 true일 때 "*" 사용 불가)
         configuration.setAllowedOrigins(List.of("http://localhost:5173", serverUrl, webServerUrl));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("X-Request-ID", "room-version"));
         configuration.setAllowCredentials(true); // 쿠키(인증 정보) 포함 허용
@@ -72,7 +69,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JsonMapper jsonMapper) {
+    public SecurityFilterChain filterChain(HttpSecurity http, JsonMapper jsonMapper,
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
@@ -80,12 +78,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                     .requestMatchers(HttpMethod.OPTIONS).permitAll()
                     .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                    .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/sites/*", "/users/availability").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/health", "/favicon.ico", "/users/availability").permitAll()
                     .requestMatchers(
                             HttpMethod.POST,
                             "/users/login",
                             "/users/signin",
                             "/users/refresh",
+                            "/users/logout",
                             "/users/password/change-required",
                             "/alerts/**"
                     ).permitAll()
@@ -99,7 +98,6 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.PUT, "/users/me/alert-subscriptions").authenticated()
                     .requestMatchers(HttpMethod.GET, "/users/me/alert-channels").authenticated()
                     .requestMatchers(HttpMethod.PUT, "/users/me/alert-channels").authenticated()
-                    .requestMatchers(HttpMethod.POST, "/users/logout").authenticated()
                     .requestMatchers(HttpMethod.GET, "/**")
                         .hasAnyAuthority(Permission.PERM_READ.name())
                     .requestMatchers(HttpMethod.POST, "/**")
@@ -110,8 +108,9 @@ public class SecurityConfig {
                         .hasAnyAuthority(Permission.PERM_WRITE.name())
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             )
+            .addFilterAfter(new CookieOriginFilter(corsConfigurationSource(), exceptionResolver), CorsFilter.class)
             .addFilterBefore(
-                    new JwtAuthenticationFilter(jwtUtil, jsonMapper, cachedUserService),
+                    new JwtAuthenticationFilter(jwtUtil, jsonMapper, cachedUserService, exceptionResolver),
                     UsernamePasswordAuthenticationFilter.class
             )
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))

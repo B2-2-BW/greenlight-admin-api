@@ -78,6 +78,12 @@ public class RoomController {
         return ResponseEntity.ok(roomConverter.toResponse(result));
     }
 
+    @PatchMapping("/bulk")
+    public ResponseEntity<Void> bulkUpdateRooms(@RequestBody @Valid RoomBulkUpdateRequest request) {
+        roomService.bulkUpdateRooms(request.roomIds(), request.capacity(), request.maxTrafficPerSecond(), request.enabled());
+        return ResponseEntity.noContent().build();
+    }
+
     // DELETE /rooms/{roomId}
     @DeleteMapping("/{roomId}")
     public ResponseEntity<RoomResponse> deleteRoom(

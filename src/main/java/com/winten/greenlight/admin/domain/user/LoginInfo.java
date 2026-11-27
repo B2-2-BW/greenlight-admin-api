@@ -12,5 +12,4 @@ import lombok.experimental.SuperBuilder;
 public class LoginInfo {
     private String loginId;
     private String password;
-    private boolean autoLogin;
 }

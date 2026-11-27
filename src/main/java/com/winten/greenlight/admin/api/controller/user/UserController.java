@@ -8,9 +8,9 @@ import com.winten.greenlight.admin.domain.user.UserService;
 import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -19,17 +19,24 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/users")
-@RequiredArgsConstructor
 @Validated
 public class UserController {
     private final UserService userService;
     private final UserConverter userConverter;
+    @Value("${jwt.secure}")
+    private boolean secureCookie;
+
+    public UserController(UserService userService, UserConverter userConverter) {
+        this.userService = userService;
+        this.userConverter = userConverter;
+    }
 
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal CurrentUser currentUser) {
@@ -108,6 +115,7 @@ public class UserController {
         );
         var deleteRefreshTokenCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
+                .secure(secureCookie)
                 .sameSite("lax")
                 .path("/")
                 .maxAge(0)
@@ -120,29 +128,37 @@ public class UserController {
     @PostMapping("refresh")
     public ResponseEntity<UserLoginResponse> refresh(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
-            @RequestParam(required = false) boolean autoLogin
+            @RequestBody(required = false) UserRefreshRequest request
     ) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new CoreException(ErrorType.UNAUTHORIZED, "Refresh Token is missing");
         }
 
-        var refreshResult = userService.refresh(refreshToken, autoLogin);
+        boolean rotateRefresh = request == null || !Boolean.FALSE.equals(request.rotateRefresh());
+        var refreshResult = userService.refresh(refreshToken, rotateRefresh);
 
-        return ResponseEntity.status(HttpStatus.OK)
-                .header(HttpHeaders.SET_COOKIE, refreshResult.getRefreshCookie().toString())
-                .body(userConverter.toResponse(refreshResult));
+        var response = ResponseEntity.status(HttpStatus.OK);
+        if (refreshResult.getRefreshCookie() != null) {
+            response.header(HttpHeaders.SET_COOKIE, refreshResult.getRefreshCookie().toString());
+        }
+        return response.body(userConverter.toResponse(refreshResult));
     }
 
     @PostMapping("logout")
-    public ResponseEntity<UserLogoutResponse> logout() {
+    public ResponseEntity<UserLogoutResponse> logout(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
         var deleteRefreshTokenCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
+                .secure(secureCookie)
                 .sameSite("lax")
                 .path("/")
                 .maxAge(0)
                 .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, deleteRefreshTokenCookie.toString());
+        userService.logout(refreshToken);
         return ResponseEntity.status(HttpStatus.OK)
-                .header(HttpHeaders.SET_COOKIE, deleteRefreshTokenCookie.toString())
                 .body(new UserLogoutResponse(true));
     }
 
