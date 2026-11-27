@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
+import java.time.Instant;
 
 @Component
 public class JwtUtil {
@@ -34,6 +35,28 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + expirationSeconds * 1000))
                 .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
+    }
+
+    public String generateToken(String subject, Map<String, Object> claims, String type, String id,
+                                Instant issuedAt, Instant expiresAt) {
+        var builder = Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .claim("token_use", type)
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt));
+        if (id != null) {
+            builder.id(id);
+        }
+        return builder.signWith(getSigningKey(), Jwts.SIG.HS256).compact();
+    }
+
+    public Claims parseToken(String token, String type) {
+        Claims claims = extractAllClaims(token);
+        if (!type.equals(claims.get("token_use", String.class))) {
+            throw new IllegalArgumentException("Invalid token type");
+        }
+        return claims;
     }
 
     // 토큰에서 사용자명 추출

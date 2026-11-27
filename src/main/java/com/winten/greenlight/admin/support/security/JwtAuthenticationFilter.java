@@ -10,7 +10,6 @@ import com.winten.greenlight.admin.support.error.ErrorResponse;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,16 +20,31 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final JsonMapper jsonMapper;
     private final CachedUserService cachedUserService;
+    private final HandlerExceptionResolver exceptionResolver;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        if ("OPTIONS".equals(request.getMethod())) {
+            return true;
+        }
+        return "POST".equals(request.getMethod()) && switch (request.getServletPath()) {
+            case "/users/login", "/users/signin", "/users/refresh", "/users/logout",
+                    "/users/password/change-required" -> true;
+            default -> false;
+        };
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -83,10 +97,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // SecurityContext에 인증 정보 설정
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+        } catch (ExpiredJwtException e) {
+            response.setContentType("application/json;charset=UTF-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            boolean access = "access".equals(e.getClaims().get("token_use", String.class));
+            var error = new ErrorResponse(org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "Unauthorized.", null, LocalDateTime.now(), access ? "ACCESS_TOKEN_EXPIRED" : null);
+            response.getWriter().write(jsonMapper.writeValueAsString(error));
+            return;
         } catch (CoreException e) {
+            if (e.getErrorType().getStatus().is5xxServerError()) {
+                if (exceptionResolver.resolveException(request, response, null, e) == null) {
+                    response.setStatus(e.getErrorType().getStatus().value());
+                }
+                return;
+            }
             response.setContentType("application/json;charset=UTF-8");
             response.setStatus(e.getErrorType().getStatus().value());
-            var errorResponse = new ErrorResponse(e);
+            Object detail = e.getDetail() instanceof Throwable ? null : e.getDetail();
+            var errorResponse = new ErrorResponse(e.getErrorType().getStatus(),
+                    e.getErrorType().getMessage(), detail, LocalDateTime.now());
             response.getWriter().write(jsonMapper.writeValueAsString(errorResponse));
             return;
         }
@@ -123,14 +153,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            jwtUtil.extractUserId(token);
+            jwtUtil.parseToken(token, "access");
             return true;
+        } catch (ExpiredJwtException e) {
+            throw e;
         } catch (IllegalArgumentException e) {
             throw CoreException.of(ErrorType.UNAUTHORIZED, "인증정보를 찾을 수 없습니다.");
-        } catch (ExpiredJwtException | MalformedJwtException e) {
+        } catch (io.jsonwebtoken.JwtException e) {
             throw CoreException.of(ErrorType.UNAUTHORIZED, "유효하지 않은 인증정보입니다.");
-        } catch (Exception e) {
-            throw new BadCredentialsException("알 수 없는 이유로 인증에 실패하였습니다.");
         }
     }
 

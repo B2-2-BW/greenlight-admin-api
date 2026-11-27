@@ -3,6 +3,7 @@ package com.winten.greenlight.admin.domain.user;
 import com.winten.greenlight.admin.db.repository.mapper.site.SiteMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserMapper;
 import com.winten.greenlight.admin.db.repository.mapper.user.UserStatusCount;
+import com.winten.greenlight.admin.db.repository.redis.user.RefreshTokenRepository;
 import com.winten.greenlight.admin.api.controller.user.UserBulkAction;
 import com.winten.greenlight.admin.domain.audit.AuditAction;
 import com.winten.greenlight.admin.domain.audit.AuditService;
@@ -11,6 +12,8 @@ import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import com.winten.greenlight.admin.support.util.AuthUtil;
 import com.winten.greenlight.admin.support.util.JwtUtil;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
@@ -18,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -28,6 +33,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -58,12 +64,19 @@ public class UserService {
     private final CachedUserService cachedUserService;
     private final JwtUtil jwtUtil;
     private final AuditService auditService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${jwt.expiration.access:1800}") // 1시간
+    @Value("${jwt.expiration.access:180}")
     private Long accessTokenExpiration;
 
-    @Value("${jwt.expiration.refresh:1209600}") // 14일
+    @Value("${jwt.expiration.refresh:28800}")
     private Long refreshTokenExpiration;
+
+    @Value("${jwt.rotation-interval.refresh}")
+    private Duration refreshRotationInterval;
+
+    @Value("${jwt.secure}")
+    private boolean secureCookie;
 
     @Transactional(readOnly = true)
     public User me(CurrentUser currentUser) {
@@ -129,7 +142,6 @@ public class UserService {
         // 여기까지 도달했다면 정상 로그인 된 케이스
         loginAttemptTxService.updatePasswordErrorCountById(user.getUserId(), 0); // 로그인 성공 시 password 오류횟수 초기화
 
-        user.setAutoLogin(loginParam.isAutoLogin());
         return this.generateUserToken(user);
     }
 
@@ -164,7 +176,7 @@ public class UserService {
     // 회원가입
     @Transactional
     public User signin(User userParam) {
-        ensureRegistrationSiteEnabled(userParam.getSiteId());
+        userParam.setSiteId(null);
 
         // userId 중복체크
         userMapper.findUserById(userParam.getUserId())
@@ -715,13 +727,18 @@ public class UserService {
         loginAttemptTxService.updatePasswordErrorCountById(loginId, 0);
     }
 
-    public UserToken refresh(String refreshToken, Boolean autoLogin) {
-        if (!jwtUtil.validateToken(refreshToken)) {
-            throw new CoreException(ErrorType.UNAUTHORIZED, "Refresh Token is Invalid or expired");
+    public UserToken refresh(String refreshToken, boolean rotateRefresh) {
+        Claims claims = refreshClaims(refreshToken);
+        Long accountId = ((Number) claims.get("accountId")).longValue();
+        String tokenId = claims.getId();
+        if (!refreshTokenRepository.exists(accountId, tokenId)) {
+            throw CoreException.of(ErrorType.UNAUTHORIZED);
         }
-        var currentUser = jwtUtil.getCurrentUserFromToken(refreshToken);
-        User user = userMapper.findUserById(currentUser.getUserId())
+        User user = userMapper.findUserById(claims.getSubject())
                 .orElseThrow(() -> CoreException.of(ErrorType.UNAUTHORIZED, "Invalid Token ID"));
+        if (!accountId.equals(user.getAccountId())) {
+            throw CoreException.of(ErrorType.UNAUTHORIZED);
+        }
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new CoreException(ErrorType.UNAUTHORIZED, "사용할 수 없는 계정입니다.");
         }
@@ -736,8 +753,45 @@ public class UserService {
 
         ensureSiteEnabled(user);
 
-        user.setAutoLogin(autoLogin);
-        return this.generateUserToken(user);
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Instant expiresAt = claims.getExpiration().toInstant();
+        if (rotateRefresh && !now.isBefore(claims.getIssuedAt().toInstant().plus(refreshRotationInterval))) {
+            String newId = UUID.randomUUID().toString();
+            Instant newExpiresAt = now.plusSeconds(refreshTokenExpiration);
+            UserToken token = buildUserToken(user, newId, now, newExpiresAt, null);
+            if (!refreshTokenRepository.rotate(accountId, tokenId, newId, newExpiresAt)) {
+                throw CoreException.of(ErrorType.UNAUTHORIZED);
+            }
+            return token;
+        }
+        return buildUserToken(user, tokenId, now, expiresAt, refreshToken);
+    }
+
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        try {
+            Claims claims = refreshClaims(refreshToken);
+            Long accountId = ((Number) claims.get("accountId")).longValue();
+            refreshTokenRepository.delete(accountId, claims.getId());
+        } catch (CoreException ignored) {
+            // Expired or invalid cookies cannot identify an active refresh token.
+        }
+    }
+
+    private Claims refreshClaims(String token) {
+        try {
+            Claims claims = jwtUtil.parseToken(token, "refresh");
+            if (!(claims.get("accountId") instanceof Number) || claims.getId() == null
+                    || claims.getId().isBlank() || claims.getIssuedAt() == null
+                    || claims.getExpiration() == null || claims.getSubject() == null) {
+                throw CoreException.of(ErrorType.UNAUTHORIZED);
+            }
+            return claims;
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw CoreException.of(ErrorType.UNAUTHORIZED);
+        }
     }
 
     private void ensureSiteEnabled(User user) {
@@ -892,13 +946,17 @@ public class UserService {
         }
     }
 
-    private void ensureRegistrationSiteEnabled(String siteId) {
-        siteMapper.findSiteById(SiteInfo.builder().siteId(siteId).build())
-                .filter(site -> Boolean.TRUE.equals(site.getSiteEnabled()))
-                .orElseThrow(() -> CoreException.of(ErrorType.SITE_NOT_FOUND, "잘못된 사이트 ID 입니다. " + siteId));
+    private UserToken generateUserToken(User user) {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Instant expiresAt = now.plusSeconds(refreshTokenExpiration);
+        String tokenId = UUID.randomUUID().toString();
+        UserToken token = buildUserToken(user, tokenId, now, expiresAt, null);
+        refreshTokenRepository.save(user.getAccountId(), tokenId, expiresAt);
+        return token;
     }
 
-    private UserToken generateUserToken(User user) {
+    private UserToken buildUserToken(User user, String tokenId, Instant now, Instant expiresAt,
+                                     String currentRefreshToken) {
         // 토큰 생성 전 명시적으로 민감정보는 삭제
         user.setPassword(null);
         user.setPasswordHash(null);
@@ -909,23 +967,28 @@ public class UserService {
         claims.put("userSiteId", user.resolveHomeSiteId());
         claims.put("userRole", user.getUserRole());
 
-        String accessToken =  jwtUtil.generateToken(user.getUserId(), claims, accessTokenExpiration);
-        String refreshToken = jwtUtil.generateToken(user.getUserId(), claims, refreshTokenExpiration);
-
-        var refreshCookieBuilder = ResponseCookie.from("refreshToken", refreshToken)
-                .httpOnly(true)
-                .path("/")
-                .sameSite("lax");
-        if (user.getAutoLogin()) {
-            refreshCookieBuilder.maxAge(Duration.ofSeconds(refreshTokenExpiration));
+        Instant accessExpiresAt = now.plusSeconds(accessTokenExpiration);
+        if (accessExpiresAt.isAfter(expiresAt)) {
+            accessExpiresAt = expiresAt;
         }
-        // autoLogin false -> 세션 쿠키 (브라우저 종료 시 삭제)
+        String accessToken = jwtUtil.generateToken(user.getUserId(), claims, "access", null, now, accessExpiresAt);
+        String refreshToken = currentRefreshToken == null
+                ? jwtUtil.generateToken(user.getUserId(), claims, "refresh", tokenId, now, expiresAt)
+                : currentRefreshToken;
+
+        var refreshCookie = currentRefreshToken == null ? ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(secureCookie)
+                .path("/")
+                .sameSite("lax")
+                .build() : null;
 
         return UserToken.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .refreshCookie(refreshCookieBuilder.build())
+                .refreshCookie(refreshCookie)
                 .tokenType("Bearer")
+                .refreshExpiresAt(expiresAt)
                 .build();
     }
 }
