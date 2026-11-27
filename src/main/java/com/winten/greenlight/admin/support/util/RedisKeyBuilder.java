@@ -114,4 +114,8 @@ public class RedisKeyBuilder {
     public String schedulerEnabled(String schedulerCode) {
         return prefix + ":scheduler:" + schedulerCode + ":enabled";
     }
+
+    public String refreshToken(Long accountId, String tokenId) {
+        return prefix + ":admin:users:{" + accountId + "}:tokens:" + tokenId;
+    }
 }

@@ -12,11 +12,14 @@ import org.postgresql.util.PSQLException;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +32,30 @@ public class ApiControllerAdvice {
 
     @ExceptionHandler(CoreException.class)
     public ResponseEntity<ErrorResponse> handleCoreException(CoreException ex) {
-        return ResponseEntity.status(ex.getErrorType().getStatus()).body(new ErrorResponse(ex));
+        HttpStatus status = ex.getErrorType().getStatus();
+        if (status.is5xxServerError()) {
+            if (ex.getDetail() instanceof Throwable cause) {
+                log.error("Internal error", cause);
+            } else {
+                log.error("Internal error: {}", ex.getDetail(), ex);
+            }
+            return internalError(status);
+        }
+        Object detail = ex.getDetail() instanceof Throwable ? null : ex.getDetail();
+        return ResponseEntity.status(status).body(new ErrorResponse(
+                status, ex.getErrorType().getMessage(), detail, LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                HttpStatus.BAD_REQUEST, "요청 값의 형식이 올바르지 않습니다.", null, LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                HttpStatus.BAD_REQUEST, "요청 본문의 형식이 올바르지 않습니다.", null, LocalDateTime.now()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -45,27 +71,20 @@ public class ApiControllerAdvice {
     @ExceptionHandler(PSQLException.class)
     public ResponseEntity<ErrorResponse> handlePSQLException(PSQLException ex) {
         log.error("Postgresql Error: {}", ex.getMessage(), ex);
-        var error = new ErrorResponse(ex);
-        return ResponseEntity.status(error.status()).body(error);
+        return internalError();
     }
 
     @ExceptionHandler(RedisCommandTimeoutException.class)
     public ResponseEntity<ErrorResponse> redisCommandTimeoutExceptionHandler(RedisCommandTimeoutException ex) {
         lettuceConnectionFactory.resetConnection();
-        throw CoreException.of(ErrorType.REDIS_ERROR, "redis command timeout 발생. 재연결 시도. 오류: " + ex.getMessage());
+        log.error("Redis command timed out", ex);
+        return internalError();
     }
 
     @ExceptionHandler(RedisCommandExecutionException.class)
     public ResponseEntity<ErrorResponse> redisCommandExecutionExceptionHandler(RedisCommandExecutionException ex) {
-        String message = ex.getMessage();
-
-        if (message != null && message.contains("CLUSTERDOWN")) {
-            // ClusterTopologyRefresh가 설정되어 있으면 자동 갱신됨
-            throw CoreException.of(ErrorType.REDIS_ERROR, "Redis Cluster Down 감지. 토폴로지 갱신 중. 오류: " + message);
-        }
-
-        // MOVED, ASK 등 다른 cluster 오류
-        throw CoreException.of(ErrorType.REDIS_ERROR, "Redis 실행 오류: " + message);
+        log.error("Redis command failed", ex);
+        return internalError();
     }
 
     @ExceptionHandler(NotModifiedException.class)
@@ -73,4 +92,25 @@ public class ApiControllerAdvice {
         return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception ex) {
+        if (ex instanceof org.springframework.web.ErrorResponse webError) {
+            HttpStatus status = HttpStatus.resolve(webError.getStatusCode().value());
+            if (status != null && status.is4xxClientError()) {
+                return ResponseEntity.status(status).headers(webError.getHeaders()).body(new ErrorResponse(
+                        status, "요청을 처리할 수 없습니다.", null, LocalDateTime.now()));
+            }
+        }
+        log.error("Unhandled API error", ex);
+        return internalError();
+    }
+
+    private ResponseEntity<ErrorResponse> internalError() {
+        return internalError(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private ResponseEntity<ErrorResponse> internalError(HttpStatus status) {
+        return ResponseEntity.status(status).body(new ErrorResponse(
+                status, "알 수 없는 오류가 발생했습니다.", null, LocalDateTime.now()));
+    }
 }

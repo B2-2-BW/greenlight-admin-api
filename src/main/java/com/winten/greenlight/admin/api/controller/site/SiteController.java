@@ -2,6 +2,10 @@ package com.winten.greenlight.admin.api.controller.site;
 
 import com.winten.greenlight.admin.domain.site.SiteConverter;
 import com.winten.greenlight.admin.domain.site.SiteService;
+import com.winten.greenlight.admin.domain.user.UserRole;
+import com.winten.greenlight.admin.support.error.CoreException;
+import com.winten.greenlight.admin.support.error.ErrorType;
+import com.winten.greenlight.admin.support.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +46,11 @@ public class SiteController {
 
     @GetMapping("{siteId}")
     public ResponseEntity<SiteResponse> findSiteById(@PathVariable String siteId) {
+        var currentUser = AuthUtil.getCurrentUser();
+        if (currentUser.getUserRole() != UserRole.SUPER
+                && (currentUser.getAccessibleSiteIds() == null || !currentUser.getAccessibleSiteIds().contains(siteId))) {
+            throw CoreException.of(ErrorType.FORBIDDEN, "권한이 없습니다.");
+        }
         var site = siteService.findSiteById(siteId);
         return ResponseEntity.ok(siteConverter.toResponse(site));
     }

@@ -37,7 +37,7 @@ spring:
           time-between-eviction-runs: 300000
   web:
     error:
-      include-message: always
+      include-message: never
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   type-aliases-package: com.winten.greenlight
@@ -86,9 +86,12 @@ operational-cache:
 
 jwt:
   secret: ${JWT_SECRET}
+  secure: true
   expiration:
-    access: 1800 # 30분
-    refresh: 1209600 # 14일
+    access: 180 # 3분
+    refresh: 28800 # 8시간
+  rotation-interval:
+    refresh: 30m
 
 admin:
   alert:

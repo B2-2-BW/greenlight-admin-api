@@ -1,7 +1,6 @@
 package com.winten.greenlight.admin.support.security;
 
 import tools.jackson.databind.json.JsonMapper;
-import com.winten.greenlight.admin.support.error.CoreException;
 import com.winten.greenlight.admin.support.error.ErrorResponse;
 import com.winten.greenlight.admin.support.error.ErrorType;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +11,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -26,8 +26,8 @@ public class CoreAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
         // 커스텀 에러 응답 생성
-        var exception = CoreException.of(ErrorType.UNAUTHORIZED, authException.getMessage());
-        var errorResponse = new ErrorResponse(exception);
+        var errorResponse = new ErrorResponse(ErrorType.UNAUTHORIZED.getStatus(),
+                ErrorType.UNAUTHORIZED.getMessage(), null, LocalDateTime.now());
 
         response.getWriter().write(jsonMapper.writeValueAsString(errorResponse));
     }
