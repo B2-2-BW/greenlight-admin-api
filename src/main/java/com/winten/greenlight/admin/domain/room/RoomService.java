@@ -19,8 +19,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -151,12 +154,62 @@ public class RoomService {
 
     @Transactional
     public Room updateRoom(Room room, String reason) {
-        var currentRoom = this.getRoomById(room.getRoomId()); // action group 존재여부 확인
-
-        // 본인 Site가 아닐 경우 수정하면 안되므로 검증로직 추가 (SUPER 권한 제외)
+        var currentRoom = this.getRoomById(room.getRoomId());
         AuthUtil.ensureCanUpdate(currentRoom.getSiteId());
         ensureSiteIsActive(currentRoom.getSiteId());
 
+        var updatedRoom = updateRoomAndAudit(room, currentRoom, reason);
+        roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(updatedRoom));
+        updateSiteEnabledRoomListCache(currentRoom.getSiteId());
+        roomCacheRepository.updateRoomMetaVersionToNow();
+        return updatedRoom;
+    }
+
+    @Transactional
+    public void bulkUpdateRooms(List<String> roomIds, Integer capacity, Integer maxTrafficPerSecond, Boolean enabled) {
+        if (capacity == null && maxTrafficPerSecond == null && enabled == null) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "변경할 대기열을 하나 이상 지정해 주세요.");
+        }
+        if (new HashSet<>(roomIds).size() != roomIds.size()) {
+            throw CoreException.of(ErrorType.INVALID_DATA, "중복된 대기열입니다.");
+        }
+
+        String siteId = AuthUtil.getCurrentUser().getUserSiteId();
+        AuthUtil.ensureCanUpdate(siteId);
+        ensureSiteIsActive(siteId);
+        var currentRooms = roomIds.stream().sorted().map(this::getRoomById).toList();
+        for (Room currentRoom : currentRooms) {
+            if (!siteId.equals(currentRoom.getSiteId())) {
+                throw CoreException.of(ErrorType.FORBIDDEN, "해당 사이트에 대한 수정 권한이 없습니다.");
+            }
+        }
+
+        var updatedRooms = currentRooms.stream().map(currentRoom -> updateRoomAndAudit(
+                Room.builder().roomId(currentRoom.getRoomId()).capacity(capacity)
+                        .maxTrafficPerSecond(maxTrafficPerSecond).enabled(enabled).build(),
+                currentRoom,
+                null
+        )).toList();
+        var activeRooms = roomConverter.toDto(roomMapper.findEnabledRoomsBySiteId(siteId));
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    for (Room updatedRoom : updatedRooms) {
+                        roomCacheRepository.updateRoomMetaCache(roomConverter.toEntity(updatedRoom));
+                    }
+                    siteCacheRepository.updateRoomListCache(siteId, activeRooms);
+                    roomCacheRepository.updateRoomMetaVersionToNow();
+                } catch (RuntimeException exception) {
+                    // OperationalCacheSync retries from the committed database state.
+                    log.error("Redis sync failed after bulk room update. siteId={} roomIds={}", siteId, roomIds, exception);
+                }
+            }
+        });
+    }
+
+    private Room updateRoomAndAudit(Room room, Room currentRoom, String reason) {
         roomMapper.updateRoomById(roomConverter.toEntity(room));
 
         // Rule 업데이트
@@ -186,13 +239,6 @@ public class RoomService {
                 auditedValues(updatedRoom),
                 AUDITED_ROOM_FIELDS
         );
-
-        // Redis put
-        var updatedRoomEntity = roomConverter.toEntity(updatedRoom);
-        roomCacheRepository.updateRoomMetaCache(updatedRoomEntity);
-
-        updateSiteEnabledRoomListCache(currentRoom.getSiteId());
-        roomCacheRepository.updateRoomMetaVersionToNow();
 
         return updatedRoom;
     }
